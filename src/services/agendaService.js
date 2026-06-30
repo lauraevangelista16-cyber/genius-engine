@@ -166,7 +166,13 @@ const abrirAtendimentoPorCliente = async (page, cliente, telefone) => {
         };
     }
 
-    await encontrados[0].evento.click();
+    await page.keyboard.press('Escape').catch(() => {});
+await page.waitForTimeout(500);
+
+await encontrados[0].evento.click({
+    force: true,
+    timeout: 10000
+});
     await page.waitForTimeout(1500);
 
     return {
