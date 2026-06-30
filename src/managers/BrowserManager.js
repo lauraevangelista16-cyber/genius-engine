@@ -22,8 +22,12 @@ class BrowserManager {
         Logger.info('Abrindo navegador...');
 
         const browser = await chromium.launch({
-            headless: false,
-            slowMo: 100
+            headless: true,
+            args: [
+                '--no-sandbox',
+                '--disable-setuid-sandbox',
+                '--disable-dev-shm-usage'
+            ]
         });
 
         const context = await browser.newContext({
@@ -69,7 +73,6 @@ class BrowserManager {
             await this.sessao.page.title();
 
             return true;
-
         } catch (erro) {
             return false;
         }
