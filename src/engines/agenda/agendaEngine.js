@@ -9,7 +9,7 @@ const {
     abrirBrowser
 } = require('../../utils/browser');
 
-const CommandValidator = require('../../validators/CommandValidator');
+const CommandValidator = require('../../validators/commandValidator');
 
 class AgendaEngine {
 
