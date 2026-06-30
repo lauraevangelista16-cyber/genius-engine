@@ -69,7 +69,6 @@ const abrirHorario = async (page, horario) => {
 const selecionarServico = async (page, servico) => {
     await page.waitForTimeout(2000);
 
-    // Fecha avisos/toasts que possam estar por cima
     await page.keyboard.press('Escape').catch(() => {});
     await page.waitForTimeout(800);
 
@@ -97,13 +96,14 @@ const selecionarServico = async (page, servico) => {
     }
 
     await campoServico.click({ force: true });
+    await campoServico.fill('');
     await campoServico.fill(servico);
 
     await page.waitForTimeout(1500);
 
-    const opcao = page.getByText(servico, { exact: false }).last();
-
-    await opcao.click({ force: true, timeout: 10000 });
+    await page.keyboard.press('ArrowDown').catch(() => {});
+    await page.waitForTimeout(500);
+    await page.keyboard.press('Enter').catch(() => {});
 
     await page.waitForTimeout(1000);
 };
