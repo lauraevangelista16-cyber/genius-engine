@@ -67,15 +67,41 @@ const abrirHorario = async (page, horario) => {
 };
 
 const selecionarServico = async (page, servico) => {
-    const campoServico = page.getByRole('textbox', {
-        name: 'Digite para buscar ou'
-    });
+
+    await page.waitForTimeout(1500);
+
+    const campos = page.getByRole('textbox');
+    const total = await campos.count();
+
+    let campoServico = null;
+
+    for (let i = 0; i < total; i++) {
+
+        const campo = campos.nth(i);
+
+        const visivel = await campo.isVisible().catch(() => false);
+        const habilitado = await campo.isEnabled().catch(() => false);
+
+        if (visivel && habilitado) {
+            campoServico = campo;
+            break;
+        }
+    }
+
+    if (!campoServico) {
+        throw new Error('Campo de serviço não encontrado.');
+    }
 
     await campoServico.click();
     await campoServico.fill(servico);
-    await page.waitForTimeout(1000);
 
-    await page.getByText(servico, { exact: false }).last().click();
+    await page.waitForTimeout(1200);
+
+    const opcao = page.getByText(servico, { exact: false }).last();
+
+    await opcao.click({ timeout: 10000 });
+
+    await page.waitForTimeout(1000);
 };
 
 const salvarAgendamento = async (page) => {
