@@ -110,11 +110,15 @@ const selecionarServico = async (page, servico) => {
 
 const salvarAgendamento = async (page) => {
     await page.getByRole('button', { name: /salvar/i }).click();
-    await page.waitForTimeout(2000);
+    await page.waitForTimeout(2500);
+
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await page.waitForTimeout(5000);
 };
 
 const listarAtendimentosDoDia = async (page) => {
-    await page.waitForTimeout(5000);
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await page.waitForTimeout(6000);
 
     const eventos = page.locator('.fc-time-grid-event');
     const total = await eventos.count();
@@ -130,7 +134,8 @@ const listarAtendimentosDoDia = async (page) => {
 };
 
 const abrirAtendimentoPorCliente = async (page, cliente, telefone) => {
-    await page.waitForTimeout(5000);
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await page.waitForTimeout(6000);
 
     const eventos = page.locator('.fc-time-grid-event');
     const total = await eventos.count();
@@ -167,12 +172,13 @@ const abrirAtendimentoPorCliente = async (page, cliente, telefone) => {
     }
 
     await page.keyboard.press('Escape').catch(() => {});
-await page.waitForTimeout(500);
+    await page.waitForTimeout(500);
 
-await encontrados[0].evento.click({
-    force: true,
-    timeout: 10000
-});
+    await encontrados[0].evento.click({
+        force: true,
+        timeout: 10000
+    });
+
     await page.waitForTimeout(1500);
 
     return {
@@ -212,7 +218,8 @@ function extrairDadosDoTextoAtendimento(texto) {
 }
 
 const consultarAtendimentoPorCliente = async (page, cliente, telefone) => {
-    await page.waitForTimeout(5000);
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await page.waitForTimeout(6000);
 
     const eventos = page.locator('.fc-time-grid-event');
     const total = await eventos.count();
@@ -260,6 +267,9 @@ const deletarAgendamento = async (page) => {
     await page.getByText('SIM', { exact: false }).click();
 
     await page.waitForTimeout(3000);
+
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await page.waitForTimeout(5000);
 };
 
 const alterarHorarioAgendamento = async (page, novoHorario) => {
@@ -298,6 +308,9 @@ const alterarHorarioAgendamento = async (page, novoHorario) => {
     await page.getByRole('button', { name: /salvar/i }).click();
 
     await page.waitForTimeout(3000);
+
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await page.waitForTimeout(5000);
 };
 
 module.exports = {
