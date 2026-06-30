@@ -69,9 +69,13 @@ const abrirHorario = async (page, horario) => {
 const selecionarServico = async (page, servico) => {
     await page.waitForTimeout(2000);
 
+    // Fecha avisos/toasts que possam estar por cima
+    await page.keyboard.press('Escape').catch(() => {});
+    await page.waitForTimeout(800);
+
     const candidatos = [
-        page.getByPlaceholder(/buscar/i),
         page.getByPlaceholder(/servi/i),
+        page.getByPlaceholder(/buscar/i),
         page.locator('input').last(),
         page.locator('textarea').last()
     ];
@@ -92,13 +96,14 @@ const selecionarServico = async (page, servico) => {
         throw new Error('Campo de serviço não encontrado.');
     }
 
-    await campoServico.click();
+    await campoServico.click({ force: true });
     await campoServico.fill(servico);
+
     await page.waitForTimeout(1500);
 
-    await page.getByText(servico, { exact: false }).last().click({
-        timeout: 10000
-    });
+    const opcao = page.getByText(servico, { exact: false }).last();
+
+    await opcao.click({ force: true, timeout: 10000 });
 
     await page.waitForTimeout(1000);
 };
