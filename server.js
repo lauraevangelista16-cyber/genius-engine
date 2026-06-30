@@ -2,6 +2,7 @@ const express = require('express');
 
 const Kernel = require('./src/core/Kernel');
 const AgendaEngine = require('./src/engines/agenda/agendaEngine');
+const AgendaOrchestrator = require('./src/orchestrators/orchestrators');
 const ErrorHandler = require('./src/core/ErrorHandler');
 
 Kernel.registrar('agenda', AgendaEngine);
@@ -14,7 +15,11 @@ app.post('/agenda', async (req, res) => {
     try {
         const { action, dados } = req.body;
 
-        const resposta = await Kernel.execute('agenda', action, dados || {});
+        const resposta = await AgendaOrchestrator.executar(action, dados || {});
+
+        if (resposta.success === false) {
+            return res.status(400).json(resposta);
+        }
 
         return res.json(resposta);
 
