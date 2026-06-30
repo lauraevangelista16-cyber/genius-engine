@@ -1,11 +1,15 @@
 const Kernel = require('../core/Kernel');
+const AgendaResponder = require('../responders/AgendaResponder');
 
 class AgendaOrchestrator {
     async executar(action, dados = {}) {
         const acao = String(action || '').toLowerCase().trim();
 
         if (!acao) {
-            return this.erro('ACAO_OBRIGATORIA', 'Informe o que deseja fazer: criar, consultar, alterar, cancelar ou horarios.');
+            return this.erro(
+                'ACAO_OBRIGATORIA',
+                'Informe o que deseja fazer: criar, consultar, alterar, cancelar ou horarios.'
+            );
         }
 
         const validacao = this.validar(acao, dados);
@@ -14,7 +18,9 @@ class AgendaOrchestrator {
             return this.erro('DADOS_INCOMPLETOS', validacao.mensagem, validacao.campo);
         }
 
-        return await Kernel.execute('agenda', acao, dados);
+        const resultadoEngine = await Kernel.execute('agenda', acao, dados);
+
+        return AgendaResponder.responder(resultadoEngine);
     }
 
     validar(action, dados) {
@@ -67,6 +73,7 @@ class AgendaOrchestrator {
 
     erro(status, mensagem, campo = null) {
         return {
+            ok: false,
             success: false,
             status,
             campo,
