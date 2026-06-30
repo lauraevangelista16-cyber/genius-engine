@@ -67,23 +67,23 @@ const abrirHorario = async (page, horario) => {
 };
 
 const selecionarServico = async (page, servico) => {
+    await page.waitForTimeout(2000);
 
-    await page.waitForTimeout(1500);
-
-    const campos = page.getByRole('textbox');
-    const total = await campos.count();
+    const candidatos = [
+        page.getByPlaceholder(/buscar/i),
+        page.getByPlaceholder(/servi/i),
+        page.locator('input').last(),
+        page.locator('textarea').last()
+    ];
 
     let campoServico = null;
 
-    for (let i = 0; i < total; i++) {
-
-        const campo = campos.nth(i);
-
-        const visivel = await campo.isVisible().catch(() => false);
-        const habilitado = await campo.isEnabled().catch(() => false);
+    for (const candidato of candidatos) {
+        const visivel = await candidato.isVisible().catch(() => false);
+        const habilitado = await candidato.isEnabled().catch(() => false);
 
         if (visivel && habilitado) {
-            campoServico = campo;
+            campoServico = candidato;
             break;
         }
     }
@@ -94,12 +94,11 @@ const selecionarServico = async (page, servico) => {
 
     await campoServico.click();
     await campoServico.fill(servico);
+    await page.waitForTimeout(1500);
 
-    await page.waitForTimeout(1200);
-
-    const opcao = page.getByText(servico, { exact: false }).last();
-
-    await opcao.click({ timeout: 10000 });
+    await page.getByText(servico, { exact: false }).last().click({
+        timeout: 10000
+    });
 
     await page.waitForTimeout(1000);
 };
