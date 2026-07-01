@@ -76,32 +76,42 @@ const abrirHorario = async (page, horario) => {
 
 const selecionarServico = async (page, servico) => {
     await Debugger.step(page, '008-inicio-selecionar-servico');
-await page.screenshot({ path: 'servico.png', fullPage: true });
-    await page.waitForTimeout(1200);
 
-    const areaServico = page.getByText('Serviços', { exact: false }).last();
-
-    await areaServico.click({
-        force: true,
-        timeout: 5000
-    });
-
-    await Debugger.step(page, '009-click-area-servicos');
-console.log(await page.locator('body').innerText());
     await page.waitForTimeout(1000);
 
-    const opcaoServico = page
-        .getByText(new RegExp(servico, 'i'))
-        .last();
+    const campoServico = page.locator('#downshift-1-input');
 
-    await opcaoServico.click({
-        force: true,
-        timeout: 5000
+    await campoServico.waitFor({
+        state: 'visible',
+        timeout: 10000
     });
 
-    await Debugger.step(page, '010-servico-clicado');
+    await campoServico.click({ force: true });
+    await campoServico.fill('');
+    await campoServico.fill(servico);
+
+    await Debugger.step(page, '009-servico-digitado');
 
     await page.waitForTimeout(1500);
+
+    const opcaoServico = page
+        .locator('[id^="downshift-1-item"], li, [role="option"]')
+        .filter({ hasText: new RegExp(servico, 'i') })
+        .first();
+
+    const totalOpcoes = await opcaoServico.count();
+
+    if (totalOpcoes > 0) {
+        await opcaoServico.click({ force: true, timeout: 5000 });
+    } else {
+        await page.keyboard.press('ArrowDown').catch(() => {});
+        await page.waitForTimeout(500);
+        await page.keyboard.press('Enter').catch(() => {});
+    }
+
+    await page.waitForTimeout(2000);
+
+    await Debugger.step(page, '010-servico-selecionado');
 
     const textoTela = await page.locator('body').innerText().catch(() => '');
 
