@@ -1,3 +1,4 @@
+const Debugger = require('../core/Debugger');
 function diasEntre(dataAlvo) {
     const hoje = new Date();
     hoje.setHours(0, 0, 0, 0);
