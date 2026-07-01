@@ -22,8 +22,7 @@ class BrowserManager {
         Logger.info('Abrindo navegador...');
 
         const browser = await chromium.launch({
-            headless: false,
-slowMo: 500,
+            headless: true,
             args: [
                 '--no-sandbox',
                 '--disable-setuid-sandbox',
