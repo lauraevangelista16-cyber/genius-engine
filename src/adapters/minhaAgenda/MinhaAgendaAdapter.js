@@ -88,7 +88,11 @@ class MinhaAgendaAdapter {
 
         await Debugger.step(page, 'A007-servico-selecionado');
 
-        await salvarAgendamento(page);
+        const resultadoSalvar = await salvarAgendamento(page);
+
+if (resultadoSalvar.status !== 'SALVO') {
+    return resultadoSalvar;
+}
 
         await Debugger.step(page, 'A008-agendamento-salvo');
 

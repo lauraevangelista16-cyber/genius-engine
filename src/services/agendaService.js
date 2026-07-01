@@ -144,48 +144,56 @@ const salvarAgendamento = async (page) => {
     const total = await botoesSalvar.count();
 
     if (total === 0) {
-        await Debugger.step(page, '014-botao-salvar-nao-encontrado');
-        throw new Error('Botão Salvar não encontrado.');
+        return {
+            status: 'ERRO_INTERNO',
+            mensagem: 'Botão Salvar não encontrado.'
+        };
     }
 
     const botaoSalvar = botoesSalvar.nth(total - 1);
 
     await botaoSalvar.scrollIntoViewIfNeeded().catch(() => {});
-    const invalidos = await page.locator(':invalid').evaluateAll(el =>
-    el.map(e => ({
-        tag: e.tagName,
-        name: e.name,
-        id: e.id,
-        value: e.value,
-        required: e.required
-    }))
-);
-
-console.log('INVALIDOS', invalidos);
     await botaoSalvar.click({ force: true, timeout: 10000 });
 
     await page.waitForTimeout(4000);
 
-    await Debugger.step(page, '015-depois-click-salvar');
+    await Debugger.step(page, '014-depois-click-salvar');
+
+    const textoTela = await page.locator('body').innerText().catch(() => '');
 
     const modalAindaAberto = await page
         .getByText('Criando Atendimento', { exact: false })
         .isVisible()
         .catch(() => false);
 
-    if (modalAindaAberto) {
-        await Debugger.step(page, '016-modal-continuou-aberto');
-
-        const textoTela = await page.locator('body').innerText().catch(() => '');
-
-        throw new Error(
-            `O sistema clicou em Salvar, mas o modal continuou aberto. Texto da tela: ${textoTela}`
-        );
+    if (textoTela.includes('Já existe atendimento')) {
+        return {
+            status: 'HORARIO_OCUPADO',
+            mensagem: 'Esse horário já está ocupado.'
+        };
     }
 
-    await Debugger.step(page, '017-modal-fechou-agendamento-salvo');
+    if (textoTela.includes('Preencha esse campo para continuar')) {
+        return {
+            status: 'DADOS_INCOMPLETOS',
+            mensagem: 'Existe um campo obrigatório não preenchido no Minha Agenda.',
+            detalhe: textoTela
+        };
+    }
 
-    await page.waitForTimeout(3000);
+    if (modalAindaAberto) {
+        return {
+            status: 'ERRO_INTERNO',
+            mensagem: 'O sistema clicou em Salvar, mas o modal continuou aberto.',
+            detalhe: textoTela
+        };
+    }
+
+    await Debugger.step(page, '015-agendamento-salvo');
+
+    return {
+        status: 'SALVO'
+    };
 };
 
 const listarAtendimentosDoDia = async (page) => {
