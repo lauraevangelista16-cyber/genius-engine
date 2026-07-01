@@ -4,25 +4,28 @@ async function selecionarCliente(page, cliente) {
     await Debugger.step(page, 'C001-selecionar-cliente-inicio');
 
     const campoCliente = page.getByRole('textbox', {
-        name: 'Cliente'
+        name: /cliente/i
     });
 
-    await campoCliente.click();
+    await campoCliente.click({ force: true });
+    await campoCliente.fill('');
     await campoCliente.fill(cliente);
 
     await Debugger.step(page, 'C002-cliente-digitado');
 
-    await page.waitForTimeout(1200);
+    await page.waitForTimeout(1500);
 
-    const opcoes = page.getByText(cliente, { exact: false });
-    const total = await opcoes.count();
+    await page.keyboard.press('ArrowDown');
+    await page.waitForTimeout(500);
+    await page.keyboard.press('Enter');
 
-    await Debugger.step(page, `C003-opcoes-cliente-${total}`);
+    await page.waitForTimeout(1500);
 
-    if (total > 0) {
-        await opcoes.last().click();
-        await page.waitForTimeout(800);
+    await Debugger.step(page, 'C003-cliente-enter-confirmado');
 
+    const textoTela = await page.locator('body').innerText().catch(() => '');
+
+    if (textoTela.toLowerCase().includes(cliente.toLowerCase())) {
         await Debugger.step(page, 'C004-cliente-selecionado');
 
         return {
@@ -30,7 +33,7 @@ async function selecionarCliente(page, cliente) {
         };
     }
 
-    await Debugger.step(page, 'C005-cliente-nao-encontrado');
+    await Debugger.step(page, 'C005-cliente-nao-confirmado');
 
     return {
         status: 'CLIENTE_NAO_ENCONTRADO'
