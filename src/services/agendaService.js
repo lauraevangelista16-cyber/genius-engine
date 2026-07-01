@@ -128,11 +128,41 @@ const selecionarServico = async (page, servico) => {
 const salvarAgendamento = async (page) => {
     await Debugger.step(page, '013-antes-salvar-agendamento');
 
-    await page.getByRole('button', { name: /salvar/i }).click();
+    const botoesSalvar = page.getByRole('button', { name: /^salvar$/i });
+    const total = await botoesSalvar.count();
+
+    if (total === 0) {
+        await Debugger.step(page, '014-botao-salvar-nao-encontrado');
+        throw new Error('Botão Salvar não encontrado.');
+    }
+
+    const botaoSalvar = botoesSalvar.nth(total - 1);
+
+    await botaoSalvar.scrollIntoViewIfNeeded().catch(() => {});
+    await botaoSalvar.click({ force: true, timeout: 10000 });
+
+    await page.waitForTimeout(4000);
+
+    await Debugger.step(page, '015-depois-click-salvar');
+
+    const modalAindaAberto = await page
+        .getByText('Criando Atendimento', { exact: false })
+        .isVisible()
+        .catch(() => false);
+
+    if (modalAindaAberto) {
+        await Debugger.step(page, '016-modal-continuou-aberto');
+
+        const textoTela = await page.locator('body').innerText().catch(() => '');
+
+        throw new Error(
+            `O sistema clicou em Salvar, mas o modal continuou aberto. Texto da tela: ${textoTela}`
+        );
+    }
+
+    await Debugger.step(page, '017-modal-fechou-agendamento-salvo');
 
     await page.waitForTimeout(3000);
-
-    await Debugger.step(page, '014-depois-salvar-agendamento');
 };
 
 const listarAtendimentosDoDia = async (page) => {
