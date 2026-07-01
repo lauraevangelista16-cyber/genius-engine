@@ -1,28 +1,16 @@
-const normalizarData = (entrada) => {
-    if (!entrada) return null;
+function diasEntre(dataAlvo) {
+    const hoje = new Date();
+    hoje.setHours(0, 0, 0, 0);
 
-    if (typeof entrada === 'string') {
-        return entrada.trim();
-    }
+    const alvo = new Date(`${dataAlvo}T00:00:00`);
+    alvo.setHours(0, 0, 0, 0);
 
-    if (typeof entrada === 'object') {
-        return (
-            entrada.data ||
-            entrada.date ||
-            entrada?.dados?.data ||
-            entrada?.dados?.date ||
-            null
-        );
-    }
+    return Math.round((alvo - hoje) / (1000 * 60 * 60 * 24));
+}
 
-    return null;
-};
-
-const irParaData = async (page, dataRecebida) => {
-    const data = normalizarData(dataRecebida);
-
+const irParaData = async (page, data) => {
     if (!data) {
-        throw new Error(`Data obrigatória para navegar na agenda. Valor recebido: ${JSON.stringify(dataRecebida)}`);
+        throw new Error('Data obrigatória para navegar na agenda.');
     }
 
     await page.goto('https://portal.minhaagendaapp.com.br/agenda', {
@@ -32,35 +20,29 @@ const irParaData = async (page, dataRecebida) => {
 
     await page.waitForTimeout(5000);
 
-    const navegou = await page.evaluate((dataAlvo) => {
-        if (!window.$) {
-            return false;
-        }
+    const diferenca = diasEntre(data);
 
-        const elementos = window.$('.fc');
-
-        for (let i = 0; i < elementos.length; i++) {
-            const el = window.$(elementos[i]);
-
-            try {
-                el.fullCalendar('gotoDate', dataAlvo);
-                return true;
-            } catch (erro) {}
-        }
-
-        return false;
-    }, data);
-
-    await page.waitForTimeout(5000);
-
-    if (!navegou) {
-        throw new Error(`Não foi possível navegar para a data ${data}.`);
+    if (diferenca === 0) {
+        await page.waitForTimeout(2000);
+        return;
     }
 
-    return {
-        status: 'DATA_SELECIONADA',
-        data
-    };
+    const seletorBotao = diferenca > 0
+        ? '.fc-next-button'
+        : '.fc-prev-button';
+
+    const quantidadeCliques = Math.abs(diferenca);
+
+    for (let i = 0; i < quantidadeCliques; i++) {
+        await page.locator(seletorBotao).click({
+            force: true,
+            timeout: 10000
+        });
+
+        await page.waitForTimeout(1200);
+    }
+
+    await page.waitForTimeout(3000);
 };
 
 module.exports = {
