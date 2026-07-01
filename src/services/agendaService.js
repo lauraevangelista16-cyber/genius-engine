@@ -76,7 +76,7 @@ const abrirHorario = async (page, horario) => {
 
 const selecionarServico = async (page, servico) => {
     await Debugger.step(page, '008-inicio-selecionar-servico');
-
+await page.screenshot({ path: 'servico.png', fullPage: true });
     await page.waitForTimeout(1200);
 
     const areaServico = page.getByText('Serviços', { exact: false }).last();
@@ -87,7 +87,7 @@ const selecionarServico = async (page, servico) => {
     });
 
     await Debugger.step(page, '009-click-area-servicos');
-
+console.log(await page.locator('body').innerText());
     await page.waitForTimeout(1000);
 
     const opcaoServico = page
