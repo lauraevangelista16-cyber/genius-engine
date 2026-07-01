@@ -29,9 +29,7 @@ async function obterPage(pageRecebida) {
 
 function normalizarDados(dados) {
     if (!dados) return {};
-
     if (dados.dados) return dados.dados;
-
     return dados;
 }
 
@@ -39,7 +37,6 @@ class MinhaAgendaAdapter {
 
     async listarAtendimentos(dados = {}, pageRecebida) {
         const dadosNormalizados = normalizarDados(dados);
-
         const { page } = await obterPage(pageRecebida);
 
         await irParaData(page, dadosNormalizados.data);
@@ -49,7 +46,6 @@ class MinhaAgendaAdapter {
 
     async criarAgendamento(dados, pageRecebida) {
         const dadosNormalizados = normalizarDados(dados);
-
         const { page } = await obterPage(pageRecebida);
 
         await irParaData(page, dadosNormalizados.data);
@@ -78,15 +74,30 @@ class MinhaAgendaAdapter {
         await selecionarServico(page, dadosNormalizados.servico);
         await salvarAgendamento(page);
 
+        await irParaData(page, dadosNormalizados.data);
+
+        const confirmacao = await consultarAtendimentoPorCliente(
+            page,
+            dadosNormalizados.cliente,
+            dadosNormalizados.telefone
+        );
+
+        if (!confirmacao.encontrado) {
+            return {
+                status: 'AGENDAMENTO_NAO_CONFIRMADO',
+                mensagem: 'O sistema tentou criar o agendamento, mas ele não apareceu na agenda. Não vou confirmar como criado.'
+            };
+        }
+
         return {
             status: 'AGENDAMENTO_CRIADO',
-            mensagem: 'Agendamento criado com sucesso.'
+            mensagem: 'Agendamento criado com sucesso.',
+            atendimento: confirmacao
         };
     }
 
     async consultarAgendamento(dados, pageRecebida) {
         const dadosNormalizados = normalizarDados(dados);
-
         const { page } = await obterPage(pageRecebida);
 
         await irParaData(page, dadosNormalizados.data);
@@ -119,7 +130,6 @@ class MinhaAgendaAdapter {
 
     async cancelarAgendamento(dados, pageRecebida) {
         const dadosNormalizados = normalizarDados(dados);
-
         const { page } = await obterPage(pageRecebida);
 
         await irParaData(page, dadosNormalizados.data);
@@ -154,7 +164,6 @@ class MinhaAgendaAdapter {
 
     async alterarAgendamento(dados, pageRecebida) {
         const dadosNormalizados = normalizarDados(dados);
-
         const { page } = await obterPage(pageRecebida);
 
         await irParaData(page, dadosNormalizados.data);
