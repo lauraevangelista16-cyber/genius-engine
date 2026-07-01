@@ -1,13 +1,27 @@
 class AgendaResponder {
 
-    responder(resultado) {
+    responder(resultado = {}) {
 
         switch (resultado.status) {
+
+            case 'HORARIOS_CONSULTADOS':
+                return {
+                    ok: true,
+                    mensagem: 'Horários consultados com sucesso.',
+                    dados: resultado
+                };
 
             case 'HORARIOS_ENCONTRADOS':
                 return {
                     ok: true,
-                    mensagem: resultado.mensagem,
+                    mensagem: resultado.mensagem || 'Horários encontrados.',
+                    dados: resultado
+                };
+
+            case 'HORARIO_OCUPADO':
+                return {
+                    ok: false,
+                    mensagem: resultado.mensagem || 'Esse horário já está ocupado.',
                     dados: resultado
                 };
 
@@ -15,6 +29,13 @@ class AgendaResponder {
                 return {
                     ok: true,
                     mensagem: 'Perfeito! Seu agendamento foi realizado com sucesso.',
+                    dados: resultado
+                };
+
+            case 'AGENDAMENTO_NAO_CONFIRMADO':
+                return {
+                    ok: false,
+                    mensagem: resultado.mensagem || 'O agendamento não foi confirmado na agenda.',
                     dados: resultado
                 };
 
@@ -53,17 +74,21 @@ class AgendaResponder {
                     dados: resultado
                 };
 
-            default:
+            case 'DADOS_INCOMPLETOS':
                 return {
                     ok: false,
-                    mensagem: resultado.mensagem || 'Erro interno.',
+                    mensagem: resultado.mensagem || 'Dados incompletos.',
                     dados: resultado
                 };
 
+            default:
+                return {
+                    ok: false,
+                    mensagem: resultado.mensagem || `Status não tratado: ${resultado.status || 'SEM_STATUS'}`,
+                    dados: resultado
+                };
         }
-
     }
-
 }
 
 module.exports = new AgendaResponder();
