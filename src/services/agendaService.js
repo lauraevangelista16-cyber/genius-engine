@@ -37,22 +37,22 @@ const abrirHorario = async (page, horario) => {
         await page.waitForTimeout(3000);
 
         const horarioLimpo = String(horario).replace(/^0/, '');
-
         const linhaHorario = page.locator(`tr[data-time="${horarioLimpo}"]`);
         const total = await linhaHorario.count();
 
         await Debugger.step(page, `002-linha-horario-${horarioLimpo}-${total}`);
 
-        if (total === 0) {
-            return 'HORARIO_OCUPADO';
-        }
+        if (total === 0) return 'HORARIO_OCUPADO';
 
-        const celulaAgenda = linhaHorario.last().locator('td.fc-day-cell').last();
+        const celula = linhaHorario.last().locator('td.fc-day-cell').last();
+        const box = await celula.boundingBox();
 
-        await celulaAgenda.click({
-            force: true,
-            timeout: 10000
-        });
+        if (!box) return 'HORARIO_OCUPADO';
+
+        await page.mouse.click(
+            box.x + box.width / 2,
+            box.y + box.height / 2
+        );
 
         await page.waitForTimeout(1500);
 
@@ -61,11 +61,21 @@ const abrirHorario = async (page, horario) => {
             .isVisible()
             .catch(() => false);
 
-        await Debugger.step(page, `003-modal-criando-${abriu}`);
+        if (!abriu) return 'HORARIO_OCUPADO';
 
-        if (abriu) return 'HORARIO_LIVRE';
+        // garante que o horário dentro do modal fique exatamente igual ao pedido
+        const campoHora = page.locator('input[name="startTime"]');
 
-        return 'HORARIO_OCUPADO';
+        await campoHora.waitFor({ state: 'visible', timeout: 10000 });
+        await campoHora.click({ force: true });
+        await campoHora.fill('');
+        await campoHora.fill(horario);
+
+        await page.waitForTimeout(500);
+
+        await Debugger.step(page, `003-horario-modal-ajustado-${horario}`);
+
+        return 'HORARIO_LIVRE';
 
     } catch (erro) {
         await Debugger.step(page, '004-erro-geral-abrir-horario');
