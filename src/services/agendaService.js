@@ -63,7 +63,6 @@ const abrirHorario = async (page, horario) => {
 
         if (!abriu) return 'HORARIO_OCUPADO';
 
-        // garante que o horário dentro do modal fique exatamente igual ao pedido
         const campoHora = page.locator('input[name="startTime"]');
 
         await campoHora.waitFor({ state: 'visible', timeout: 10000 });
@@ -194,7 +193,7 @@ const salvarAgendamento = async (page) => {
 const listarAtendimentosDoDia = async (page) => {
     await Debugger.step(page, '015-inicio-listar-atendimentos');
 
-    await page.waitForTimeout(6000);
+    await page.waitForTimeout(4000);
 
     const eventos = page.locator('.fc-time-grid-event, .fc-event, .fc-timegrid-event');
     const total = await eventos.count();
@@ -204,8 +203,16 @@ const listarAtendimentosDoDia = async (page) => {
     const atendimentos = [];
 
     for (let i = 0; i < total; i++) {
-        const texto = await eventos.nth(i).innerText();
-        atendimentos.push(texto);
+        const evento = eventos.nth(i);
+        const visivel = await evento.isVisible().catch(() => false);
+
+        if (!visivel) continue;
+
+        const texto = await evento.innerText().catch(() => '');
+
+        if (texto.trim()) {
+            atendimentos.push(texto);
+        }
     }
 
     return atendimentos;
@@ -214,7 +221,7 @@ const listarAtendimentosDoDia = async (page) => {
 const abrirAtendimentoPorCliente = async (page, cliente, telefone) => {
     await Debugger.step(page, '017-inicio-abrir-atendimento');
 
-    await page.waitForTimeout(6000);
+    await page.waitForTimeout(4000);
 
     const eventos = page.locator('.fc-time-grid-event, .fc-event, .fc-timegrid-event');
     const total = await eventos.count();
@@ -225,9 +232,11 @@ const abrirAtendimentoPorCliente = async (page, cliente, telefone) => {
 
     for (let i = 0; i < total; i++) {
         const evento = eventos.nth(i);
-        const texto = await evento.innerText();
+        const visivel = await evento.isVisible().catch(() => false);
 
-        console.log(`[EVENTO ${i}]`, texto);
+        if (!visivel) continue;
+
+        const texto = await evento.innerText().catch(() => '');
 
         if (atendimentoCombina(texto, cliente, telefone)) {
             encontrados.push({
@@ -307,7 +316,7 @@ function extrairDadosDoTextoAtendimento(texto) {
 const consultarAtendimentoPorCliente = async (page, cliente, telefone) => {
     await Debugger.step(page, '021-inicio-consultar-atendimento');
 
-    await page.waitForTimeout(6000);
+    await page.waitForTimeout(4000);
 
     const eventos = page.locator('.fc-time-grid-event, .fc-event, .fc-timegrid-event');
     const total = await eventos.count();
@@ -317,9 +326,12 @@ const consultarAtendimentoPorCliente = async (page, cliente, telefone) => {
     const encontrados = [];
 
     for (let i = 0; i < total; i++) {
-        const texto = await eventos.nth(i).innerText();
+        const evento = eventos.nth(i);
+        const visivel = await evento.isVisible().catch(() => false);
 
-        console.log(`[CONSULTA EVENTO ${i}]`, texto);
+        if (!visivel) continue;
+
+        const texto = await evento.innerText().catch(() => '');
 
         if (atendimentoCombina(texto, cliente, telefone)) {
             encontrados.push(extrairDadosDoTextoAtendimento(texto));
@@ -356,15 +368,21 @@ const deletarAgendamento = async (page) => {
 
     await page.waitForTimeout(1500);
 
-    await page.getByText('DELETAR', { exact: false }).click();
+    await page.getByText('DELETAR', { exact: false }).click({
+        force: true,
+        timeout: 10000
+    });
 
     await Debugger.step(page, '025-clicou-deletar');
 
     await page.waitForTimeout(1000);
 
-    await page.getByText('SIM', { exact: false }).click();
+    await page.getByText('SIM', { exact: false }).click({
+        force: true,
+        timeout: 10000
+    });
 
-    await page.waitForTimeout(3000);
+    await page.waitForTimeout(4000);
 
     await Debugger.step(page, '026-deletado');
 };
@@ -374,45 +392,38 @@ const alterarHorarioAgendamento = async (page, novoHorario) => {
 
     await page.waitForTimeout(1000);
 
-    await page.getByText('EDITAR', { exact: false }).click();
+    await page.getByText('EDITAR', { exact: false }).click({
+        force: true,
+        timeout: 10000
+    });
 
     await page.waitForTimeout(2000);
 
     await Debugger.step(page, '028-tela-editar-aberta');
 
-    const inputs = page.locator('input');
-    const total = await inputs.count();
+    const campoHora = page.locator('input[name="startTime"]');
 
-    let campoHora = null;
+    await campoHora.waitFor({
+        state: 'visible',
+        timeout: 10000
+    });
 
-    for (let i = 0; i < total; i++) {
-        const input = inputs.nth(i);
-        const valor = await input.inputValue().catch(() => '');
-
-        if (/^\d{2}:\d{2}$/.test(valor)) {
-            campoHora = input;
-            break;
-        }
-    }
-
-    if (!campoHora) {
-        await Debugger.step(page, '029-campo-horario-nao-encontrado');
-        throw new Error('Campo de horário não encontrado.');
-    }
-
-    await campoHora.click();
+    await campoHora.click({ force: true });
     await campoHora.fill('');
     await campoHora.fill(novoHorario);
 
     await page.waitForTimeout(800);
 
-    await Debugger.step(page, '030-horario-alterado');
+    await Debugger.step(page, '029-horario-alterado');
 
-    await page.getByRole('button', { name: /salvar/i }).click();
+    await page.getByRole('button', { name: /^salvar$/i }).click({
+        force: true,
+        timeout: 10000
+    });
 
-    await page.waitForTimeout(3000);
+    await page.waitForTimeout(4000);
 
-    await Debugger.step(page, '031-alteracao-salva');
+    await Debugger.step(page, '030-alteracao-salva');
 };
 
 module.exports = {

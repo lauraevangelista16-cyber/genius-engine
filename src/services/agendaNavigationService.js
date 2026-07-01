@@ -5,24 +5,11 @@ function criarDataLocal(data) {
     return new Date(ano, mes - 1, dia);
 }
 
-function compararDatas(dataA, dataB) {
-    const a = criarDataLocal(dataA);
-    const b = criarDataLocal(dataB);
-
-    a.setHours(0, 0, 0, 0);
-    b.setHours(0, 0, 0, 0);
-
-    return a - b;
-}
-
 async function clicarDataSeVisivel(page, data) {
     const botaoData = page.locator(`button[value="${data}"]`);
-
     const total = await botaoData.count();
 
-    if (total === 0) {
-        return false;
-    }
+    if (total === 0) return false;
 
     await botaoData.first().click({
         force: true,
@@ -30,7 +17,6 @@ async function clicarDataSeVisivel(page, data) {
     });
 
     await page.waitForTimeout(1500);
-
     return true;
 }
 

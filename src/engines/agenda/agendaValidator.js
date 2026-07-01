@@ -81,11 +81,9 @@ function consultarHorariosDisponiveis(dados) {
         status: horarios.length
             ? 'HORARIOS_ENCONTRADOS'
             : 'SEM_HORARIOS_LIVRES',
-
         servico,
         duracao,
         horarios,
-
         mensagem: horarios.length
             ? `Horários livres encontrados: ${horarios.join(', ')}.`
             : 'Não encontrei horários livres.'

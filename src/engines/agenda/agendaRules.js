@@ -14,12 +14,12 @@ function normalizarTexto(texto) {
 }
 
 function horarioParaMinutos(horario) {
-    const texto = String(horario || '').replace(':', '');
+    const [hora, minuto] = String(horario || '').split(':').map(Number);
 
-    if (texto === '30') return 8 * 60 + 30;
-    if (texto === '00') return 8 * 60;
+    if (Number.isNaN(hora) || Number.isNaN(minuto)) {
+        throw new Error(`Horário inválido: ${horario}`);
+    }
 
-    const [hora, minuto] = String(horario).split(':').map(Number);
     return hora * 60 + minuto;
 }
 
@@ -35,25 +35,20 @@ function obterDuracaoDoServico(servico) {
     return SERVICOS[servicoNormalizado] || 60;
 }
 
-function textoHorarioParaMinutos(horario) {
-    const [hora, minuto] = horario.split(':').map(Number);
-    return hora * 60 + minuto;
-}
-
 function extrairIntervaloDoAtendimento(texto) {
     const regex = /(\d{2}:\d{2})\s*-\s*(\d{2}:\d{2})/;
-    const resultado = texto.match(regex);
+    const resultado = String(texto || '').match(regex);
 
     if (!resultado) return null;
 
     return {
-        inicio: textoHorarioParaMinutos(resultado[1]),
-        fim: textoHorarioParaMinutos(resultado[2]),
+        inicio: horarioParaMinutos(resultado[1]),
+        fim: horarioParaMinutos(resultado[2]),
         texto
     };
 }
 
-function existeConflito(inicioNovo, fimNovo, atendimentos) {
+function existeConflito(inicioNovo, fimNovo, atendimentos = []) {
     for (const atendimento of atendimentos) {
         const intervalo = extrairIntervaloDoAtendimento(atendimento);
 
@@ -75,7 +70,7 @@ function estaDentroDoHorarioFuncionamento(inicio, fim) {
     });
 }
 
-function buscarProximoHorarioLivre(inicioSolicitado, duracao, atendimentos) {
+function buscarProximoHorarioLivre(inicioSolicitado, duracao, atendimentos = []) {
     let horarioAtual = inicioSolicitado;
 
     while (horarioAtual < 18 * 60) {
@@ -103,7 +98,7 @@ function buscarProximoHorarioLivre(inicioSolicitado, duracao, atendimentos) {
     return null;
 }
 
-function gerarHorariosLivres(duracao, atendimentos, limite = 6) {
+function gerarHorariosLivres(duracao, atendimentos = [], limite = 6) {
     const horariosLivres = [];
 
     for (const periodo of HORARIOS_FUNCIONAMENTO) {
