@@ -1,5 +1,3 @@
-const Debugger = require('../core/Debugger');
-
 function diasEntre(dataAlvo) {
     const hoje = new Date();
     hoje.setHours(0, 0, 0, 0);
@@ -27,34 +25,28 @@ const irParaData = async (page, data) => {
 
     await Debugger.step(page, `N003-agenda-aberta-${data}`);
 
-    const diferenca = diasEntre(data);
+    const diferencaDias = diasEntre(data);
 
-    await Debugger.step(page, `N004-diferenca-dias-${diferenca}`);
+    await Debugger.step(page, `N004-diferenca-dias-${diferencaDias}`);
 
-    if (diferenca === 0) {
+    if (diferencaDias === 0) {
         await page.waitForTimeout(2000);
         await Debugger.step(page, 'N005-data-ja-atual');
         return;
     }
 
-    const seletorBotao = diferenca > 0
-        ? '.fc-next-button'
-        : '.fc-prev-button';
+    const botao = diferencaDias > 0
+    ? page.getByRole('button', { name: /next|próximo|proximo|avançar|avancar/i })
+    : page.getByRole('button', { name: /prev|anterior|voltar/i });
 
-    const quantidadeCliques = Math.abs(diferenca);
-
-    for (let i = 0; i < quantidadeCliques; i++) {
-        await page.locator(seletorBotao).click({
-            force: true,
-            timeout: 10000
-        });
-
-        await page.waitForTimeout(1200);
-
-        await Debugger.step(page, `N006-click-data-${i + 1}-de-${quantidadeCliques}`);
-    }
+await botao.click({
+    force: true,
+    timeout: 10000
+});
 
     await page.waitForTimeout(3000);
+
+    await Debugger.step(page, 'N006-click-data');
 
     await Debugger.step(page, 'N007-data-final');
 };
