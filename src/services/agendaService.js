@@ -36,40 +36,39 @@ const abrirHorario = async (page, horario) => {
     try {
         await page.waitForTimeout(3000);
 
-        const elementos = page.getByText(horario, { exact: true });
-        const total = await elementos.count();
+        const horarioLimpo = String(horario).replace(/^0/, '');
 
-        await Debugger.step(page, `002-total-horarios-${total}`);
+        const linhaHorario = page.locator(`tr[data-time="${horarioLimpo}"]`);
+        const total = await linhaHorario.count();
 
-        for (let i = total - 1; i >= 0; i--) {
-            try {
-                await elementos.nth(i).click({ timeout: 3000 });
+        await Debugger.step(page, `002-linha-horario-${horarioLimpo}-${total}`);
 
-                await Debugger.step(page, `003-click-horario-${i}`);
-
-                await page.waitForTimeout(1500);
-
-                const abriu = await page
-                    .getByText('Criando Atendimento', { exact: false })
-                    .isVisible()
-                    .catch(() => false);
-
-                await Debugger.step(page, `004-modal-criando-${abriu}`);
-
-                if (abriu) return 'HORARIO_LIVRE';
-
-            } catch (erro) {
-                await Debugger.step(page, `005-erro-click-horario-${i}`);
-                continue;
-            }
+        if (total === 0) {
+            return 'HORARIO_OCUPADO';
         }
 
-        await Debugger.step(page, '006-horario-ocupado');
+        const celulaAgenda = linhaHorario.last().locator('td.fc-day-cell').last();
+
+        await celulaAgenda.click({
+            force: true,
+            timeout: 10000
+        });
+
+        await page.waitForTimeout(1500);
+
+        const abriu = await page
+            .getByText('Criando Atendimento', { exact: false })
+            .isVisible()
+            .catch(() => false);
+
+        await Debugger.step(page, `003-modal-criando-${abriu}`);
+
+        if (abriu) return 'HORARIO_LIVRE';
 
         return 'HORARIO_OCUPADO';
 
     } catch (erro) {
-        await Debugger.step(page, '007-erro-geral-abrir-horario');
+        await Debugger.step(page, '004-erro-geral-abrir-horario');
         return 'HORARIO_OCUPADO';
     }
 };
