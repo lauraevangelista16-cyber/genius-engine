@@ -77,62 +77,50 @@ const abrirHorario = async (page, horario) => {
 const selecionarServico = async (page, servico) => {
     await Debugger.step(page, '008-inicio-selecionar-servico');
 
-    await page.waitForTimeout(2000);
+    await page.waitForTimeout(1000);
 
-    // NÃO usar Escape aqui, porque pode limpar o cliente selecionado
-    // await page.keyboard.press('Escape').catch(() => {});
+    const botaoAdicionarServico = page.getByText('ADICIONAR SERVIÇO', { exact: false });
 
-    const candidatos = [
-        page.getByPlaceholder(/servi/i),
-        page.getByPlaceholder(/buscar/i),
-        page.getByRole('textbox').nth(1),
-        page.locator('input').last(),
-        page.locator('textarea').last()
-    ];
+    await botaoAdicionarServico.click({
+        force: true,
+        timeout: 5000
+    });
 
-    let campoServico = null;
+    await Debugger.step(page, '009-click-adicionar-servico');
 
-    for (const candidato of candidatos) {
-        const visivel = await candidato.isVisible().catch(() => false);
-        const habilitado = await candidato.isEnabled().catch(() => false);
+    await page.waitForTimeout(1000);
 
-        if (visivel && habilitado) {
-            campoServico = candidato;
-            break;
-        }
-    }
-
-    if (!campoServico) {
-        await Debugger.step(page, '009-campo-servico-nao-encontrado');
-        throw new Error('Campo de serviço não encontrado.');
-    }
-
-    await Debugger.step(page, '010-campo-servico-encontrado');
+    const campoServico = page
+        .getByRole('textbox')
+        .last();
 
     await campoServico.click({ force: true });
     await campoServico.fill('');
     await campoServico.fill(servico);
 
-    await Debugger.step(page, '011-servico-preenchido');
+    await Debugger.step(page, '010-servico-digitado');
+
+    await page.waitForTimeout(1000);
+
+    const opcaoServico = page
+        .getByText(servico, { exact: false })
+        .last();
+
+    await opcaoServico.click({
+        force: true,
+        timeout: 5000
+    });
+
+    await Debugger.step(page, '011-servico-clicado');
 
     await page.waitForTimeout(1500);
 
-    const opcoes = page.locator('li, [role="option"], .MuiAutocomplete-option')
-        .filter({ hasText: servico });
+    const textoTela = await page.locator('body').innerText().catch(() => '');
 
-    const totalOpcoes = await opcoes.count();
-
-    await Debugger.step(page, `012-opcoes-servico-${totalOpcoes}`);
-
-    if (totalOpcoes > 0) {
-        await opcoes.first().click({ force: true, timeout: 5000 });
-    } else {
-        await page.keyboard.press('ArrowDown').catch(() => {});
-        await page.waitForTimeout(500);
-        await page.keyboard.press('Enter').catch(() => {});
+    if (textoTela.includes('Total: R$ 0,00')) {
+        await Debugger.step(page, '012-servico-nao-selecionado');
+        throw new Error('Serviço não foi selecionado corretamente.');
     }
-
-    await page.waitForTimeout(1000);
 
     await Debugger.step(page, '013-servico-confirmado');
 };
