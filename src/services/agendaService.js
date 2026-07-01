@@ -79,12 +79,13 @@ const selecionarServico = async (page, servico) => {
 
     await page.waitForTimeout(2000);
 
-    await page.keyboard.press('Escape').catch(() => {});
-    await page.waitForTimeout(800);
+    // NÃO usar Escape aqui, porque pode limpar o cliente selecionado
+    // await page.keyboard.press('Escape').catch(() => {});
 
     const candidatos = [
         page.getByPlaceholder(/servi/i),
         page.getByPlaceholder(/buscar/i),
+        page.getByRole('textbox').nth(1),
         page.locator('input').last(),
         page.locator('textarea').last()
     ];
@@ -116,13 +117,24 @@ const selecionarServico = async (page, servico) => {
 
     await page.waitForTimeout(1500);
 
-    await page.keyboard.press('ArrowDown').catch(() => {});
-    await page.waitForTimeout(500);
-    await page.keyboard.press('Enter').catch(() => {});
+    const opcoes = page.locator('li, [role="option"], .MuiAutocomplete-option')
+        .filter({ hasText: servico });
+
+    const totalOpcoes = await opcoes.count();
+
+    await Debugger.step(page, `012-opcoes-servico-${totalOpcoes}`);
+
+    if (totalOpcoes > 0) {
+        await opcoes.first().click({ force: true, timeout: 5000 });
+    } else {
+        await page.keyboard.press('ArrowDown').catch(() => {});
+        await page.waitForTimeout(500);
+        await page.keyboard.press('Enter').catch(() => {});
+    }
 
     await page.waitForTimeout(1000);
 
-    await Debugger.step(page, '012-servico-confirmado');
+    await Debugger.step(page, '013-servico-confirmado');
 };
 
 const salvarAgendamento = async (page) => {
