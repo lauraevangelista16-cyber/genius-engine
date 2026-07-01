@@ -77,33 +77,21 @@ const abrirHorario = async (page, horario) => {
 const selecionarServico = async (page, servico) => {
     await Debugger.step(page, '008-inicio-selecionar-servico');
 
-    await page.waitForTimeout(1000);
+    await page.waitForTimeout(1200);
 
-    const botaoAdicionarServico = page.getByText('ADICIONAR SERVIÇO', { exact: false });
+    const areaServico = page.getByText('Serviços', { exact: false }).last();
 
-    await botaoAdicionarServico.click({
+    await areaServico.click({
         force: true,
         timeout: 5000
     });
 
-    await Debugger.step(page, '009-click-adicionar-servico');
-
-    await page.waitForTimeout(1000);
-
-    const campoServico = page
-        .getByRole('textbox')
-        .last();
-
-    await campoServico.click({ force: true });
-    await campoServico.fill('');
-    await campoServico.fill(servico);
-
-    await Debugger.step(page, '010-servico-digitado');
+    await Debugger.step(page, '009-click-area-servicos');
 
     await page.waitForTimeout(1000);
 
     const opcaoServico = page
-        .getByText(servico, { exact: false })
+        .getByText(new RegExp(servico, 'i'))
         .last();
 
     await opcaoServico.click({
@@ -111,18 +99,18 @@ const selecionarServico = async (page, servico) => {
         timeout: 5000
     });
 
-    await Debugger.step(page, '011-servico-clicado');
+    await Debugger.step(page, '010-servico-clicado');
 
     await page.waitForTimeout(1500);
 
     const textoTela = await page.locator('body').innerText().catch(() => '');
 
     if (textoTela.includes('Total: R$ 0,00')) {
-        await Debugger.step(page, '012-servico-nao-selecionado');
+        await Debugger.step(page, '011-servico-nao-selecionado');
         throw new Error('Serviço não foi selecionado corretamente.');
     }
 
-    await Debugger.step(page, '013-servico-confirmado');
+    await Debugger.step(page, '012-servico-confirmado');
 };
 
 const salvarAgendamento = async (page) => {
