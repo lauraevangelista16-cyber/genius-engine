@@ -1,5 +1,4 @@
 const { irParaData } = require('../../services/agendaNavigationService');
-
 const { abrirBrowser } = require('../../utils/browser');
 
 const {
@@ -28,33 +27,45 @@ async function obterPage(pageRecebida) {
     return await abrirBrowser();
 }
 
+function normalizarDados(dados) {
+    if (!dados) return {};
+
+    if (dados.dados) return dados.dados;
+
+    return dados;
+}
+
 class MinhaAgendaAdapter {
 
     async listarAtendimentos(dados = {}, pageRecebida) {
+        const dadosNormalizados = normalizarDados(dados);
+
         const { page } = await obterPage(pageRecebida);
 
-        await irParaData(page, dados.data);
+        await irParaData(page, dadosNormalizados.data);
 
         return await listarAtendimentosDoDia(page);
     }
 
     async criarAgendamento(dados, pageRecebida) {
+        const dadosNormalizados = normalizarDados(dados);
+
         const { page } = await obterPage(pageRecebida);
 
-        await irParaData(page, dados.data);
+        await irParaData(page, dadosNormalizados.data);
 
-        const statusHorario = await abrirHorario(page, dados.horario);
+        const statusHorario = await abrirHorario(page, dadosNormalizados.horario);
 
         if (statusHorario !== 'HORARIO_LIVRE') {
             return {
                 status: 'HORARIO_OCUPADO',
-                mensagem: `O horário ${dados.horario} já está ocupado.`
+                mensagem: `O horário ${dadosNormalizados.horario} já está ocupado.`
             };
         }
 
         const cliente = await selecionarOuCriarCliente(page, {
-            cliente: dados.cliente,
-            telefone: dados.telefone
+            cliente: dadosNormalizados.cliente,
+            telefone: dadosNormalizados.telefone
         });
 
         if (cliente.status !== 'CLIENTE_SELECIONADO') {
@@ -64,7 +75,7 @@ class MinhaAgendaAdapter {
             };
         }
 
-        await selecionarServico(page, dados.servico);
+        await selecionarServico(page, dadosNormalizados.servico);
         await salvarAgendamento(page);
 
         return {
@@ -74,14 +85,16 @@ class MinhaAgendaAdapter {
     }
 
     async consultarAgendamento(dados, pageRecebida) {
+        const dadosNormalizados = normalizarDados(dados);
+
         const { page } = await obterPage(pageRecebida);
 
-        await irParaData(page, dados.data);
+        await irParaData(page, dadosNormalizados.data);
 
         const resultado = await consultarAtendimentoPorCliente(
             page,
-            dados.cliente,
-            dados.telefone
+            dadosNormalizados.cliente,
+            dadosNormalizados.telefone
         );
 
         if (!resultado.encontrado) {
@@ -105,14 +118,16 @@ class MinhaAgendaAdapter {
     }
 
     async cancelarAgendamento(dados, pageRecebida) {
+        const dadosNormalizados = normalizarDados(dados);
+
         const { page } = await obterPage(pageRecebida);
 
-        await irParaData(page, dados.data);
+        await irParaData(page, dadosNormalizados.data);
 
         const atendimento = await abrirAtendimentoPorCliente(
             page,
-            dados.cliente,
-            dados.telefone
+            dadosNormalizados.cliente,
+            dadosNormalizados.telefone
         );
 
         if (!atendimento.encontrado) {
@@ -138,14 +153,16 @@ class MinhaAgendaAdapter {
     }
 
     async alterarAgendamento(dados, pageRecebida) {
+        const dadosNormalizados = normalizarDados(dados);
+
         const { page } = await obterPage(pageRecebida);
 
-        await irParaData(page, dados.data);
+        await irParaData(page, dadosNormalizados.data);
 
         const atendimento = await abrirAtendimentoPorCliente(
             page,
-            dados.cliente,
-            dados.telefone
+            dadosNormalizados.cliente,
+            dadosNormalizados.telefone
         );
 
         if (!atendimento.encontrado) {
@@ -162,19 +179,19 @@ class MinhaAgendaAdapter {
             };
         }
 
-        if (dados.horario) {
-            await alterarHorarioAgendamento(page, dados.horario);
+        if (dadosNormalizados.horario) {
+            await alterarHorarioAgendamento(page, dadosNormalizados.horario);
         }
 
-        if (dados.clienteNovo) {
+        if (dadosNormalizados.clienteNovo) {
             await selecionarOuCriarCliente(page, {
-                cliente: dados.clienteNovo,
-                telefone: dados.telefoneNovo
+                cliente: dadosNormalizados.clienteNovo,
+                telefone: dadosNormalizados.telefoneNovo
             });
         }
 
-        if (dados.servico) {
-            await selecionarServico(page, dados.servico);
+        if (dadosNormalizados.servico) {
+            await selecionarServico(page, dadosNormalizados.servico);
         }
 
         return {
