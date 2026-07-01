@@ -21,17 +21,11 @@ function atendimentoCombina(texto, cliente, telefone) {
         clienteNormalizado &&
         textoNormalizado.includes(clienteNormalizado);
 
-    if (!telefoneNormalizado) {
-        return nomeCombina;
-    }
+    if (!telefoneNormalizado) return nomeCombina;
 
     const telefoneCombina = textoTelefone.includes(telefoneNormalizado);
 
-    if (telefoneCombina) {
-        return true;
-    }
-
-    return nomeCombina;
+    return telefoneCombina || nomeCombina;
 }
 
 const abrirHorario = async (page, horario) => {
@@ -51,9 +45,8 @@ const abrirHorario = async (page, horario) => {
                     .isVisible()
                     .catch(() => false);
 
-                if (abriu) {
-                    return 'HORARIO_LIVRE';
-                }
+                if (abriu) return 'HORARIO_LIVRE';
+
             } catch (erro) {
                 continue;
             }
@@ -110,14 +103,10 @@ const selecionarServico = async (page, servico) => {
 
 const salvarAgendamento = async (page) => {
     await page.getByRole('button', { name: /salvar/i }).click();
-    await page.waitForTimeout(2500);
-
-    await page.reload({ waitUntil: 'domcontentloaded' });
-    await page.waitForTimeout(5000);
+    await page.waitForTimeout(3000);
 };
 
 const listarAtendimentosDoDia = async (page) => {
-    await page.reload({ waitUntil: 'domcontentloaded' });
     await page.waitForTimeout(6000);
 
     const eventos = page.locator('.fc-time-grid-event');
@@ -134,7 +123,6 @@ const listarAtendimentosDoDia = async (page) => {
 };
 
 const abrirAtendimentoPorCliente = async (page, cliente, telefone) => {
-    await page.reload({ waitUntil: 'domcontentloaded' });
     await page.waitForTimeout(6000);
 
     const eventos = page.locator('.fc-time-grid-event');
@@ -218,7 +206,6 @@ function extrairDadosDoTextoAtendimento(texto) {
 }
 
 const consultarAtendimentoPorCliente = async (page, cliente, telefone) => {
-    await page.reload({ waitUntil: 'domcontentloaded' });
     await page.waitForTimeout(6000);
 
     const eventos = page.locator('.fc-time-grid-event');
@@ -267,9 +254,6 @@ const deletarAgendamento = async (page) => {
     await page.getByText('SIM', { exact: false }).click();
 
     await page.waitForTimeout(3000);
-
-    await page.reload({ waitUntil: 'domcontentloaded' });
-    await page.waitForTimeout(5000);
 };
 
 const alterarHorarioAgendamento = async (page, novoHorario) => {
@@ -286,7 +270,6 @@ const alterarHorarioAgendamento = async (page, novoHorario) => {
 
     for (let i = 0; i < total; i++) {
         const input = inputs.nth(i);
-
         const valor = await input.inputValue().catch(() => '');
 
         if (/^\d{2}:\d{2}$/.test(valor)) {
@@ -308,9 +291,6 @@ const alterarHorarioAgendamento = async (page, novoHorario) => {
     await page.getByRole('button', { name: /salvar/i }).click();
 
     await page.waitForTimeout(3000);
-
-    await page.reload({ waitUntil: 'domcontentloaded' });
-    await page.waitForTimeout(5000);
 };
 
 module.exports = {
