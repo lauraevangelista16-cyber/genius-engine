@@ -15,25 +15,26 @@ async function selecionarCliente(page, cliente) {
 
     await page.waitForTimeout(1500);
 
-    await page.keyboard.press('ArrowDown');
-    await page.waitForTimeout(500);
-    await page.keyboard.press('Enter');
+    const opcoes = page.locator('li, [role="option"], .MuiAutocomplete-option')
+        .filter({ hasText: cliente });
 
-    await page.waitForTimeout(1500);
+    const totalOpcoes = await opcoes.count();
 
-    await Debugger.step(page, 'C003-cliente-enter-confirmado');
+    await Debugger.step(page, `C003-opcoes-autocomplete-${totalOpcoes}`);
 
-    const textoTela = await page.locator('body').innerText().catch(() => '');
+    if (totalOpcoes > 0) {
+        await opcoes.first().click({ force: true, timeout: 5000 });
 
-    if (textoTela.toLowerCase().includes(cliente.toLowerCase())) {
-        await Debugger.step(page, 'C004-cliente-selecionado');
+        await page.waitForTimeout(1500);
+
+        await Debugger.step(page, 'C004-cliente-clicado-na-opcao');
 
         return {
             status: 'CLIENTE_SELECIONADO'
         };
     }
 
-    await Debugger.step(page, 'C005-cliente-nao-confirmado');
+    await Debugger.step(page, 'C005-cliente-nao-encontrado');
 
     return {
         status: 'CLIENTE_NAO_ENCONTRADO'
@@ -53,13 +54,15 @@ async function criarCliente(page, dados) {
 
     const campos = page.getByRole('textbox');
 
-    await campos.nth(0).click();
+    await campos.nth(0).click({ force: true });
+    await campos.nth(0).fill('');
     await campos.nth(0).fill(cliente);
 
     await Debugger.step(page, 'C008-nome-cliente-preenchido');
 
     if (telefone) {
-        await campos.nth(1).click();
+        await campos.nth(1).click({ force: true });
+        await campos.nth(1).fill('');
         await campos.nth(1).fill(telefone);
 
         await Debugger.step(page, 'C009-telefone-cliente-preenchido');
@@ -106,15 +109,18 @@ async function selecionarOuCriarCliente(page, dados) {
 
     await page.waitForTimeout(1500);
 
-    const clienteNaTela = await page
-        .getByText(cliente, { exact: false })
-        .isVisible()
-        .catch(() => false);
+    const selecaoAposCriar = await selecionarCliente(page, cliente);
 
-    await Debugger.step(page, `C014-cliente-na-tela-${clienteNaTela}`);
+    await Debugger.step(page, `C014-status-selecao-apos-criar-${selecaoAposCriar.status}`);
+
+    if (selecaoAposCriar.status === 'CLIENTE_SELECIONADO') {
+        return {
+            status: 'CLIENTE_SELECIONADO'
+        };
+    }
 
     return {
-        status: 'CLIENTE_SELECIONADO'
+        status: 'ERRO_SELECIONAR_CLIENTE'
     };
 }
 
