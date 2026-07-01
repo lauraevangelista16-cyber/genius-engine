@@ -1,3 +1,5 @@
+const Debugger = require('../core/Debugger');
+
 function normalizarBusca(texto) {
     return String(texto || '')
         .toLowerCase()
@@ -29,15 +31,22 @@ function atendimentoCombina(texto, cliente, telefone) {
 }
 
 const abrirHorario = async (page, horario) => {
+    await Debugger.step(page, '001-inicio-abrir-horario');
+
     try {
         await page.waitForTimeout(3000);
 
         const elementos = page.getByText(horario, { exact: true });
         const total = await elementos.count();
 
+        await Debugger.step(page, `002-total-horarios-${total}`);
+
         for (let i = total - 1; i >= 0; i--) {
             try {
                 await elementos.nth(i).click({ timeout: 3000 });
+
+                await Debugger.step(page, `003-click-horario-${i}`);
+
                 await page.waitForTimeout(1500);
 
                 const abriu = await page
@@ -45,21 +54,29 @@ const abrirHorario = async (page, horario) => {
                     .isVisible()
                     .catch(() => false);
 
+                await Debugger.step(page, `004-modal-criando-${abriu}`);
+
                 if (abriu) return 'HORARIO_LIVRE';
 
             } catch (erro) {
+                await Debugger.step(page, `005-erro-click-horario-${i}`);
                 continue;
             }
         }
 
+        await Debugger.step(page, '006-horario-ocupado');
+
         return 'HORARIO_OCUPADO';
 
     } catch (erro) {
+        await Debugger.step(page, '007-erro-geral-abrir-horario');
         return 'HORARIO_OCUPADO';
     }
 };
 
 const selecionarServico = async (page, servico) => {
+    await Debugger.step(page, '008-inicio-selecionar-servico');
+
     await page.waitForTimeout(2000);
 
     await page.keyboard.press('Escape').catch(() => {});
@@ -85,12 +102,17 @@ const selecionarServico = async (page, servico) => {
     }
 
     if (!campoServico) {
+        await Debugger.step(page, '009-campo-servico-nao-encontrado');
         throw new Error('Campo de serviço não encontrado.');
     }
+
+    await Debugger.step(page, '010-campo-servico-encontrado');
 
     await campoServico.click({ force: true });
     await campoServico.fill('');
     await campoServico.fill(servico);
+
+    await Debugger.step(page, '011-servico-preenchido');
 
     await page.waitForTimeout(1500);
 
@@ -99,18 +121,29 @@ const selecionarServico = async (page, servico) => {
     await page.keyboard.press('Enter').catch(() => {});
 
     await page.waitForTimeout(1000);
+
+    await Debugger.step(page, '012-servico-confirmado');
 };
 
 const salvarAgendamento = async (page) => {
+    await Debugger.step(page, '013-antes-salvar-agendamento');
+
     await page.getByRole('button', { name: /salvar/i }).click();
+
     await page.waitForTimeout(3000);
+
+    await Debugger.step(page, '014-depois-salvar-agendamento');
 };
 
 const listarAtendimentosDoDia = async (page) => {
+    await Debugger.step(page, '015-inicio-listar-atendimentos');
+
     await page.waitForTimeout(6000);
 
-    const eventos = page.locator('.fc-time-grid-event');
+    const eventos = page.locator('.fc-time-grid-event, .fc-event, .fc-timegrid-event');
     const total = await eventos.count();
+
+    await Debugger.step(page, `016-total-eventos-${total}`);
 
     const atendimentos = [];
 
@@ -123,16 +156,22 @@ const listarAtendimentosDoDia = async (page) => {
 };
 
 const abrirAtendimentoPorCliente = async (page, cliente, telefone) => {
+    await Debugger.step(page, '017-inicio-abrir-atendimento');
+
     await page.waitForTimeout(6000);
 
-    const eventos = page.locator('.fc-time-grid-event');
+    const eventos = page.locator('.fc-time-grid-event, .fc-event, .fc-timegrid-event');
     const total = await eventos.count();
+
+    await Debugger.step(page, `018-total-eventos-abrir-${total}`);
 
     const encontrados = [];
 
     for (let i = 0; i < total; i++) {
         const evento = eventos.nth(i);
         const texto = await evento.innerText();
+
+        console.log(`[EVENTO ${i}]`, texto);
 
         if (atendimentoCombina(texto, cliente, telefone)) {
             encontrados.push({
@@ -142,6 +181,8 @@ const abrirAtendimentoPorCliente = async (page, cliente, telefone) => {
             });
         }
     }
+
+    await Debugger.step(page, `019-encontrados-abrir-${encontrados.length}`);
 
     if (encontrados.length === 0) {
         return {
@@ -168,6 +209,8 @@ const abrirAtendimentoPorCliente = async (page, cliente, telefone) => {
     });
 
     await page.waitForTimeout(1500);
+
+    await Debugger.step(page, '020-atendimento-aberto');
 
     return {
         encontrado: true,
@@ -206,20 +249,28 @@ function extrairDadosDoTextoAtendimento(texto) {
 }
 
 const consultarAtendimentoPorCliente = async (page, cliente, telefone) => {
+    await Debugger.step(page, '021-inicio-consultar-atendimento');
+
     await page.waitForTimeout(6000);
 
-    const eventos = page.locator('.fc-time-grid-event');
+    const eventos = page.locator('.fc-time-grid-event, .fc-event, .fc-timegrid-event');
     const total = await eventos.count();
+
+    await Debugger.step(page, `022-total-eventos-consulta-${total}`);
 
     const encontrados = [];
 
     for (let i = 0; i < total; i++) {
         const texto = await eventos.nth(i).innerText();
 
+        console.log(`[CONSULTA EVENTO ${i}]`, texto);
+
         if (atendimentoCombina(texto, cliente, telefone)) {
             encontrados.push(extrairDadosDoTextoAtendimento(texto));
         }
     }
+
+    await Debugger.step(page, `023-encontrados-consulta-${encontrados.length}`);
 
     if (encontrados.length === 0) {
         return {
@@ -245,23 +296,33 @@ const consultarAtendimentoPorCliente = async (page, cliente, telefone) => {
 };
 
 const deletarAgendamento = async (page) => {
+    await Debugger.step(page, '024-inicio-deletar');
+
     await page.waitForTimeout(1500);
 
     await page.getByText('DELETAR', { exact: false }).click();
+
+    await Debugger.step(page, '025-clicou-deletar');
 
     await page.waitForTimeout(1000);
 
     await page.getByText('SIM', { exact: false }).click();
 
     await page.waitForTimeout(3000);
+
+    await Debugger.step(page, '026-deletado');
 };
 
 const alterarHorarioAgendamento = async (page, novoHorario) => {
+    await Debugger.step(page, '027-inicio-alterar-horario');
+
     await page.waitForTimeout(1000);
 
     await page.getByText('EDITAR', { exact: false }).click();
 
     await page.waitForTimeout(2000);
+
+    await Debugger.step(page, '028-tela-editar-aberta');
 
     const inputs = page.locator('input');
     const total = await inputs.count();
@@ -279,6 +340,7 @@ const alterarHorarioAgendamento = async (page, novoHorario) => {
     }
 
     if (!campoHora) {
+        await Debugger.step(page, '029-campo-horario-nao-encontrado');
         throw new Error('Campo de horário não encontrado.');
     }
 
@@ -288,9 +350,13 @@ const alterarHorarioAgendamento = async (page, novoHorario) => {
 
     await page.waitForTimeout(800);
 
+    await Debugger.step(page, '030-horario-alterado');
+
     await page.getByRole('button', { name: /salvar/i }).click();
 
     await page.waitForTimeout(3000);
+
+    await Debugger.step(page, '031-alteracao-salva');
 };
 
 module.exports = {
