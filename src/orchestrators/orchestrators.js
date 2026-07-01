@@ -25,12 +25,12 @@ class AgendaOrchestrator {
 
     validar(action, dados) {
         const obrigatorios = {
-            horarios: ['servico'],
-            criar: ['servico', 'cliente', 'telefone', 'data', 'horario'],
-            consultar: ['cliente', 'telefone'],
-            cancelar: ['cliente', 'telefone'],
-            alterar: ['cliente', 'telefone']
-        };
+    horarios: ['servico', 'data'],
+    criar: ['servico', 'cliente', 'telefone', 'data', 'horario'],
+    consultar: ['cliente', 'telefone', 'data'],
+    cancelar: ['cliente', 'telefone', 'data'],
+    alterar: ['cliente', 'telefone', 'data']
+};
 
         if (!obrigatorios[action]) {
             return {

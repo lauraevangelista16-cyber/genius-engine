@@ -1,3 +1,5 @@
+const { irParaData } = require('../../services/agendaNavigationService');
+
 const { abrirBrowser } = require('../../utils/browser');
 
 const {
@@ -12,7 +14,6 @@ const {
 } = require('../../services/agendaService');
 
 const {
-    selecionarCliente,
     selecionarOuCriarCliente
 } = require('../../services/clienteService');
 
@@ -29,17 +30,18 @@ async function obterPage(pageRecebida) {
 
 class MinhaAgendaAdapter {
 
-    async listarAtendimentos(pageRecebida) {
-
+    async listarAtendimentos(dados = {}, pageRecebida) {
         const { page } = await obterPage(pageRecebida);
 
-        return await listarAtendimentosDoDia(page);
+        await irParaData(page, dados.data);
 
+        return await listarAtendimentosDoDia(page);
     }
 
     async criarAgendamento(dados, pageRecebida) {
-
         const { page } = await obterPage(pageRecebida);
+
+        await irParaData(page, dados.data);
 
         const statusHorario = await abrirHorario(page, dados.horario);
 
@@ -69,12 +71,12 @@ class MinhaAgendaAdapter {
             status: 'AGENDAMENTO_CRIADO',
             mensagem: 'Agendamento criado com sucesso.'
         };
-
     }
 
     async consultarAgendamento(dados, pageRecebida) {
-
         const { page } = await obterPage(pageRecebida);
+
+        await irParaData(page, dados.data);
 
         const resultado = await consultarAtendimentoPorCliente(
             page,
@@ -100,12 +102,12 @@ class MinhaAgendaAdapter {
             status: 'AGENDAMENTO_ENCONTRADO',
             atendimento: resultado
         };
-
     }
 
     async cancelarAgendamento(dados, pageRecebida) {
-
         const { page } = await obterPage(pageRecebida);
+
+        await irParaData(page, dados.data);
 
         const atendimento = await abrirAtendimentoPorCliente(
             page,
@@ -133,12 +135,12 @@ class MinhaAgendaAdapter {
             status: 'AGENDAMENTO_CANCELADO',
             mensagem: 'Agendamento cancelado com sucesso.'
         };
-
     }
 
     async alterarAgendamento(dados, pageRecebida) {
-
         const { page } = await obterPage(pageRecebida);
+
+        await irParaData(page, dados.data);
 
         const atendimento = await abrirAtendimentoPorCliente(
             page,
@@ -179,7 +181,6 @@ class MinhaAgendaAdapter {
             status: 'AGENDAMENTO_ALTERADO',
             mensagem: 'Agendamento alterado com sucesso.'
         };
-
     }
 
 }
