@@ -139,6 +139,17 @@ const salvarAgendamento = async (page) => {
     const botaoSalvar = botoesSalvar.nth(total - 1);
 
     await botaoSalvar.scrollIntoViewIfNeeded().catch(() => {});
+    const invalidos = await page.locator(':invalid').evaluateAll(el =>
+    el.map(e => ({
+        tag: e.tagName,
+        name: e.name,
+        id: e.id,
+        value: e.value,
+        required: e.required
+    }))
+);
+
+console.log('INVALIDOS', invalidos);
     await botaoSalvar.click({ force: true, timeout: 10000 });
 
     await page.waitForTimeout(4000);
