@@ -1,4 +1,8 @@
+const Debugger = require('../core/Debugger');
+
 async function selecionarCliente(page, cliente) {
+    await Debugger.step(page, 'C001-selecionar-cliente-inicio');
+
     const campoCliente = page.getByRole('textbox', {
         name: 'Cliente'
     });
@@ -6,19 +10,27 @@ async function selecionarCliente(page, cliente) {
     await campoCliente.click();
     await campoCliente.fill(cliente);
 
+    await Debugger.step(page, 'C002-cliente-digitado');
+
     await page.waitForTimeout(1200);
 
     const opcoes = page.getByText(cliente, { exact: false });
     const total = await opcoes.count();
 
+    await Debugger.step(page, `C003-opcoes-cliente-${total}`);
+
     if (total > 0) {
         await opcoes.last().click();
         await page.waitForTimeout(800);
+
+        await Debugger.step(page, 'C004-cliente-selecionado');
 
         return {
             status: 'CLIENTE_SELECIONADO'
         };
     }
+
+    await Debugger.step(page, 'C005-cliente-nao-encontrado');
 
     return {
         status: 'CLIENTE_NAO_ENCONTRADO'
@@ -26,20 +38,28 @@ async function selecionarCliente(page, cliente) {
 }
 
 async function criarCliente(page, dados) {
+    await Debugger.step(page, 'C006-criar-cliente-inicio');
+
     const { cliente, telefone } = dados;
 
     await page.getByText('ADICIONAR CLIENTE', { exact: false }).click();
 
     await page.waitForTimeout(1000);
 
+    await Debugger.step(page, 'C007-modal-criar-cliente');
+
     const campos = page.getByRole('textbox');
 
     await campos.nth(0).click();
     await campos.nth(0).fill(cliente);
 
+    await Debugger.step(page, 'C008-nome-cliente-preenchido');
+
     if (telefone) {
         await campos.nth(1).click();
         await campos.nth(1).fill(telefone);
+
+        await Debugger.step(page, 'C009-telefone-cliente-preenchido');
     }
 
     await page.waitForTimeout(800);
@@ -48,15 +68,21 @@ async function criarCliente(page, dados) {
 
     await page.waitForTimeout(2500);
 
+    await Debugger.step(page, 'C010-cliente-salvo');
+
     return {
         status: 'CLIENTE_CRIADO'
     };
 }
 
 async function selecionarOuCriarCliente(page, dados) {
+    await Debugger.step(page, 'C011-selecionar-ou-criar-inicio');
+
     const { cliente, telefone } = dados;
 
     const selecao = await selecionarCliente(page, cliente);
+
+    await Debugger.step(page, `C012-status-selecao-${selecao.status}`);
 
     if (selecao.status === 'CLIENTE_SELECIONADO') {
         return selecao;
@@ -66,6 +92,8 @@ async function selecionarOuCriarCliente(page, dados) {
         cliente,
         telefone
     });
+
+    await Debugger.step(page, `C013-status-criacao-${criacao.status}`);
 
     if (criacao.status !== 'CLIENTE_CRIADO') {
         return {
@@ -80,11 +108,7 @@ async function selecionarOuCriarCliente(page, dados) {
         .isVisible()
         .catch(() => false);
 
-    if (clienteNaTela) {
-        return {
-            status: 'CLIENTE_SELECIONADO'
-        };
-    }
+    await Debugger.step(page, `C014-cliente-na-tela-${clienteNaTela}`);
 
     return {
         status: 'CLIENTE_SELECIONADO'

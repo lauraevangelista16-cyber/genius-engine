@@ -1,3 +1,5 @@
+const Debugger = require('../core/Debugger');
+
 function diasEntre(dataAlvo) {
     const hoje = new Date();
     hoje.setHours(0, 0, 0, 0);
@@ -9,7 +11,10 @@ function diasEntre(dataAlvo) {
 }
 
 const irParaData = async (page, data) => {
+    await Debugger.step(page, 'N001-ir-para-data-inicio');
+
     if (!data) {
+        await Debugger.step(page, 'N002-data-ausente');
         throw new Error('Data obrigatória para navegar na agenda.');
     }
 
@@ -20,10 +25,15 @@ const irParaData = async (page, data) => {
 
     await page.waitForTimeout(5000);
 
+    await Debugger.step(page, `N003-agenda-aberta-${data}`);
+
     const diferenca = diasEntre(data);
+
+    await Debugger.step(page, `N004-diferenca-dias-${diferenca}`);
 
     if (diferenca === 0) {
         await page.waitForTimeout(2000);
+        await Debugger.step(page, 'N005-data-ja-atual');
         return;
     }
 
@@ -40,9 +50,13 @@ const irParaData = async (page, data) => {
         });
 
         await page.waitForTimeout(1200);
+
+        await Debugger.step(page, `N006-click-data-${i + 1}-de-${quantidadeCliques}`);
     }
 
     await page.waitForTimeout(3000);
+
+    await Debugger.step(page, 'N007-data-final');
 };
 
 module.exports = {

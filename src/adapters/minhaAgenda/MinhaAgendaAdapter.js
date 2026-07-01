@@ -1,5 +1,6 @@
 const { irParaData } = require('../../services/agendaNavigationService');
 const { abrirBrowser } = require('../../utils/browser');
+const Debugger = require('../../core/Debugger');
 
 const {
     abrirHorario,
@@ -39,7 +40,11 @@ class MinhaAgendaAdapter {
         const dadosNormalizados = normalizarDados(dados);
         const { page } = await obterPage(pageRecebida);
 
+        await Debugger.step(page, 'A001-listar-inicio');
+
         await irParaData(page, dadosNormalizados.data);
+
+        await Debugger.step(page, 'A002-listar-data');
 
         return await listarAtendimentosDoDia(page);
     }
@@ -48,9 +53,15 @@ class MinhaAgendaAdapter {
         const dadosNormalizados = normalizarDados(dados);
         const { page } = await obterPage(pageRecebida);
 
+        await Debugger.step(page, 'A003-criar-inicio');
+
         await irParaData(page, dadosNormalizados.data);
 
+        await Debugger.step(page, 'A004-criar-data');
+
         const statusHorario = await abrirHorario(page, dadosNormalizados.horario);
+
+        await Debugger.step(page, `A005-status-horario-${statusHorario}`);
 
         if (statusHorario !== 'HORARIO_LIVRE') {
             return {
@@ -64,6 +75,8 @@ class MinhaAgendaAdapter {
             telefone: dadosNormalizados.telefone
         });
 
+        await Debugger.step(page, `A006-status-cliente-${cliente.status}`);
+
         if (cliente.status !== 'CLIENTE_SELECIONADO') {
             return {
                 status: 'ERRO_CLIENTE',
@@ -72,15 +85,24 @@ class MinhaAgendaAdapter {
         }
 
         await selecionarServico(page, dadosNormalizados.servico);
+
+        await Debugger.step(page, 'A007-servico-selecionado');
+
         await salvarAgendamento(page);
 
+        await Debugger.step(page, 'A008-agendamento-salvo');
+
         await irParaData(page, dadosNormalizados.data);
+
+        await Debugger.step(page, 'A009-data-confirmacao');
 
         const confirmacao = await consultarAtendimentoPorCliente(
             page,
             dadosNormalizados.cliente,
             dadosNormalizados.telefone
         );
+
+        await Debugger.step(page, `A010-confirmacao-${confirmacao.encontrado}`);
 
         if (!confirmacao.encontrado) {
             return {
@@ -100,13 +122,19 @@ class MinhaAgendaAdapter {
         const dadosNormalizados = normalizarDados(dados);
         const { page } = await obterPage(pageRecebida);
 
+        await Debugger.step(page, 'A011-consultar-inicio');
+
         await irParaData(page, dadosNormalizados.data);
+
+        await Debugger.step(page, 'A012-consultar-data');
 
         const resultado = await consultarAtendimentoPorCliente(
             page,
             dadosNormalizados.cliente,
             dadosNormalizados.telefone
         );
+
+        await Debugger.step(page, `A013-consultar-encontrado-${resultado.encontrado}`);
 
         if (!resultado.encontrado) {
             return {
@@ -132,13 +160,19 @@ class MinhaAgendaAdapter {
         const dadosNormalizados = normalizarDados(dados);
         const { page } = await obterPage(pageRecebida);
 
+        await Debugger.step(page, 'A014-cancelar-inicio');
+
         await irParaData(page, dadosNormalizados.data);
+
+        await Debugger.step(page, 'A015-cancelar-data');
 
         const atendimento = await abrirAtendimentoPorCliente(
             page,
             dadosNormalizados.cliente,
             dadosNormalizados.telefone
         );
+
+        await Debugger.step(page, `A016-cancelar-encontrado-${atendimento.encontrado}`);
 
         if (!atendimento.encontrado) {
             return {
@@ -156,6 +190,8 @@ class MinhaAgendaAdapter {
 
         await deletarAgendamento(page);
 
+        await Debugger.step(page, 'A017-cancelado');
+
         return {
             status: 'AGENDAMENTO_CANCELADO',
             mensagem: 'Agendamento cancelado com sucesso.'
@@ -166,13 +202,19 @@ class MinhaAgendaAdapter {
         const dadosNormalizados = normalizarDados(dados);
         const { page } = await obterPage(pageRecebida);
 
+        await Debugger.step(page, 'A018-alterar-inicio');
+
         await irParaData(page, dadosNormalizados.data);
+
+        await Debugger.step(page, 'A019-alterar-data');
 
         const atendimento = await abrirAtendimentoPorCliente(
             page,
             dadosNormalizados.cliente,
             dadosNormalizados.telefone
         );
+
+        await Debugger.step(page, `A020-alterar-encontrado-${atendimento.encontrado}`);
 
         if (!atendimento.encontrado) {
             return {
@@ -190,6 +232,7 @@ class MinhaAgendaAdapter {
 
         if (dadosNormalizados.horario) {
             await alterarHorarioAgendamento(page, dadosNormalizados.horario);
+            await Debugger.step(page, 'A021-horario-alterado');
         }
 
         if (dadosNormalizados.clienteNovo) {
@@ -197,10 +240,13 @@ class MinhaAgendaAdapter {
                 cliente: dadosNormalizados.clienteNovo,
                 telefone: dadosNormalizados.telefoneNovo
             });
+
+            await Debugger.step(page, 'A022-cliente-alterado');
         }
 
         if (dadosNormalizados.servico) {
             await selecionarServico(page, dadosNormalizados.servico);
+            await Debugger.step(page, 'A023-servico-alterado');
         }
 
         return {
