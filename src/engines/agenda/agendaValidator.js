@@ -8,17 +8,13 @@ const {
 } = require('./agendaRules');
 
 function validarCriacaoAgendamento(dados) {
-
-    const { horario, servico, atendimentos } = dados;
+    const { horario, servico, atendimentos = [] } = dados;
 
     const duracao = obterDuracaoDoServico(servico);
-
     const inicio = horarioParaMinutos(horario);
-
     const fim = inicio + duracao;
 
     if (!estaDentroDoHorarioFuncionamento(inicio, fim)) {
-
         const proximoHorario = buscarProximoHorarioLivre(
             inicio,
             duracao,
@@ -33,7 +29,6 @@ function validarCriacaoAgendamento(dados) {
                 ? `Esse horário está fora do horário de funcionamento. O próximo horário disponível é ${proximoHorario}.`
                 : 'Esse horário está fora do horário de funcionamento.'
         };
-
     }
 
     const conflito = existeConflito(
@@ -43,7 +38,6 @@ function validarCriacaoAgendamento(dados) {
     );
 
     if (conflito) {
-
         const proximoHorario = buscarProximoHorarioLivre(
             inicio,
             duracao,
@@ -58,7 +52,6 @@ function validarCriacaoAgendamento(dados) {
                 ? `Esse horário está ocupado. O próximo horário disponível é ${proximoHorario}.`
                 : 'Esse horário está ocupado.'
         };
-
     }
 
     return {
@@ -67,14 +60,12 @@ function validarCriacaoAgendamento(dados) {
         inicio,
         fim
     };
-
 }
 
 function consultarHorariosDisponiveis(dados) {
-
     const {
         servico,
-        atendimentos,
+        atendimentos = [],
         limite
     } = dados;
 
@@ -99,7 +90,6 @@ function consultarHorariosDisponiveis(dados) {
             ? `Horários livres encontrados: ${horarios.join(', ')}.`
             : 'Não encontrei horários livres.'
     };
-
 }
 
 module.exports = {

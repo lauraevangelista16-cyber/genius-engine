@@ -1,12 +1,57 @@
 const Debugger = require('../core/Debugger');
-function diasEntre(dataAlvo) {
-    const hoje = new Date();
-    hoje.setHours(0, 0, 0, 0);
 
-    const alvo = new Date(`${dataAlvo}T00:00:00`);
-    alvo.setHours(0, 0, 0, 0);
+function criarDataLocal(data) {
+    const [ano, mes, dia] = String(data).split('-').map(Number);
+    return new Date(ano, mes - 1, dia);
+}
 
-    return Math.round((alvo - hoje) / (1000 * 60 * 60 * 24));
+function compararDatas(dataA, dataB) {
+    const a = criarDataLocal(dataA);
+    const b = criarDataLocal(dataB);
+
+    a.setHours(0, 0, 0, 0);
+    b.setHours(0, 0, 0, 0);
+
+    return a - b;
+}
+
+async function clicarDataSeVisivel(page, data) {
+    const botaoData = page.locator(`button[value="${data}"]`);
+
+    const total = await botaoData.count();
+
+    if (total === 0) {
+        return false;
+    }
+
+    await botaoData.first().click({
+        force: true,
+        timeout: 10000
+    });
+
+    await page.waitForTimeout(1500);
+
+    return true;
+}
+
+async function clicarNavegacao(page, direcao) {
+    const grupoHoje = page
+        .locator('div[role="group"]')
+        .filter({ hasText: 'Hoje' })
+        .first();
+
+    const botoes = grupoHoje.locator('button');
+
+    const botao = direcao === 'proximo'
+        ? botoes.last()
+        : botoes.first();
+
+    await botao.click({
+        force: true,
+        timeout: 10000
+    });
+
+    await page.waitForTimeout(1500);
 }
 
 const irParaData = async (page, data) => {
@@ -26,30 +71,37 @@ const irParaData = async (page, data) => {
 
     await Debugger.step(page, `N003-agenda-aberta-${data}`);
 
-    const diferencaDias = diasEntre(data);
+    const clicouDireto = await clicarDataSeVisivel(page, data);
 
-    await Debugger.step(page, `N004-diferenca-dias-${diferencaDias}`);
-
-    if (diferencaDias === 0) {
-        await page.waitForTimeout(2000);
-        await Debugger.step(page, 'N005-data-ja-atual');
+    if (clicouDireto) {
+        await Debugger.step(page, `N004-data-visivel-clicada-${data}`);
         return;
     }
 
-    const botao = diferencaDias > 0
-    ? page.getByRole('button', { name: /next|próximo|proximo|avançar|avancar/i })
-    : page.getByRole('button', { name: /prev|anterior|voltar/i });
+    const hoje = new Date();
+    hoje.setHours(0, 0, 0, 0);
 
-await botao.click({
-    force: true,
-    timeout: 10000
-});
+    const alvo = criarDataLocal(data);
+    alvo.setHours(0, 0, 0, 0);
 
-    await page.waitForTimeout(3000);
+    const direcao = alvo > hoje ? 'proximo' : 'anterior';
 
-    await Debugger.step(page, 'N006-click-data');
+    for (let i = 0; i < 60; i++) {
+        await clicarNavegacao(page, direcao);
 
-    await Debugger.step(page, 'N007-data-final');
+        await Debugger.step(page, `N005-navegacao-${direcao}-${i + 1}`);
+
+        const encontrou = await clicarDataSeVisivel(page, data);
+
+        if (encontrou) {
+            await Debugger.step(page, `N006-data-encontrada-${data}`);
+            return;
+        }
+    }
+
+    await Debugger.step(page, `N007-data-nao-encontrada-${data}`);
+
+    throw new Error(`Não foi possível navegar até a data ${data}.`);
 };
 
 module.exports = {
