@@ -1,8 +1,3 @@
-const {
-    validarCriacaoAgendamento,
-    consultarHorariosDisponiveis
-} = require('./agendaValidator');
-
 const MinhaAgendaAdapter = require('../../adapters/minhaAgenda/MinhaAgendaAdapter');
 
 const {
@@ -13,12 +8,10 @@ const CommandValidator = require('../../validators/commandValidator');
 
 class AgendaEngine {
 
-    async execute(action, dados) {
-
+    async execute(action, dados = {}) {
         CommandValidator.agenda(action, dados);
 
         switch (action) {
-
             case 'criar':
                 return await this.criar(dados);
 
@@ -40,134 +33,51 @@ class AgendaEngine {
             default:
                 throw new Error(`Ação "${action}" não existe.`);
         }
-
     }
 
     async criar(dados) {
+        const { page } = await abrirBrowser();
 
-        const { browser, page } = await abrirBrowser();
-
-        try {
-            const atendimentos = await MinhaAgendaAdapter.listarAtendimentos(page);
-
-            const validacao = validarCriacaoAgendamento({
-                ...dados,
-                atendimentos
-            });
-
-            if (!validacao.valido) {
-                return {
-                    status: validacao.status,
-                    mensagem: validacao.mensagem
-                };
-            }
-
-            return await MinhaAgendaAdapter.criarAgendamento(dados, page);
-
-        } finally {
-            // await browser.close();
-        }
-
+        return await MinhaAgendaAdapter.criarAgendamento(dados, page);
     }
 
     async consultar(dados) {
+        const { page } = await abrirBrowser();
 
-        const { browser, page } = await abrirBrowser();
-
-        try {
-            return await MinhaAgendaAdapter.consultarAgendamento(dados, page);
-
-        } finally {
-            // await browser.close();
-        }
-
+        return await MinhaAgendaAdapter.consultarAgendamento(dados, page);
     }
 
     async cancelar(dados) {
+        const { page } = await abrirBrowser();
 
-        const { browser, page } = await abrirBrowser();
-
-        try {
-            return await MinhaAgendaAdapter.cancelarAgendamento(dados, page);
-
-        } finally {
-            // await browser.close();
-        }
-
+        return await MinhaAgendaAdapter.cancelarAgendamento(dados, page);
     }
 
     async consultarHorarios(dados) {
+        const { page } = await abrirBrowser();
 
-        const { browser, page } = await abrirBrowser();
+        const atendimentos = await MinhaAgendaAdapter.listarAtendimentos(dados, page);
 
-        try {
-            const atendimentos = await MinhaAgendaAdapter.listarAtendimentos(page);
-
-            return consultarHorariosDisponiveis({
-                ...dados,
-                atendimentos
-            });
-
-        } finally {
-            // await browser.close();
-        }
-
+        return {
+            status: 'HORARIOS_CONSULTADOS',
+            atendimentos
+        };
     }
 
     async alterar(dados) {
+        const { page } = await abrirBrowser();
 
-        const { browser, page } = await abrirBrowser();
-
-        try {
-            if (dados.horario) {
-
-                const atendimentos = await MinhaAgendaAdapter.listarAtendimentos(page);
-
-                const consulta = await MinhaAgendaAdapter.consultarAgendamento(
-                    {
-                        cliente: dados.cliente,
-                        telefone: dados.telefone
-                    },
-                    page
-                );
-
-                const servico =
-                    dados.servico ||
-                    consulta?.atendimento?.servico;
-
-                const validacao = validarCriacaoAgendamento({
-                    horario: dados.horario,
-                    servico,
-                    atendimentos
-                });
-
-                if (!validacao.valido) {
-                    return {
-                        status: validacao.status,
-                        mensagem: validacao.mensagem
-                    };
-                }
-
-            }
-
-            return await MinhaAgendaAdapter.alterarAgendamento(dados, page);
-
-        } finally {
-            // await browser.close();
-        }
-
+        return await MinhaAgendaAdapter.alterarAgendamento(dados, page);
     }
 
     async reagendar(dados) {
-
         return await this.alterar({
             cliente: dados.cliente,
             telefone: dados.telefone,
+            data: dados.data,
             horario: dados.novoHorario
         });
-
     }
-
 }
 
 module.exports = new AgendaEngine();
