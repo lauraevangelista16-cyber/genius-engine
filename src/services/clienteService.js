@@ -1,13 +1,42 @@
 const Debugger = require('../core/Debugger');
 
+async function encontrarCampoCliente(page) {
+    const candidatos = [
+        page.getByRole('textbox', { name: /cliente/i }),
+        page.locator('input[placeholder*="Cliente" i]'),
+        page.locator('input[name*="cliente" i]'),
+        page.locator('input').filter({ hasText: /cliente/i })
+    ];
+
+    for (const campo of candidatos) {
+        const total = await campo.count().catch(() => 0);
+
+        if (total === 0) continue;
+
+        const item = campo.first();
+        const visivel = await item.isVisible().catch(() => false);
+
+        if (visivel) {
+            return item;
+        }
+    }
+
+    return null;
+}
+
 async function selecionarCliente(page, cliente) {
     await Debugger.step(page, 'C001-selecionar-cliente-inicio');
 
-    const campoCliente = page.getByRole('textbox', {
-        name: /cliente/i
-    });
+    const campoCliente = await encontrarCampoCliente(page);
 
-    await campoCliente.click({ force: true });
+    if (!campoCliente) {
+        await Debugger.step(page, 'C001-campo-cliente-nao-encontrado');
+        return {
+            status: 'ERRO_CAMPO_CLIENTE_NAO_ENCONTRADO'
+        };
+    }
+
+    await campoCliente.click({ force: true, timeout: 10000 });
     await campoCliente.fill('');
     await campoCliente.fill(cliente);
 
@@ -15,8 +44,9 @@ async function selecionarCliente(page, cliente) {
 
     await page.waitForTimeout(1500);
 
-    const opcoes = page.locator('li, [role="option"], .MuiAutocomplete-option')
-        .filter({ hasText: cliente });
+    const opcoes = page
+        .locator('li, [role="option"], .MuiAutocomplete-option, [id*="option"], [id*="item"]')
+        .filter({ hasText: new RegExp(cliente, 'i') });
 
     const totalOpcoes = await opcoes.count();
 
@@ -46,22 +76,34 @@ async function criarCliente(page, dados) {
 
     const { cliente, telefone } = dados;
 
-    await page.getByText('ADICIONAR CLIENTE', { exact: false }).click();
+    await page.getByText('ADICIONAR CLIENTE', { exact: false }).click({
+        force: true,
+        timeout: 10000
+    });
 
-    await page.waitForTimeout(1000);
+    await page.waitForTimeout(1500);
 
     await Debugger.step(page, 'C007-modal-criar-cliente');
 
     const campos = page.getByRole('textbox');
+    const totalCampos = await campos.count();
 
-    await campos.nth(0).click({ force: true });
+    await Debugger.step(page, `C007-total-campos-cliente-${totalCampos}`);
+
+    if (totalCampos < 2) {
+        return {
+            status: 'ERRO_CAMPOS_CRIAR_CLIENTE'
+        };
+    }
+
+    await campos.nth(0).click({ force: true, timeout: 10000 });
     await campos.nth(0).fill('');
     await campos.nth(0).fill(cliente);
 
     await Debugger.step(page, 'C008-nome-cliente-preenchido');
 
     if (telefone) {
-        await campos.nth(1).click({ force: true });
+        await campos.nth(1).click({ force: true, timeout: 10000 });
         await campos.nth(1).fill('');
         await campos.nth(1).fill(telefone);
 
@@ -70,9 +112,23 @@ async function criarCliente(page, dados) {
 
     await page.waitForTimeout(800);
 
-    await page.getByRole('button', { name: /salvar/i }).last().click();
+    const botoesSalvar = page.getByRole('button', { name: /^salvar$/i });
+    const totalSalvar = await botoesSalvar.count();
 
-    await page.waitForTimeout(2500);
+    await Debugger.step(page, `C009-total-botoes-salvar-${totalSalvar}`);
+
+    if (totalSalvar === 0) {
+        return {
+            status: 'ERRO_BOTAO_SALVAR_CLIENTE'
+        };
+    }
+
+    await botoesSalvar.last().click({
+        force: true,
+        timeout: 10000
+    });
+
+    await page.waitForTimeout(3000);
 
     await Debugger.step(page, 'C010-cliente-salvo');
 
@@ -94,6 +150,10 @@ async function selecionarOuCriarCliente(page, dados) {
         return selecao;
     }
 
+    if (selecao.status !== 'CLIENTE_NAO_ENCONTRADO') {
+        return selecao;
+    }
+
     const criacao = await criarCliente(page, {
         cliente,
         telefone
@@ -102,12 +162,10 @@ async function selecionarOuCriarCliente(page, dados) {
     await Debugger.step(page, `C013-status-criacao-${criacao.status}`);
 
     if (criacao.status !== 'CLIENTE_CRIADO') {
-        return {
-            status: 'ERRO_CRIAR_CLIENTE'
-        };
+        return criacao;
     }
 
-    await page.waitForTimeout(1500);
+    await page.waitForTimeout(2000);
 
     const selecaoAposCriar = await selecionarCliente(page, cliente);
 
@@ -120,7 +178,7 @@ async function selecionarOuCriarCliente(page, dados) {
     }
 
     return {
-        status: 'ERRO_SELECIONAR_CLIENTE'
+        status: 'ERRO_SELECIONAR_CLIENTE_APOS_CRIAR'
     };
 }
 
