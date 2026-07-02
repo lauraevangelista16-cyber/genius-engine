@@ -69,6 +69,42 @@ async function encontrarCampoCliente(page) {
     return null;
 }
 
+async function clicarBotaoAdicionarCliente(page) {
+    const candidatos = [
+        page.getByText('ADICIONAR CLIENTE', { exact: false }),
+        page.getByText('Adicionar cliente', { exact: false }),
+        page.getByText('Novo cliente', { exact: false }),
+        page.getByText('Cadastrar cliente', { exact: false }),
+        page.getByRole('button', { name: /adicionar cliente/i }),
+        page.getByRole('button', { name: /novo cliente/i }),
+        page.getByRole('button', { name: /cadastrar cliente/i }),
+        page.locator('button').filter({ hasText: /adicionar/i }),
+        page.locator('button').filter({ hasText: /cliente/i })
+    ];
+
+    for (const candidato of candidatos) {
+        const total = await candidato.count().catch(() => 0);
+
+        if (total === 0) continue;
+
+        for (let i = 0; i < total; i++) {
+            const botao = candidato.nth(i);
+            const visivel = await botao.isVisible().catch(() => false);
+
+            if (!visivel) continue;
+
+            await botao.click({
+                force: true,
+                timeout: 10000
+            });
+
+            return true;
+        }
+    }
+
+    return false;
+}
+
 async function selecionarCliente(page, cliente, telefone = '') {
     await Debugger.step(page, 'C001-selecionar-cliente-inicio');
 
@@ -197,10 +233,15 @@ async function criarCliente(page, dados) {
 
     const { cliente, telefone } = dados;
 
-    await page.getByText('ADICIONAR CLIENTE', { exact: false }).click({
-        force: true,
-        timeout: 10000
-    });
+    const clicouAdicionar = await clicarBotaoAdicionarCliente(page);
+
+    await Debugger.step(page, `C006-clicou-adicionar-cliente-${clicouAdicionar}`);
+
+    if (!clicouAdicionar) {
+        return {
+            status: 'ERRO_BOTAO_ADICIONAR_CLIENTE'
+        };
+    }
 
     await page.waitForTimeout(1500);
 
