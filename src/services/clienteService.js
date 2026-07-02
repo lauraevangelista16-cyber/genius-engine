@@ -1,11 +1,56 @@
 const Debugger = require('../core/Debugger');
 
+function normalizarTexto(texto) {
+    return String(texto || '')
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .trim();
+}
+
+function normalizarTelefone(telefone) {
+    return String(telefone || '').replace(/\D/g, '');
+}
+
+function nomeExatoNoTexto(textoOpcao, cliente) {
+    const clienteNormalizado = normalizarTexto(cliente);
+
+    const linhas = String(textoOpcao || '')
+        .split('\n')
+        .map(linha => normalizarTexto(linha))
+        .filter(Boolean);
+
+    return linhas.some(linha => linha === clienteNormalizado);
+}
+
+function nomeContemNoTexto(textoOpcao, cliente) {
+    const textoNormalizado = normalizarTexto(textoOpcao);
+    const clienteNormalizado = normalizarTexto(cliente);
+
+    return clienteNormalizado && textoNormalizado.includes(clienteNormalizado);
+}
+
+function telefoneExisteNoTexto(textoOpcao) {
+    return normalizarTelefone(textoOpcao).length >= 8;
+}
+
+function telefoneCombinaNoTexto(textoOpcao, telefone) {
+    const telefoneNormalizado = normalizarTelefone(telefone);
+    const textoTelefone = normalizarTelefone(textoOpcao);
+
+    if (!telefoneNormalizado || !textoTelefone) return false;
+
+    return (
+        textoTelefone.includes(telefoneNormalizado) ||
+        telefoneNormalizado.includes(textoTelefone)
+    );
+}
+
 async function encontrarCampoCliente(page) {
     const candidatos = [
         page.getByRole('textbox', { name: /cliente/i }),
         page.locator('input[placeholder*="Cliente" i]'),
-        page.locator('input[name*="cliente" i]'),
-        page.locator('input').filter({ hasText: /cliente/i })
+        page.locator('input[name*="cliente" i]')
     ];
 
     for (const campo of candidatos) {
@@ -13,18 +58,18 @@ async function encontrarCampoCliente(page) {
 
         if (total === 0) continue;
 
-        const item = campo.first();
-        const visivel = await item.isVisible().catch(() => false);
+        for (let i = 0; i < total; i++) {
+            const item = campo.nth(i);
+            const visivel = await item.isVisible().catch(() => false);
 
-        if (visivel) {
-            return item;
+            if (visivel) return item;
         }
     }
 
     return null;
 }
 
-async function selecionarCliente(page, cliente) {
+async function selecionarCliente(page, cliente, telefone = '') {
     await Debugger.step(page, 'C001-selecionar-cliente-inicio');
 
     const campoCliente = await encontrarCampoCliente(page);
@@ -52,19 +97,95 @@ async function selecionarCliente(page, cliente) {
 
     await Debugger.step(page, `C003-opcoes-autocomplete-${totalOpcoes}`);
 
-    if (totalOpcoes > 0) {
-        await opcoes.first().click({ force: true, timeout: 5000 });
+    if (totalOpcoes === 0) {
+        await Debugger.step(page, 'C005-cliente-nao-encontrado');
+        return {
+            status: 'CLIENTE_NAO_ENCONTRADO'
+        };
+    }
 
+    const opcoesLidas = [];
+
+    for (let i = 0; i < totalOpcoes; i++) {
+        const opcao = opcoes.nth(i);
+        const texto = await opcao.innerText().catch(() => '');
+
+        opcoesLidas.push({
+            indice: i,
+            opcao,
+            texto,
+            nomeExato: nomeExatoNoTexto(texto, cliente),
+            nomeContem: nomeContemNoTexto(texto, cliente),
+            temTelefone: telefoneExisteNoTexto(texto),
+            telefoneCombina: telefoneCombinaNoTexto(texto, telefone)
+        });
+    }
+
+    const porTelefone = opcoesLidas.filter(item => item.telefoneCombina);
+
+    await Debugger.step(page, `C003-clientes-por-telefone-${porTelefone.length}`);
+
+    if (porTelefone.length === 1) {
+        await porTelefone[0].opcao.click({ force: true, timeout: 5000 });
         await page.waitForTimeout(1500);
 
-        await Debugger.step(page, 'C004-cliente-clicado-na-opcao');
+        await Debugger.step(page, 'C004-cliente-selecionado-por-telefone');
 
         return {
             status: 'CLIENTE_SELECIONADO'
         };
     }
 
-    await Debugger.step(page, 'C005-cliente-nao-encontrado');
+    if (porTelefone.length > 1) {
+        await Debugger.step(page, 'C005-cliente-ambiguo-telefone');
+
+        return {
+            status: 'CLIENTE_AMBIGUO',
+            clientes: porTelefone.map(item => item.texto)
+        };
+    }
+
+    const exatosSemTelefoneDiferente = opcoesLidas.filter(item => {
+        if (!item.nomeExato) return false;
+
+        if (item.temTelefone && telefone) {
+            return false;
+        }
+
+        return true;
+    });
+
+    await Debugger.step(page, `C003-clientes-nome-exato-seguros-${exatosSemTelefoneDiferente.length}`);
+
+    if (exatosSemTelefoneDiferente.length === 1) {
+        await exatosSemTelefoneDiferente[0].opcao.click({
+            force: true,
+            timeout: 5000
+        });
+
+        await page.waitForTimeout(1500);
+
+        await Debugger.step(page, 'C004-cliente-selecionado-por-nome-exato');
+
+        return {
+            status: 'CLIENTE_SELECIONADO'
+        };
+    }
+
+    if (exatosSemTelefoneDiferente.length > 1) {
+        await Debugger.step(page, 'C005-cliente-ambiguo-nome-exato');
+
+        return {
+            status: 'CLIENTE_AMBIGUO',
+            clientes: exatosSemTelefoneDiferente.map(item => item.texto)
+        };
+    }
+
+    const parecidos = opcoesLidas.filter(item => item.nomeContem);
+
+    if (parecidos.length > 0) {
+        await Debugger.step(page, 'C005-clientes-parecidos-ignorados');
+    }
 
     return {
         status: 'CLIENTE_NAO_ENCONTRADO'
@@ -142,11 +263,15 @@ async function selecionarOuCriarCliente(page, dados) {
 
     const { cliente, telefone } = dados;
 
-    const selecao = await selecionarCliente(page, cliente);
+    const selecao = await selecionarCliente(page, cliente, telefone);
 
     await Debugger.step(page, `C012-status-selecao-${selecao.status}`);
 
     if (selecao.status === 'CLIENTE_SELECIONADO') {
+        return selecao;
+    }
+
+    if (selecao.status === 'CLIENTE_AMBIGUO') {
         return selecao;
     }
 
@@ -167,7 +292,7 @@ async function selecionarOuCriarCliente(page, dados) {
 
     await page.waitForTimeout(2000);
 
-    const selecaoAposCriar = await selecionarCliente(page, cliente);
+    const selecaoAposCriar = await selecionarCliente(page, cliente, telefone);
 
     await Debugger.step(page, `C014-status-selecao-apos-criar-${selecaoAposCriar.status}`);
 
