@@ -42,26 +42,49 @@ const abrirHorario = async (page, horario) => {
 
         await Debugger.step(page, `002-linha-horario-${horarioLimpo}-${total}`);
 
-        if (total === 0) return 'HORARIO_OCUPADO';
+        if (total === 0) {
+            await Debugger.step(page, `003-linha-horario-nao-encontrada-${horarioLimpo}`);
+            return 'ERRO_LINHA_HORARIO_NAO_ENCONTRADA';
+        }
 
         const celula = linhaHorario.last().locator('td.fc-day-cell').last();
         const box = await celula.boundingBox();
 
-        if (!box) return 'HORARIO_OCUPADO';
+        if (!box) {
+            await Debugger.step(page, `003-box-celula-nao-encontrado-${horarioLimpo}`);
+            return 'ERRO_CELULA_HORARIO_NAO_ENCONTRADA';
+        }
 
         await page.mouse.click(
             box.x + box.width / 2,
             box.y + box.height / 2
         );
 
-        await page.waitForTimeout(1500);
+        await page.waitForTimeout(2000);
 
         const abriu = await page
             .getByText('Criando Atendimento', { exact: false })
             .isVisible()
             .catch(() => false);
 
-        if (!abriu) return 'HORARIO_OCUPADO';
+        await Debugger.step(page, `003-modal-criando-abriu-${abriu}`);
+
+        if (!abriu) {
+            const textoTela = await page.locator('body').innerText().catch(() => '');
+
+            if (
+                textoTela.includes('Já existe atendimento') ||
+                textoTela.includes('já existe atendimento') ||
+                textoTela.includes('horário já está ocupado') ||
+                textoTela.includes('Horário ocupado')
+            ) {
+                await Debugger.step(page, `004-horario-realmente-ocupado-${horario}`);
+                return 'HORARIO_OCUPADO';
+            }
+
+            await Debugger.step(page, `004-modal-nao-abriu-${horario}`);
+            return 'ERRO_MODAL_NAO_ABRIU';
+        }
 
         const campoHora = page.locator('input[name="startTime"]');
 
@@ -72,13 +95,21 @@ const abrirHorario = async (page, horario) => {
 
         await page.waitForTimeout(500);
 
-        await Debugger.step(page, `003-horario-modal-ajustado-${horario}`);
+        const valorHorario = await campoHora.inputValue().catch(() => '');
+
+        await Debugger.step(page, `005-horario-modal-ajustado-${valorHorario}`);
+
+        if (valorHorario !== horario) {
+            await Debugger.step(page, `006-horario-modal-diferente-${valorHorario}`);
+            return 'ERRO_HORARIO_MODAL_DIFERENTE';
+        }
 
         return 'HORARIO_LIVRE';
 
     } catch (erro) {
-        await Debugger.step(page, '004-erro-geral-abrir-horario');
-        return 'HORARIO_OCUPADO';
+        console.log('[ERRO abrirHorario]', erro.message);
+        await Debugger.step(page, `007-erro-geral-abrir-horario`);
+        return 'ERRO_ABRIR_HORARIO';
     }
 };
 
