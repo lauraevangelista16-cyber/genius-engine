@@ -70,21 +70,24 @@ const abrirHorario = async (page, horario) => {
         await Debugger.step(page, `003-modal-criando-abriu-${abriu}`);
 
         if (!abriu) {
-            const textoTela = await page.locator('body').innerText().catch(() => '');
+    const textoTela = await page.locator('body').innerText().catch(() => '');
 
-            if (
-                textoTela.includes('Já existe atendimento') ||
-                textoTela.includes('já existe atendimento') ||
-                textoTela.includes('horário já está ocupado') ||
-                textoTela.includes('Horário ocupado')
-            ) {
-                await Debugger.step(page, `004-horario-realmente-ocupado-${horario}`);
-                return 'HORARIO_OCUPADO';
-            }
+    console.log('==============================');
+    console.log('MODAL NÃO ABRIU');
+    console.log(textoTela);
+    console.log('==============================');
 
-            await Debugger.step(page, `004-modal-nao-abriu-${horario}`);
-            return 'ERRO_MODAL_NAO_ABRIU';
-        }
+    if (
+        textoTela.includes('Já existe atendimento') ||
+        textoTela.includes('já existe atendimento') ||
+        textoTela.includes('horário já está ocupado') ||
+        textoTela.includes('Horário ocupado')
+    ) {
+        return 'HORARIO_OCUPADO';
+    }
+
+    return 'ERRO_MODAL_NAO_ABRIU';
+}
 
         const campoHora = page.locator('input[name="startTime"]');
 
