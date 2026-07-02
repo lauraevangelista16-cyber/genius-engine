@@ -6,6 +6,10 @@ const {
 
 const CommandValidator = require('../../validators/commandValidator');
 
+const {
+    consultarHorariosDisponiveis
+} = require('./agendaValidator');
+
 class AgendaEngine {
 
     async execute(action, dados = {}) {
@@ -56,12 +60,16 @@ class AgendaEngine {
     async consultarHorarios(dados) {
         const { page } = await abrirBrowser();
 
-        const atendimentos = await MinhaAgendaAdapter.listarAtendimentos(dados, page);
+        const atendimentos = await MinhaAgendaAdapter.listarAtendimentos(
+            dados,
+            page
+        );
 
-        return {
-            status: 'HORARIOS_CONSULTADOS',
+        return consultarHorariosDisponiveis({
+            servico: dados.servico,
+            limite: dados.limite,
             atendimentos
-        };
+        });
     }
 
     async alterar(dados) {
@@ -78,6 +86,7 @@ class AgendaEngine {
             horario: dados.novoHorario
         });
     }
+
 }
 
 module.exports = new AgendaEngine();
