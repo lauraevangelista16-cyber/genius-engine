@@ -1,23 +1,14 @@
 const Debugger = require('../core/Debugger');
 
-const {
-    buscarCliente
-} = require('./clienteBuscaService');
-
-const {
-    criarESelecionarCliente
-} = require('./clienteCriacaoService');
+const { buscarCliente } = require('./clienteBuscaService');
+const clienteCriacaoService = require('./clienteCriacaoService');
 
 async function selecionarCliente(page, cliente, telefone = '') {
     return await buscarCliente(page, cliente, telefone);
 }
 
 async function criarCliente(page, dados) {
-    const {
-        criarCliente
-    } = require('./clienteCriacaoService');
-
-    return await criarCliente(page, dados);
+    return await clienteCriacaoService.criarCliente(page, dados);
 }
 
 async function selecionarOuCriarCliente(page, dados) {
@@ -41,7 +32,7 @@ async function selecionarOuCriarCliente(page, dados) {
         return selecao;
     }
 
-    return await criarESelecionarCliente(page, {
+    return await clienteCriacaoService.criarESelecionarCliente(page, {
         cliente,
         telefone
     });
