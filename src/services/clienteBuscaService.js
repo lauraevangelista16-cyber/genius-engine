@@ -21,7 +21,6 @@ async function encontrarCampoCliente(page) {
 
         for (let i = 0; i < total; i++) {
             const campo = candidato.nth(i);
-
             const visivel = await campo.isVisible().catch(() => false);
 
             if (visivel) return campo;
@@ -32,13 +31,11 @@ async function encontrarCampoCliente(page) {
 }
 
 async function buscarCliente(page, cliente, telefone = '') {
-
     await Debugger.step(page, 'C001-selecionar-cliente-inicio');
 
     const campo = await encontrarCampoCliente(page);
 
     if (!campo) {
-
         await Debugger.step(page, 'C001-campo-cliente-nao-encontrado');
 
         return {
@@ -63,7 +60,6 @@ async function buscarCliente(page, cliente, telefone = '') {
     await Debugger.step(page, `C003-opcoes-autocomplete-${total}`);
 
     if (total === 0) {
-
         await Debugger.step(page, 'C005-cliente-nao-encontrado');
 
         return {
@@ -74,27 +70,19 @@ async function buscarCliente(page, cliente, telefone = '') {
     const clientes = [];
 
     for (let i = 0; i < total; i++) {
-
         const opcao = opcoes.nth(i);
-
         const texto = await opcao.innerText().catch(() => '');
 
+        await Debugger.step(page, `C003-texto-opcao-${i}-${String(texto).replace(/\s+/g, ' ').slice(0, 120)}`);
+
         clientes.push({
-
             opcao,
-
             texto,
-
             nomeExato: nomeExato(texto, cliente),
-
             nomeContem: nomeContem(texto, cliente),
-
             telefoneExiste: telefoneExiste(texto),
-
             telefoneCombina: telefoneCombina(texto, telefone)
-
         });
-
     }
 
     const porTelefone = clientes.filter(c => c.telefoneCombina);
@@ -102,9 +90,7 @@ async function buscarCliente(page, cliente, telefone = '') {
     await Debugger.step(page, `C003-clientes-por-telefone-${porTelefone.length}`);
 
     if (porTelefone.length === 1) {
-
         await porTelefone[0].opcao.click({ force: true });
-
         await page.waitForTimeout(1000);
 
         await Debugger.step(page, 'C004-cliente-selecionado-por-telefone');
@@ -112,25 +98,20 @@ async function buscarCliente(page, cliente, telefone = '') {
         return {
             status: 'CLIENTE_SELECIONADO'
         };
-
     }
 
     const nomeSeguro = clientes.filter(c => {
-
         if (!c.nomeExato) return false;
 
         if (telefone && c.telefoneExiste) return false;
 
         return true;
-
     });
 
     await Debugger.step(page, `C003-clientes-nome-exato-seguros-${nomeSeguro.length}`);
 
     if (nomeSeguro.length === 1) {
-
         await nomeSeguro[0].opcao.click({ force: true });
-
         await page.waitForTimeout(1000);
 
         await Debugger.step(page, 'C004-cliente-selecionado-por-nome');
@@ -138,29 +119,41 @@ async function buscarCliente(page, cliente, telefone = '') {
         return {
             status: 'CLIENTE_SELECIONADO'
         };
+    }
 
+    const nomeContemSemTelefone = clientes.filter(c => {
+        if (!c.nomeContem) return false;
+
+        if (c.telefoneExiste && telefone) return false;
+
+        return true;
+    });
+
+    await Debugger.step(page, `C003-clientes-nome-contem-sem-telefone-${nomeContemSemTelefone.length}`);
+
+    if (nomeContemSemTelefone.length === 1) {
+        await nomeContemSemTelefone[0].opcao.click({ force: true });
+        await page.waitForTimeout(1000);
+
+        await Debugger.step(page, 'C004-cliente-selecionado-por-unica-opcao-sem-telefone');
+
+        return {
+            status: 'CLIENTE_SELECIONADO'
+        };
     }
 
     const parecidos = clientes.filter(c => c.nomeContem);
 
     if (parecidos.length) {
-
         await Debugger.step(page, 'C005-clientes-parecidos-ignorados');
-
     }
 
     return {
-
         status: 'CLIENTE_NAO_ENCONTRADO'
-
     };
-
 }
 
 module.exports = {
-
     buscarCliente,
-
     encontrarCampoCliente
-
 };
