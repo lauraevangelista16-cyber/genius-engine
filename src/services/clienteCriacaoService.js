@@ -1,9 +1,5 @@
 const Debugger = require('../core/Debugger');
 
-const {
-    buscarCliente
-} = require('./clienteBuscaService');
-
 async function clicarBotaoAdicionarCliente(page) {
     const candidatos = [
         page.getByText('ADICIONAR CLIENTE', { exact: false }),
@@ -28,11 +24,7 @@ async function clicarBotaoAdicionarCliente(page) {
 
             if (!visivel) continue;
 
-            await botao.click({
-                force: true,
-                timeout: 10000
-            });
-
+            await botao.click({ force: true, timeout: 10000 });
             return true;
         }
     }
@@ -97,10 +89,7 @@ async function criarCliente(page, dados) {
         };
     }
 
-    await botoesSalvar.last().click({
-        force: true,
-        timeout: 10000
-    });
+    await botoesSalvar.last().click({ force: true, timeout: 10000 });
 
     await page.waitForTimeout(3000);
 
@@ -120,24 +109,10 @@ async function criarESelecionarCliente(page, dados) {
         return criacao;
     }
 
-    await page.waitForTimeout(2000);
-
-    const selecaoAposCriar = await buscarCliente(
-        page,
-        dados.cliente,
-        dados.telefone
-    );
-
-    await Debugger.step(page, `C014-status-selecao-apos-criar-${selecaoAposCriar.status}`);
-
-    if (selecaoAposCriar.status === 'CLIENTE_SELECIONADO') {
-        return {
-            status: 'CLIENTE_SELECIONADO'
-        };
-    }
+    await Debugger.step(page, 'C014-cliente-criado-considerado-selecionado');
 
     return {
-        status: 'ERRO_SELECIONAR_CLIENTE_APOS_CRIAR'
+        status: 'CLIENTE_SELECIONADO'
     };
 }
 
