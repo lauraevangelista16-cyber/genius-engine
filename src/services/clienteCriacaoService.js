@@ -125,43 +125,10 @@ async function criarESelecionarCliente(page, dados) {
         return criacao;
     }
 
-    await page.waitForTimeout(2000);
-
-    const atendimentoDisponivel = await modalAtendimentoDisponivel(page);
-
-    await Debugger.step(page, `C014-modal-atendimento-disponivel-${atendimentoDisponivel}`);
-
-    if (atendimentoDisponivel) {
-        return {
-            status: 'CLIENTE_SELECIONADO'
-        };
-    }
-
-    for (let tentativa = 1; tentativa <= 3; tentativa++) {
-        await page.waitForTimeout(2000);
-
-        await Debugger.step(page, `C014-tentativa-selecionar-apos-criar-${tentativa}`);
-
-        await page.keyboard.press('Escape').catch(() => {});
-        await page.waitForTimeout(800);
-
-        const selecao = await buscarCliente(
-            page,
-            dados.cliente,
-            dados.telefone
-        );
-
-        await Debugger.step(page, `C014-status-selecao-apos-criar-${selecao.status}`);
-
-        if (selecao.status === 'CLIENTE_SELECIONADO') {
-            return {
-                status: 'CLIENTE_SELECIONADO'
-            };
-        }
-    }
+    await Debugger.step(page, 'C014-cliente-criado-precisa-reabrir');
 
     return {
-        status: 'ERRO_SELECIONAR_CLIENTE_APOS_CRIAR'
+        status: 'CLIENTE_CRIADO_PRECISA_REABRIR'
     };
 }
 

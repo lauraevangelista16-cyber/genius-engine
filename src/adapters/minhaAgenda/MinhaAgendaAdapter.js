@@ -77,12 +77,46 @@ class MinhaAgendaAdapter {
 
         await Debugger.step(page, `A006-status-cliente-${cliente.status}`);
 
-        if (cliente.status !== 'CLIENTE_SELECIONADO') {
-            return {
-                status: 'ERRO_CLIENTE',
-                mensagem: 'Não foi possível selecionar ou criar o cliente.'
-            };
-        }
+        if (cliente.status === 'CLIENTE_CRIADO_PRECISA_REABRIR') {
+    await Debugger.step(page, 'A006-cliente-criado-reabrindo-modal');
+
+    await page.keyboard.press('Escape').catch(() => {});
+    await page.waitForTimeout(1500);
+
+    await irParaData(page, dadosNormalizados.data);
+
+    await Debugger.step(page, 'A006-data-reaberta-apos-criar-cliente');
+
+    const statusHorarioReaberto = await abrirHorario(page, dadosNormalizados.horario);
+
+    await Debugger.step(page, `A006-status-horario-reaberto-${statusHorarioReaberto}`);
+
+    if (statusHorarioReaberto !== 'HORARIO_LIVRE') {
+        return {
+            status: 'HORARIO_OCUPADO',
+            mensagem: `O horário ${dadosNormalizados.horario} já está ocupado.`
+        };
+    }
+
+    const clienteReaberto = await selecionarOuCriarCliente(page, {
+        cliente: dadosNormalizados.cliente,
+        telefone: dadosNormalizados.telefone
+    });
+
+    await Debugger.step(page, `A006-status-cliente-reaberto-${clienteReaberto.status}`);
+
+    if (clienteReaberto.status !== 'CLIENTE_SELECIONADO') {
+        return {
+            status: 'ERRO_CLIENTE',
+            mensagem: 'Cliente criado, mas não foi possível selecioná-lo após reabrir o atendimento.'
+        };
+    }
+} else if (cliente.status !== 'CLIENTE_SELECIONADO') {
+    return {
+        status: 'ERRO_CLIENTE',
+        mensagem: 'Não foi possível selecionar ou criar o cliente.'
+    };
+}
 
         await selecionarServico(page, dadosNormalizados.servico);
 
