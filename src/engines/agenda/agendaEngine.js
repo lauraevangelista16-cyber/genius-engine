@@ -19,6 +19,9 @@ class AgendaEngine {
             case 'criar':
                 return await this.criar(dados);
 
+            case 'cadastrar_cliente':
+                return await this.cadastrarCliente(dados);
+
             case 'consultar':
                 return await this.consultar(dados);
 
@@ -43,6 +46,12 @@ class AgendaEngine {
         const { page } = await abrirBrowser();
 
         return await MinhaAgendaAdapter.criarAgendamento(dados, page);
+    }
+
+    async cadastrarCliente(dados) {
+        const { page } = await abrirBrowser();
+
+        return await MinhaAgendaAdapter.cadastrarCliente(dados, page);
     }
 
     async consultar(dados) {
@@ -83,7 +92,7 @@ class AgendaEngine {
             cliente: dados.cliente,
             telefone: dados.telefone,
             data: dados.data,
-            horario: dados.novoHorario
+            horario: dados.novoHorario || dados.horario
         });
     }
 

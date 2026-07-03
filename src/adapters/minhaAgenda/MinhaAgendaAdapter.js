@@ -15,15 +15,13 @@ const {
 
 const {
     selecionarCliente,
-    selecionarOuCriarCliente
+    selecionarOuCriarCliente,
+    criarCliente
 } = require('../../services/clienteService');
 
 async function obterPage(pageRecebida) {
     if (pageRecebida) {
-        return {
-            page: pageRecebida,
-            browser: null
-        };
+        return { page: pageRecebida, browser: null };
     }
 
     return await abrirBrowser();
@@ -42,12 +40,76 @@ class MinhaAgendaAdapter {
         const { page } = await obterPage(pageRecebida);
 
         await Debugger.step(page, 'A001-listar-inicio');
-
         await irParaData(page, dadosNormalizados.data);
-
         await Debugger.step(page, 'A002-listar-data');
 
         return await listarAtendimentosDoDia(page);
+    }
+
+    async cadastrarCliente(dados, pageRecebida) {
+        const dadosNormalizados = normalizarDados(dados);
+        const { page } = await obterPage(pageRecebida);
+
+        await Debugger.step(page, 'A000-cadastrar-cliente-inicio');
+
+        if (!dadosNormalizados.data || !dadosNormalizados.horario) {
+            return {
+                status: 'DADOS_INCOMPLETOS',
+                mensagem: 'Para cadastrar cliente pelo Minha Agenda, informe data e horário para abrir o formulário.'
+            };
+        }
+
+        await irParaData(page, dadosNormalizados.data);
+
+        const statusHorario = await abrirHorario(page, dadosNormalizados.horario);
+
+        await Debugger.step(page, `A000-status-horario-cadastro-${statusHorario}`);
+
+        if (statusHorario !== 'HORARIO_LIVRE') {
+            return {
+                status: 'HORARIO_OCUPADO',
+                mensagem: `O horário ${dadosNormalizados.horario} está ocupado. Use outro horário apenas para abrir o cadastro.`
+            };
+        }
+
+        const clienteJaExiste = await selecionarCliente(
+            page,
+            dadosNormalizados.cliente,
+            dadosNormalizados.telefone
+        );
+
+        await Debugger.step(page, `A000-status-cliente-ja-existe-${clienteJaExiste.status}`);
+
+        if (clienteJaExiste.status === 'CLIENTE_SELECIONADO') {
+            await page.keyboard.press('Escape').catch(() => {});
+
+            return {
+                status: 'CLIENTE_JA_CADASTRADO',
+                mensagem: 'Cliente já estava cadastrado.'
+            };
+        }
+
+        const criacao = await criarCliente(page, {
+            cliente: dadosNormalizados.cliente,
+            telefone: dadosNormalizados.telefone
+        });
+
+        await Debugger.step(page, `A000-status-cadastro-cliente-${criacao.status}`);
+
+        await page.keyboard.press('Escape').catch(() => {});
+        await page.waitForTimeout(1000);
+
+        if (criacao.status !== 'CLIENTE_CRIADO') {
+            return {
+                status: 'ERRO_CLIENTE',
+                mensagem: 'Não foi possível cadastrar o cliente.'
+            };
+        }
+
+        return {
+            status: 'CLIENTE_CADASTRADO',
+            mensagem: 'Cliente cadastrado com sucesso. Agora já posso seguir com o agendamento.'
+        };
     }
 
     async criarAgendamento(dados, pageRecebida) {
@@ -71,53 +133,36 @@ class MinhaAgendaAdapter {
             };
         }
 
-        const cliente = await selecionarOuCriarCliente(page, {
-            cliente: dadosNormalizados.cliente,
-            telefone: dadosNormalizados.telefone
-        });
+        const cliente = await selecionarCliente(
+            page,
+            dadosNormalizados.cliente,
+            dadosNormalizados.telefone
+        );
 
         await Debugger.step(page, `A006-status-cliente-${cliente.status}`);
 
-        if (cliente.status === 'CLIENTE_CRIADO_PRECISA_REABRIR') {
-            await Debugger.step(page, 'A006-cliente-criado-reabrindo-modal');
-
+        if (cliente.status === 'CLIENTE_NAO_ENCONTRADO') {
             await page.keyboard.press('Escape').catch(() => {});
-            await page.waitForTimeout(1500);
 
-            await irParaData(page, dadosNormalizados.data);
+            return {
+                status: 'CLIENTE_NAO_CADASTRADO',
+                mensagem: 'Cliente ainda não cadastrado. Cadastre o cliente antes de confirmar o agendamento.',
+                dados: {
+                    cliente: dadosNormalizados.cliente,
+                    telefone: dadosNormalizados.telefone,
+                    servico: dadosNormalizados.servico,
+                    data: dadosNormalizados.data,
+                    horario: dadosNormalizados.horario
+                }
+            };
+        }
 
-            await Debugger.step(page, 'A006-data-reaberta-apos-criar-cliente');
+        if (cliente.status !== 'CLIENTE_SELECIONADO') {
+            await page.keyboard.press('Escape').catch(() => {});
 
-            const statusHorarioReaberto = await abrirHorario(page, dadosNormalizados.horario);
-
-            await Debugger.step(page, `A006-status-horario-reaberto-${statusHorarioReaberto}`);
-
-            if (statusHorarioReaberto !== 'HORARIO_LIVRE') {
-                return {
-                    status: 'HORARIO_OCUPADO',
-                    mensagem: `O horário ${dadosNormalizados.horario} já está ocupado.`
-                };
-            }
-
-            const clienteReaberto = await selecionarCliente(
-                page,
-                dadosNormalizados.cliente,
-                dadosNormalizados.telefone
-            );
-
-            await Debugger.step(page, `A006-status-cliente-reaberto-${clienteReaberto.status}`);
-
-            if (clienteReaberto.status !== 'CLIENTE_SELECIONADO') {
-                return {
-                    status: 'ERRO_CLIENTE',
-                    mensagem: 'Cliente criado, mas não foi possível selecioná-lo após reabrir o atendimento.'
-                };
-            }
-
-        } else if (cliente.status !== 'CLIENTE_SELECIONADO') {
             return {
                 status: 'ERRO_CLIENTE',
-                mensagem: 'Não foi possível selecionar ou criar o cliente.'
+                mensagem: 'Não foi possível selecionar o cliente.'
             };
         }
 

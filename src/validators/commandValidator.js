@@ -1,11 +1,14 @@
 class CommandValidator {
 
-    agenda(action, dados) {
+    agenda(action, dados = {}) {
 
         switch (action) {
 
             case 'criar':
                 return this.criar(dados);
+
+            case 'cadastrar_cliente':
+                return this.cadastrarCliente(dados);
 
             case 'consultar':
                 return this.buscar(dados);
@@ -62,6 +65,14 @@ class CommandValidator {
         if (!dados.servico) {
             throw new Error('Serviço obrigatório.');
         }
+    }
+
+    cadastrarCliente(dados) {
+        if (!dados.cliente) {
+            throw new Error('Cliente obrigatório.');
+        }
+
+        this.validarTelefone(dados.telefone);
     }
 
     buscar(dados) {
