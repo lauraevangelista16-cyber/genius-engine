@@ -1,5 +1,29 @@
 const Debugger = require('../core/Debugger');
 
+async function diagnosticarInputs(page) {
+    const inputs = page.locator('input');
+    const total = await inputs.count().catch(() => 0);
+
+    await Debugger.step(page, `008-total-inputs-visiveis-${total}`);
+
+    for (let i = 0; i < total; i++) {
+        const input = inputs.nth(i);
+        const visivel = await input.isVisible().catch(() => false);
+
+        if (!visivel) continue;
+
+        const id = await input.getAttribute('id').catch(() => '');
+        const name = await input.getAttribute('name').catch(() => '');
+        const placeholder = await input.getAttribute('placeholder').catch(() => '');
+        const value = await input.inputValue().catch(() => '');
+
+        await Debugger.step(
+            page,
+            `008-input-${i}-id_${id || 'semid'}-name_${name || 'semname'}-ph_${placeholder || 'semplaceholder'}-value_${value || 'semvalue'}`
+        );
+    }
+}
+
 async function encontrarCampoServico(page) {
     const candidatos = [
         page.locator('#downshift-1-input'),
@@ -41,18 +65,15 @@ async function buscarOpcoesServico(page, servico) {
 
 async function servicoFoiSelecionado(page) {
     const textoTela = await page.locator('body').innerText().catch(() => '');
-
-    if (textoTela.includes('Total: R$ 0,00')) {
-        return false;
-    }
-
-    return true;
+    return !textoTela.includes('Total: R$ 0,00');
 }
 
 const selecionarServico = async (page, servico) => {
     await Debugger.step(page, '008-inicio-selecionar-servico');
 
     await page.waitForTimeout(2000);
+
+    await diagnosticarInputs(page);
 
     const campoServico = await encontrarCampoServico(page);
 
