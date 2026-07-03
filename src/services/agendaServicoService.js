@@ -106,7 +106,8 @@ const selecionarServico = async (page, servico) => {
         throw new Error('Nenhum campo de serviço foi encontrado.');
     }
 
-    const camposOrdenados = [...campos].reverse();
+    const camposOrdenados = [...campos]
+    .filter(item => item.id === 'downshift-1-input');
 
     for (const item of camposOrdenados) {
         await Debugger.step(
