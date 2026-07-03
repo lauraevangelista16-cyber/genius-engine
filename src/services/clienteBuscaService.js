@@ -1,18 +1,17 @@
 const Debugger = require('../core/Debugger');
 
-const { buscarCliente } = require('./clienteBuscaService');
+const {
+    nomeExato,
+    nomeContem,
+    telefoneExiste,
+    telefoneCombina
+} = require('./clienteUtils');
 
-async function clicarBotaoAdicionarCliente(page) {
+async function encontrarCampoCliente(page) {
     const candidatos = [
-        page.getByText('ADICIONAR CLIENTE', { exact: false }),
-        page.getByText('Adicionar cliente', { exact: false }),
-        page.getByText('Novo cliente', { exact: false }),
-        page.getByText('Cadastrar cliente', { exact: false }),
-        page.getByRole('button', { name: /adicionar cliente/i }),
-        page.getByRole('button', { name: /novo cliente/i }),
-        page.getByRole('button', { name: /cadastrar cliente/i }),
-        page.locator('button').filter({ hasText: /adicionar/i }),
-        page.locator('button').filter({ hasText: /cliente/i })
+        page.getByRole('textbox', { name: /cliente/i }),
+        page.locator('input[placeholder*="Cliente" i]'),
+        page.locator('input[name*="cliente" i]')
     ];
 
     for (const candidato of candidatos) {
@@ -21,163 +20,140 @@ async function clicarBotaoAdicionarCliente(page) {
         if (!total) continue;
 
         for (let i = 0; i < total; i++) {
-            const botao = candidato.nth(i);
-            const visivel = await botao.isVisible().catch(() => false);
+            const campo = candidato.nth(i);
+            const visivel = await campo.isVisible().catch(() => false);
 
-            if (!visivel) continue;
-
-            await botao.click({ force: true, timeout: 10000 });
-            return true;
+            if (visivel) return campo;
         }
     }
 
-    return false;
+    return null;
 }
 
-async function confirmarClienteCriado(page, dados) {
-    const { cliente, telefone } = dados;
+async function buscarCliente(page, cliente, telefone = '') {
+    await Debugger.step(page, 'C001-selecionar-cliente-inicio');
 
-    await Debugger.step(page, 'C010-confirmando-cliente-criado');
+    const campo = await encontrarCampoCliente(page);
 
-    await page.waitForTimeout(2000);
+    if (!campo) {
+        await Debugger.step(page, 'C001-campo-cliente-nao-encontrado');
 
-    const encontrado = await buscarCliente(page, cliente, telefone).catch(async erro => {
-        await Debugger.step(page, `C010-erro-confirmar-cliente-${erro.message}`);
-        return null;
-    });
-
-    if (!encontrado) {
-        await Debugger.step(page, 'C010-cliente-nao-confirmado');
-        return false;
-    }
-
-    if (
-        encontrado.status === 'CLIENTE_ENCONTRADO' ||
-        encontrado.status === 'CLIENTE_SELECIONADO' ||
-        encontrado.status === 'CLIENTE_JA_EXISTE'
-    ) {
-        await Debugger.step(page, `C010-cliente-confirmado-${encontrado.status}`);
-        return true;
-    }
-
-    await Debugger.step(page, `C010-cliente-nao-confirmado-status-${encontrado.status}`);
-    return false;
-}
-
-async function criarCliente(page, dados) {
-    await Debugger.step(page, 'C006-criar-cliente-inicio');
-
-    const { cliente, telefone } = dados;
-
-    if (!cliente) {
         return {
-            status: 'ERRO_CLIENTE_OBRIGATORIO'
+            status: 'ERRO_CAMPO_CLIENTE_NAO_ENCONTRADO'
         };
     }
 
-    const clicouAdicionar = await clicarBotaoAdicionarCliente(page);
+    await campo.click({ force: true });
+    await campo.fill('');
+    await campo.fill(cliente);
 
-    await Debugger.step(page, `C006-clicou-adicionar-cliente-${clicouAdicionar}`);
-
-    if (!clicouAdicionar) {
-        return {
-            status: 'ERRO_BOTAO_ADICIONAR_CLIENTE'
-        };
-    }
+    await Debugger.step(page, 'C002-cliente-digitado');
 
     await page.waitForTimeout(1500);
 
-    await Debugger.step(page, 'C007-modal-criar-cliente');
+    const opcoes = page
+        .locator('li, [role="option"], .MuiAutocomplete-option, [id*="option"], [id*="item"]')
+        .filter({ hasText: new RegExp(cliente, 'i') });
 
-    const campos = page.getByRole('textbox');
-    const totalCampos = await campos.count();
+    const total = await opcoes.count();
 
-    await Debugger.step(page, `C007-total-campos-cliente-${totalCampos}`);
+    await Debugger.step(page, `C003-opcoes-autocomplete-${total}`);
 
-    if (totalCampos < 2) {
+    if (total === 0) {
+        await Debugger.step(page, 'C005-cliente-nao-encontrado');
+
         return {
-            status: 'ERRO_CAMPOS_CRIAR_CLIENTE'
+            status: 'CLIENTE_NAO_ENCONTRADO'
         };
     }
 
-    await campos.nth(0).click({ force: true, timeout: 10000 });
-    await campos.nth(0).fill('');
-    await campos.nth(0).fill(cliente);
+    const clientes = [];
 
-    await Debugger.step(page, 'C008-nome-cliente-preenchido');
+    for (let i = 0; i < total; i++) {
+        const opcao = opcoes.nth(i);
+        const texto = await opcao.innerText().catch(() => '');
 
-    if (telefone) {
-        await campos.nth(1).click({ force: true, timeout: 10000 });
-        await campos.nth(1).fill('');
-        await campos.nth(1).fill(telefone);
+        await Debugger.step(page, `C003-texto-opcao-${i}-${String(texto).replace(/\s+/g, ' ').slice(0, 120)}`);
 
-        await Debugger.step(page, 'C009-telefone-cliente-preenchido');
+        clientes.push({
+            opcao,
+            texto,
+            nomeExato: nomeExato(texto, cliente),
+            nomeContem: nomeContem(texto, cliente),
+            telefoneExiste: telefoneExiste(texto),
+            telefoneCombina: telefoneCombina(texto, telefone)
+        });
     }
 
-    await page.waitForTimeout(800);
+    const porTelefone = clientes.filter(c => c.telefoneCombina);
 
-    const botoesSalvar = page.getByRole('button', { name: /^salvar$/i });
-    const totalSalvar = await botoesSalvar.count();
+    await Debugger.step(page, `C003-clientes-por-telefone-${porTelefone.length}`);
 
-    await Debugger.step(page, `C009-total-botoes-salvar-${totalSalvar}`);
+    if (porTelefone.length === 1) {
+        await porTelefone[0].opcao.click({ force: true });
+        await page.waitForTimeout(1000);
 
-    if (totalSalvar === 0) {
+        await Debugger.step(page, 'C004-cliente-selecionado-por-telefone');
+
         return {
-            status: 'ERRO_BOTAO_SALVAR_CLIENTE'
+            status: 'CLIENTE_SELECIONADO'
         };
     }
 
-    await botoesSalvar.last().click({ force: true, timeout: 10000 });
+    const nomeSeguro = clientes.filter(c => {
+        if (!c.nomeExato) return false;
 
-    await page.waitForTimeout(4000);
+        if (telefone && c.telefoneExiste) return false;
 
-    const clienteConfirmado = await confirmarClienteCriado(page, dados);
+        return true;
+    });
 
-    if (!clienteConfirmado) {
+    await Debugger.step(page, `C003-clientes-nome-exato-seguros-${nomeSeguro.length}`);
+
+    if (nomeSeguro.length === 1) {
+        await nomeSeguro[0].opcao.click({ force: true });
+        await page.waitForTimeout(1000);
+
+        await Debugger.step(page, 'C004-cliente-selecionado-por-nome');
+
         return {
-            status: 'ERRO_CLIENTE_NAO_CONFIRMADO'
+            status: 'CLIENTE_SELECIONADO'
         };
     }
 
-    await Debugger.step(page, 'C010-cliente-salvo-confirmado');
+    const nomeContemSemTelefone = clientes.filter(c => {
+        if (!c.nomeContem) return false;
+
+        if (c.telefoneExiste && telefone) return false;
+
+        return true;
+    });
+
+    await Debugger.step(page, `C003-clientes-nome-contem-sem-telefone-${nomeContemSemTelefone.length}`);
+
+    if (nomeContemSemTelefone.length === 1) {
+        await nomeContemSemTelefone[0].opcao.click({ force: true });
+        await page.waitForTimeout(1000);
+
+        await Debugger.step(page, 'C004-cliente-selecionado-por-unica-opcao-sem-telefone');
+
+        return {
+            status: 'CLIENTE_SELECIONADO'
+        };
+    }
+
+    const parecidos = clientes.filter(c => c.nomeContem);
+
+    if (parecidos.length) {
+        await Debugger.step(page, 'C005-clientes-parecidos-ignorados');
+    }
 
     return {
-        status: 'CLIENTE_CRIADO'
-    };
-}
-
-async function modalAtendimentoDisponivel(page) {
-    const criandoAtendimento = await page
-        .getByText('Criando Atendimento', { exact: false })
-        .isVisible()
-        .catch(() => false);
-
-    const campoServico = await page
-        .locator('#downshift-1-input')
-        .isVisible()
-        .catch(() => false);
-
-    return criandoAtendimento && campoServico;
-}
-
-async function criarESelecionarCliente(page, dados) {
-    const criacao = await criarCliente(page, dados);
-
-    await Debugger.step(page, `C013-status-criacao-${criacao.status}`);
-
-    if (criacao.status !== 'CLIENTE_CRIADO') {
-        return criacao;
-    }
-
-    await Debugger.step(page, 'C014-cliente-criado-precisa-reabrir');
-
-    return {
-        status: 'CLIENTE_CRIADO_PRECISA_REABRIR'
+        status: 'CLIENTE_NAO_ENCONTRADO'
     };
 }
 
 module.exports = {
-    criarCliente,
-    criarESelecionarCliente,
-    clicarBotaoAdicionarCliente
+    buscarCliente,
+    encontrarCampoCliente
 };
