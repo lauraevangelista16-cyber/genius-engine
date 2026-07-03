@@ -1,0 +1,3451 @@
+
+
+===== ARQUIVO: C:\Users\Z�\Desktop\robo-minha-agenda\src\adapters\minhaAgenda\MinhaAgendaAdapter.js =====
+
+const { irParaData } = require('../../services/agendaNavigationService');
+const { abrirBrowser } = require('../../utils/browser');
+const Debugger = require('../../core/Debugger');
+
+const {
+    abrirHorario,
+    selecionarServico,
+    salvarAgendamento,
+    listarAtendimentosDoDia,
+    abrirAtendimentoPorCliente,
+    consultarAtendimentoPorCliente,
+    deletarAgendamento,
+    alterarHorarioAgendamento
+} = require('../../services/agendaService');
+
+const {
+    selecionarCliente,
+    selecionarOuCriarCliente,
+    criarCliente
+} = require('../../services/clienteService');
+
+async function obterPage(pageRecebida) {
+    if (pageRecebida) {
+        return { page: pageRecebida, browser: null };
+    }
+
+    return await abrirBrowser();
+}
+
+function normalizarDados(dados) {
+    if (!dados) return {};
+    if (dados.dados) return dados.dados;
+    return dados;
+}
+
+class MinhaAgendaAdapter {
+
+    async listarAtendimentos(dados = {}, pageRecebida) {
+        const dadosNormalizados = normalizarDados(dados);
+        const { page } = await obterPage(pageRecebida);
+
+        await Debugger.step(page, 'A001-listar-inicio');
+        await irParaData(page, dadosNormalizados.data);
+        await Debugger.step(page, 'A002-listar-data');
+
+        return await listarAtendimentosDoDia(page);
+    }
+
+    async cadastrarCliente(dados, pageRecebida) {
+        const dadosNormalizados = normalizarDados(dados);
+        const { page } = await obterPage(pageRecebida);
+
+        await Debugger.step(page, 'A000-cadastrar-cliente-inicio');
+
+        await irParaData(page, dadosNormalizados.data);
+
+        const statusHorario = await abrirHorario(page, dadosNormalizados.horario);
+
+        await Debugger.step(page, `A000-status-horario-cadastro-${statusHorario}`);
+
+        if (statusHorario !== 'HORARIO_LIVRE') {
+            return {
+                status: 'HORARIO_OCUPADO',
+                mensagem: `O horário ${dadosNormalizados.horario} está ocupado.`
+            };
+        }
+
+        const clienteJaExiste = await selecionarCliente(
+            page,
+            dadosNormalizados.cliente,
+            dadosNormalizados.telefone
+        );
+
+        await Debugger.step(page, `A000-status-cliente-ja-existe-${clienteJaExiste.status}`);
+
+        if (clienteJaExiste.status === 'CLIENTE_SELECIONADO') {
+            await page.keyboard.press('Escape').catch(() => {});
+
+            return {
+                status: 'CLIENTE_JA_CADASTRADO',
+                mensagem: 'Cliente já estava cadastrado.'
+            };
+        }
+
+        const criacao = await criarCliente(page, {
+            cliente: dadosNormalizados.cliente,
+            telefone: dadosNormalizados.telefone
+        });
+
+        await Debugger.step(page, `A000-status-cadastro-cliente-${criacao.status}`);
+
+        await page.keyboard.press('Escape').catch(() => {});
+        await page.waitForTimeout(1000);
+
+        if (criacao.status !== 'CLIENTE_CRIADO') {
+            return {
+                status: 'ERRO_CLIENTE',
+                mensagem: 'Não foi possível cadastrar o cliente.'
+            };
+        }
+
+        return {
+            status: 'CLIENTE_CADASTRADO',
+            mensagem: 'Cliente cadastrado com sucesso.'
+        };
+    }
+
+    async criarAgendamento(dados, pageRecebida) {
+        const dadosNormalizados = normalizarDados(dados);
+        const { page } = await obterPage(pageRecebida);
+
+        await Debugger.step(page, 'A003-criar-inicio');
+
+        await irParaData(page, dadosNormalizados.data);
+
+        await Debugger.step(page, 'A004-criar-data');
+
+        const statusHorario = await abrirHorario(page, dadosNormalizados.horario);
+
+        await Debugger.step(page, `A005-status-horario-${statusHorario}`);
+
+        if (statusHorario !== 'HORARIO_LIVRE') {
+            return {
+                status: 'HORARIO_OCUPADO',
+                mensagem: `O horário ${dadosNormalizados.horario} já está ocupado.`
+            };
+        }
+
+        const cliente = await selecionarCliente(
+            page,
+            dadosNormalizados.cliente,
+            dadosNormalizados.telefone
+        );
+
+        await Debugger.step(page, `A006-status-cliente-${cliente.status}`);
+
+        if (cliente.status === 'CLIENTE_NAO_ENCONTRADO') {
+            await page.keyboard.press('Escape').catch(() => {});
+
+            return {
+                status: 'CLIENTE_NAO_CADASTRADO',
+                mensagem: 'Cliente ainda não cadastrado. Cadastre o cliente antes de confirmar o agendamento.',
+                dados: {
+                    cliente: dadosNormalizados.cliente,
+                    telefone: dadosNormalizados.telefone,
+                    servico: dadosNormalizados.servico,
+                    data: dadosNormalizados.data,
+                    horario: dadosNormalizados.horario
+                }
+            };
+        }
+
+        if (cliente.status !== 'CLIENTE_SELECIONADO') {
+            await page.keyboard.press('Escape').catch(() => {});
+
+            return {
+                status: 'ERRO_CLIENTE',
+                mensagem: 'Não foi possível selecionar o cliente.'
+            };
+        }
+
+        await selecionarServico(page, dadosNormalizados.servico);
+
+        await Debugger.step(page, 'A007-servico-selecionado');
+
+        const resultadoSalvar = await salvarAgendamento(page);
+
+        if (resultadoSalvar.status !== 'SALVO') {
+            return resultadoSalvar;
+        }
+
+        await Debugger.step(page, 'A008-agendamento-salvo');
+
+        await irParaData(page, dadosNormalizados.data);
+
+        await Debugger.step(page, 'A009-data-confirmacao');
+
+        const confirmacao = await consultarAtendimentoPorCliente(
+            page,
+            dadosNormalizados.cliente,
+            dadosNormalizados.telefone
+        );
+
+        await Debugger.step(page, `A010-confirmacao-${confirmacao.encontrado}`);
+
+        if (!confirmacao.encontrado) {
+            return {
+                status: 'AGENDAMENTO_NAO_CONFIRMADO',
+                mensagem: 'O sistema tentou criar o agendamento, mas ele não apareceu na agenda. Não vou confirmar como criado.'
+            };
+        }
+
+        return {
+            status: 'AGENDAMENTO_CRIADO',
+            mensagem: 'Agendamento criado com sucesso.',
+            atendimento: confirmacao
+        };
+    }
+
+    async consultarAgendamento(dados, pageRecebida) {
+        const dadosNormalizados = normalizarDados(dados);
+        const { page } = await obterPage(pageRecebida);
+
+        await Debugger.step(page, 'A011-consultar-inicio');
+
+        await irParaData(page, dadosNormalizados.data);
+
+        await Debugger.step(page, 'A012-consultar-data');
+
+        const resultado = await consultarAtendimentoPorCliente(
+            page,
+            dadosNormalizados.cliente,
+            dadosNormalizados.telefone
+        );
+
+        await Debugger.step(page, `A013-consultar-encontrado-${resultado.encontrado}`);
+
+        if (!resultado.encontrado) {
+            return {
+                status: 'AGENDAMENTO_NAO_ENCONTRADO',
+                mensagem: 'Nenhum agendamento encontrado.'
+            };
+        }
+
+        if (resultado.multiplos) {
+            return {
+                status: 'MULTIPLOS_AGENDAMENTOS',
+                atendimentos: resultado.atendimentos
+            };
+        }
+
+        return {
+            status: 'AGENDAMENTO_ENCONTRADO',
+            atendimento: resultado
+        };
+    }
+
+    async cancelarAgendamento(dados, pageRecebida) {
+        const dadosNormalizados = normalizarDados(dados);
+        const { page } = await obterPage(pageRecebida);
+
+        await Debugger.step(page, 'A014-cancelar-inicio');
+
+        await irParaData(page, dadosNormalizados.data);
+
+        await Debugger.step(page, 'A015-cancelar-data');
+
+        const atendimento = await abrirAtendimentoPorCliente(
+            page,
+            dadosNormalizados.cliente,
+            dadosNormalizados.telefone
+        );
+
+        await Debugger.step(page, `A016-cancelar-encontrado-${atendimento.encontrado}`);
+
+        if (!atendimento.encontrado) {
+            return {
+                status: 'AGENDAMENTO_NAO_ENCONTRADO',
+                mensagem: 'Nenhum agendamento encontrado.'
+            };
+        }
+
+        if (atendimento.multiplos) {
+            return {
+                status: 'MULTIPLOS_AGENDAMENTOS',
+                atendimentos: atendimento.texto
+            };
+        }
+
+        await deletarAgendamento(page);
+
+        await Debugger.step(page, 'A017-cancelado');
+
+        return {
+            status: 'AGENDAMENTO_CANCELADO',
+            mensagem: 'Agendamento cancelado com sucesso.'
+        };
+    }
+
+    async alterarAgendamento(dados, pageRecebida) {
+        const dadosNormalizados = normalizarDados(dados);
+        const { page } = await obterPage(pageRecebida);
+
+        await Debugger.step(page, 'A018-alterar-inicio');
+
+        await irParaData(page, dadosNormalizados.data);
+
+        await Debugger.step(page, 'A019-alterar-data');
+
+        const atendimento = await abrirAtendimentoPorCliente(
+            page,
+            dadosNormalizados.cliente,
+            dadosNormalizados.telefone
+        );
+
+        await Debugger.step(page, `A020-alterar-encontrado-${atendimento.encontrado}`);
+
+        if (!atendimento.encontrado) {
+            return {
+                status: 'AGENDAMENTO_NAO_ENCONTRADO',
+                mensagem: 'Nenhum agendamento encontrado.'
+            };
+        }
+
+        if (atendimento.multiplos) {
+            return {
+                status: 'MULTIPLOS_AGENDAMENTOS',
+                atendimentos: atendimento.texto
+            };
+        }
+
+        if (dadosNormalizados.horario) {
+            await alterarHorarioAgendamento(page, dadosNormalizados.horario);
+            await Debugger.step(page, 'A021-horario-alterado');
+        }
+
+        if (dadosNormalizados.clienteNovo) {
+            await selecionarOuCriarCliente(page, {
+                cliente: dadosNormalizados.clienteNovo,
+                telefone: dadosNormalizados.telefoneNovo
+            });
+
+            await Debugger.step(page, 'A022-cliente-alterado');
+        }
+
+        if (dadosNormalizados.servico) {
+            await selecionarServico(page, dadosNormalizados.servico);
+            await Debugger.step(page, 'A023-servico-alterado');
+        }
+
+        return {
+            status: 'AGENDAMENTO_ALTERADO',
+            mensagem: 'Agendamento alterado com sucesso.'
+        };
+    }
+
+}
+
+module.exports = new MinhaAgendaAdapter();
+
+
+===== ARQUIVO: C:\Users\Z�\Desktop\robo-minha-agenda\src\config\servicos.js =====
+
+const SERVICOS = {
+    unha: 60,
+    sobrancelha: 30,
+    escova: 45,
+    progressiva: 180
+};
+
+module.exports = SERVICOS;
+
+
+===== ARQUIVO: C:\Users\Z�\Desktop\robo-minha-agenda\src\config\status.js =====
+
+const STATUS = {
+    HORARIO_LIVRE: 'HORARIO_LIVRE',
+    HORARIO_OCUPADO: 'HORARIO_OCUPADO',
+    AGENDAMENTO_CRIADO: 'AGENDAMENTO_CRIADO',
+    CLIENTE_NAO_ENCONTRADO: 'CLIENTE_NAO_ENCONTRADO',
+    SERVICO_NAO_ENCONTRADO: 'SERVICO_NAO_ENCONTRADO',
+    ERRO: 'ERRO'
+};
+
+module.exports = STATUS;
+
+
+===== ARQUIVO: C:\Users\Z�\Desktop\robo-minha-agenda\src\controllers\agendamentoController.js =====
+
+const MinhaAgendaAdapter = require('../adapters/minhaAgenda/MinhaAgendaAdapter');
+
+const {
+    validarCriacaoAgendamento,
+    consultarHorariosDisponiveis
+} = require('../engines/agenda/agendaEngine');
+
+async function consultarHorariosLivres(dados) {
+    try {
+        const atendimentos = await MinhaAgendaAdapter.listarAtendimentos();
+
+        return consultarHorariosDisponiveis({
+            servico: dados.servico,
+            limite: dados.limite,
+            atendimentos
+        });
+
+    } catch (erro) {
+        return {
+            status: 'ERRO',
+            mensagem: erro.message
+        };
+    }
+}
+
+async function criarAgendamento(dados) {
+    try {
+        return await MinhaAgendaAdapter.criarAgendamento(
+            dados,
+            validarCriacaoAgendamento
+        );
+
+    } catch (erro) {
+        return {
+            status: 'ERRO',
+            mensagem: erro.message
+        };
+    }
+}
+
+module.exports = {
+    criarAgendamento,
+    consultarHorariosLivres
+};
+
+
+===== ARQUIVO: C:\Users\Z�\Desktop\robo-minha-agenda\src\controllers\cancelamentoController.js =====
+
+const { abrirBrowser } = require('../utils/browser');
+
+const {
+    abrirAtendimentoPorCliente,
+    deletarAgendamento
+} = require('../services/agendaService');
+
+async function cancelarAgendamento(dados) {
+    const { cliente, telefone } = dados;
+
+    const { browser, page } = await abrirBrowser();
+
+    try {
+        const atendimento = await abrirAtendimentoPorCliente(page, cliente, telefone);
+
+        if (!atendimento.encontrado) {
+            return {
+                status: 'AGENDAMENTO_NAO_ENCONTRADO',
+                mensagem: `Não encontrei agendamento para ${cliente}.`
+            };
+        }
+
+        if (atendimento.multiplos) {
+            return {
+                status: 'MULTIPLOS_AGENDAMENTOS_ENCONTRADOS',
+                atendimentos: atendimento.texto,
+                mensagem: `Encontrei mais de um agendamento para ${cliente}. Informe também o telefone ou horário para cancelar com segurança.`
+            };
+        }
+
+        await deletarAgendamento(page);
+
+        return {
+            status: 'AGENDAMENTO_CANCELADO',
+            mensagem: `Agendamento de ${cliente} cancelado com sucesso.`
+        };
+
+    } catch (erro) {
+        return {
+            status: 'ERRO',
+            mensagem: erro.message
+        };
+
+    } finally {
+        // await browser.close();
+    }
+}
+
+module.exports = {
+    cancelarAgendamento
+};
+
+
+===== ARQUIVO: C:\Users\Z�\Desktop\robo-minha-agenda\src\controllers\consultaController.js =====
+
+const { abrirBrowser } = require('../utils/browser');
+
+const {
+    consultarAtendimentoPorCliente
+} = require('../services/agendaService');
+
+async function consultarAgendamento(dados) {
+    const { cliente, telefone } = dados;
+
+    const { browser, page } = await abrirBrowser();
+
+    try {
+        const atendimento = await consultarAtendimentoPorCliente(
+            page,
+            cliente,
+            telefone
+        );
+
+        if (!atendimento.encontrado) {
+            return {
+                status: 'AGENDAMENTO_NAO_ENCONTRADO',
+                mensagem: `Não encontrei agendamento para ${cliente}.`
+            };
+        }
+
+        if (atendimento.multiplos) {
+            return {
+                status: 'MULTIPLOS_AGENDAMENTOS_ENCONTRADOS',
+                atendimentos: atendimento.atendimentos,
+                mensagem: `Encontrei mais de um agendamento para ${cliente}. Informe também o telefone para localizar a cliente correta.`
+            };
+        }
+
+        return {
+            status: 'AGENDAMENTO_ENCONTRADO',
+            atendimento,
+            mensagem: `${atendimento.cliente} está agendado para ${atendimento.inicio} até ${atendimento.fim}, serviço: ${atendimento.servico}.`
+        };
+
+    } catch (erro) {
+
+        return {
+            status: 'ERRO',
+            mensagem: erro.message
+        };
+
+    } finally {
+        // await browser.close();
+    }
+}
+
+module.exports = {
+    consultarAgendamento
+};
+
+
+===== ARQUIVO: C:\Users\Z�\Desktop\robo-minha-agenda\src\controllers\reagendamentoController.js =====
+
+function normalizarBusca(texto) {
+    return String(texto || '')
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .trim();
+}
+
+function normalizarTelefone(telefone) {
+    return String(telefone || '').replace(/\D/g, '');
+}
+
+function atendimentoCombina(texto, cliente, telefone) {
+    const textoNormalizado = normalizarBusca(texto);
+    const clienteNormalizado = normalizarBusca(cliente);
+
+    const textoTelefone = normalizarTelefone(texto);
+    const telefoneNormalizado = normalizarTelefone(telefone);
+
+    const nomeCombina = textoNormalizado.includes(clienteNormalizado);
+
+    if (!telefoneNormalizado) {
+        return nomeCombina;
+    }
+
+    const telefoneCombina = textoTelefone.includes(telefoneNormalizado);
+
+    return nomeCombina && telefoneCombina;
+}
+
+const abrirHorario = async (page, horario) => {
+    try {
+        await page.getByText(horario).nth(1).click({ timeout: 3000 });
+        await page.waitForTimeout(1000);
+
+        const campoClienteApareceu = await page
+            .getByRole('textbox', { name: 'Cliente' })
+            .isVisible()
+            .catch(() => false);
+
+        return campoClienteApareceu ? 'HORARIO_LIVRE' : 'HORARIO_OCUPADO';
+
+    } catch (erro) {
+        return 'HORARIO_OCUPADO';
+    }
+};
+
+const selecionarServico = async (page, servico) => {
+    const campoServico = page.getByRole('textbox', {
+        name: 'Digite para buscar ou'
+    });
+
+    await campoServico.click();
+    await campoServico.fill(servico);
+    await page.waitForTimeout(1000);
+
+    await page.getByText(servico, { exact: false }).last().click();
+};
+
+const salvarAgendamento = async (page) => {
+    await page.getByRole('button', { name: 'Salvar' }).click();
+    await page.waitForTimeout(2000);
+};
+
+const listarAtendimentosDoDia = async (page) => {
+    await page.waitForTimeout(5000);
+
+    const eventos = page.locator('.fc-time-grid-event');
+    const total = await eventos.count();
+
+    const atendimentos = [];
+
+    for (let i = 0; i < total; i++) {
+        const texto = await eventos.nth(i).innerText();
+        atendimentos.push(texto);
+    }
+
+    return atendimentos;
+};
+
+const abrirAtendimentoPorCliente = async (page, cliente, telefone) => {
+    await page.waitForTimeout(5000);
+
+    const eventos = page.locator('.fc-time-grid-event');
+    const total = await eventos.count();
+
+    const encontrados = [];
+
+    for (let i = 0; i < total; i++) {
+        const evento = eventos.nth(i);
+        const texto = await evento.innerText();
+
+        if (atendimentoCombina(texto, cliente, telefone)) {
+            encontrados.push({
+                indice: i,
+                evento,
+                texto
+            });
+        }
+    }
+
+    if (encontrados.length === 0) {
+        return {
+            encontrado: false,
+            multiplos: false,
+            texto: null
+        };
+    }
+
+    if (encontrados.length > 1) {
+        return {
+            encontrado: true,
+            multiplos: true,
+            texto: encontrados.map((item) => item.texto)
+        };
+    }
+
+    await encontrados[0].evento.click();
+    await page.waitForTimeout(2000);
+
+    return {
+        encontrado: true,
+        multiplos: false,
+        texto: encontrados[0].texto
+    };
+};
+
+function extrairDadosDoTextoAtendimento(texto) {
+    const linhas = texto
+        .split('\n')
+        .map((linha) => linha.trim())
+        .filter(Boolean);
+
+    const horario = linhas[0] || null;
+    const cliente = linhas[1] || null;
+    const servico = linhas[2] || null;
+
+    let inicio = null;
+    let fim = null;
+
+    if (horario && horario.includes('-')) {
+        const partes = horario.split('-').map((parte) => parte.trim());
+        inicio = partes[0] || null;
+        fim = partes[1] || null;
+    }
+
+    return {
+        inicio,
+        fim,
+        horario,
+        cliente,
+        servico,
+        textoOriginal: texto
+    };
+}
+
+const consultarAtendimentoPorCliente = async (page, cliente, telefone) => {
+    await page.waitForTimeout(5000);
+
+    const eventos = page.locator('.fc-time-grid-event');
+    const total = await eventos.count();
+
+    const encontrados = [];
+
+    for (let i = 0; i < total; i++) {
+        const evento = eventos.nth(i);
+        const texto = await evento.innerText();
+
+        if (atendimentoCombina(texto, cliente, telefone)) {
+            encontrados.push(extrairDadosDoTextoAtendimento(texto));
+        }
+    }
+
+    if (encontrados.length === 0) {
+        return {
+            encontrado: false,
+            multiplos: false,
+            inicio: null,
+            fim: null,
+            horario: null,
+            cliente,
+            telefone,
+            servico: null,
+            textoOriginal: null
+        };
+    }
+
+    if (encontrados.length > 1) {
+        return {
+            encontrado: true,
+            multiplos: true,
+            atendimentos: encontrados
+        };
+    }
+
+    return {
+        encontrado: true,
+        multiplos: false,
+        ...encontrados[0]
+    };
+};
+
+const deletarAgendamento = async (page) => {
+    await page.waitForTimeout(2000);
+
+    await page.evaluate(() => {
+        const elementos = Array.from(document.querySelectorAll('button, div, span, p'));
+
+        const botaoDeletar = elementos.find((elemento) => {
+            return elemento.innerText && elemento.innerText.trim().toUpperCase() === 'DELETAR';
+        });
+
+        if (!botaoDeletar) {
+            throw new Error('Botão DELETAR não encontrado.');
+        }
+
+        botaoDeletar.click();
+    });
+
+    await page.waitForTimeout(1500);
+
+    await page.evaluate(() => {
+        const elementos = Array.from(document.querySelectorAll('button, div, span, p'));
+
+        const botaoSim = elementos.find((elemento) => {
+            return elemento.innerText && elemento.innerText.trim().toUpperCase() === 'SIM';
+        });
+
+        if (!botaoSim) {
+            throw new Error('Botão SIM não encontrado.');
+        }
+
+        botaoSim.click();
+    });
+
+    await page.waitForTimeout(3000);
+};
+
+module.exports = {
+    abrirHorario,
+    selecionarServico,
+    salvarAgendamento,
+    listarAtendimentosDoDia,
+    abrirAtendimentoPorCliente,
+    consultarAtendimentoPorCliente,
+    deletarAgendamento
+};
+
+
+===== ARQUIVO: C:\Users\Z�\Desktop\robo-minha-agenda\src\core\bootstrap.js =====
+
+const Kernel = require('./Kernel');
+
+const AgendaEngine = require('../engines/agenda/agendaEngine');
+
+Kernel.registrar('agenda', AgendaEngine);
+
+module.exports = Kernel;
+
+
+===== ARQUIVO: C:\Users\Z�\Desktop\robo-minha-agenda\src\core\Debugger.js =====
+
+const fs = require('fs');
+const path = require('path');
+
+class Debugger {
+
+    constructor() {
+        this.enabled = true;
+
+        this.base = path.join(process.cwd(), 'debug');
+        this.screens = path.join(this.base, 'screenshots');
+        this.html = path.join(this.base, 'html');
+        this.logs = path.join(this.base, 'logs');
+
+        [
+            this.base,
+            this.screens,
+            this.html,
+            this.logs
+        ].forEach(dir => {
+            if (!fs.existsSync(dir)) {
+                fs.mkdirSync(dir, { recursive: true });
+            }
+        });
+    }
+
+    timestamp() {
+        return new Date()
+            .toISOString()
+            .replace(/:/g, '-')
+            .replace(/\./g, '-');
+    }
+
+    async step(page, etapa) {
+
+        if (!this.enabled) return;
+
+        const nome = `${this.timestamp()}-${etapa}`;
+
+        console.log(`🟢 ${etapa}`);
+
+        try {
+
+            await page.screenshot({
+                path: path.join(
+                    this.screens,
+                    `${nome}.png`
+                ),
+                fullPage: true
+            });
+
+        } catch (e) {}
+
+        try {
+
+            const html = await page.content();
+
+            fs.writeFileSync(
+                path.join(
+                    this.html,
+                    `${nome}.html`
+                ),
+                html
+            );
+
+        } catch (e) {}
+
+        try {
+
+            fs.appendFileSync(
+                path.join(this.logs, 'debug.log'),
+                `[${new Date().toISOString()}] ${etapa}\n`
+            );
+
+        } catch (e) {}
+
+    }
+
+}
+
+module.exports = new Debugger();
+
+
+===== ARQUIVO: C:\Users\Z�\Desktop\robo-minha-agenda\src\core\ErrorHandler.js =====
+
+const ResponseBuilder = require('./ResponseBuilder');
+
+class ErrorHandler {
+
+    tratar(erro) {
+
+        if (erro instanceof Error) {
+
+            return ResponseBuilder.erro(
+                'ERRO',
+                erro.message
+            );
+
+        }
+
+        return ResponseBuilder.erro(
+            'ERRO_DESCONHECIDO',
+            'Ocorreu um erro inesperado.'
+        );
+
+    }
+
+}
+
+module.exports = new ErrorHandler();
+
+
+===== ARQUIVO: C:\Users\Z�\Desktop\robo-minha-agenda\src\core\Kernel.js =====
+
+class Kernel {
+    constructor() {
+        this.engines = {};
+    }
+
+    registrar(nome, engine) {
+        this.engines[nome] = engine;
+    }
+
+    async execute(engine, action, dados) {
+        const instancia = this.engines[engine];
+
+        if (!instancia) {
+            throw new Error(`Engine "${engine}" não encontrada.`);
+        }
+
+        return await instancia.execute(action, dados);
+    }
+}
+
+module.exports = new Kernel();
+
+
+===== ARQUIVO: C:\Users\Z�\Desktop\robo-minha-agenda\src\core\Logger.js =====
+
+class Logger {
+    info(mensagem) {
+        console.log(`[INFO] ${mensagem}`);
+    }
+
+    success(mensagem) {
+        console.log(`[OK] ${mensagem}`);
+    }
+
+    warn(mensagem) {
+        console.log(`[AVISO] ${mensagem}`);
+    }
+
+    error(mensagem) {
+        console.log(`[ERRO] ${mensagem}`);
+    }
+}
+
+module.exports = new Logger();
+
+
+===== ARQUIVO: C:\Users\Z�\Desktop\robo-minha-agenda\src\core\ResponseBuilder.js =====
+
+class ResponseBuilder {
+
+    sucesso(status, mensagem, dados = {}) {
+        return {
+            sucesso: true,
+            status,
+            mensagem,
+            ...dados
+        };
+    }
+
+    erro(status, mensagem, dados = {}) {
+        return {
+            sucesso: false,
+            status,
+            mensagem,
+            ...dados
+        };
+    }
+
+}
+
+module.exports = new ResponseBuilder();
+
+
+===== ARQUIVO: C:\Users\Z�\Desktop\robo-minha-agenda\src\engines\agenda\agendaEngine.js =====
+
+const MinhaAgendaAdapter = require('../../adapters/minhaAgenda/MinhaAgendaAdapter');
+
+const {
+    abrirBrowser
+} = require('../../utils/browser');
+
+const CommandValidator = require('../../validators/commandValidator');
+
+const {
+    consultarHorariosDisponiveis
+} = require('./agendaValidator');
+
+class AgendaEngine {
+
+    async execute(action, dados = {}) {
+        CommandValidator.agenda(action, dados);
+
+        switch (action) {
+            case 'criar':
+                return await this.criar(dados);
+
+            case 'cadastrar_cliente':
+                return await this.cadastrarCliente(dados);
+
+            case 'consultar':
+                return await this.consultar(dados);
+
+            case 'cancelar':
+                return await this.cancelar(dados);
+
+            case 'horarios':
+                return await this.consultarHorarios(dados);
+
+            case 'reagendar':
+                return await this.reagendar(dados);
+
+            case 'alterar':
+                return await this.alterar(dados);
+
+            default:
+                throw new Error(`Ação "${action}" não existe.`);
+        }
+    }
+
+    async criar(dados) {
+        const { page } = await abrirBrowser();
+
+        return await MinhaAgendaAdapter.criarAgendamento(dados, page);
+    }
+
+    async cadastrarCliente(dados) {
+        const { page } = await abrirBrowser();
+
+        return await MinhaAgendaAdapter.cadastrarCliente(dados, page);
+    }
+
+    async consultar(dados) {
+        const { page } = await abrirBrowser();
+
+        return await MinhaAgendaAdapter.consultarAgendamento(dados, page);
+    }
+
+    async cancelar(dados) {
+        const { page } = await abrirBrowser();
+
+        return await MinhaAgendaAdapter.cancelarAgendamento(dados, page);
+    }
+
+    async consultarHorarios(dados) {
+        const { page } = await abrirBrowser();
+
+        const atendimentos = await MinhaAgendaAdapter.listarAtendimentos(
+            dados,
+            page
+        );
+
+        return consultarHorariosDisponiveis({
+            servico: dados.servico,
+            limite: dados.limite,
+            atendimentos
+        });
+    }
+
+    async alterar(dados) {
+        const { page } = await abrirBrowser();
+
+        return await MinhaAgendaAdapter.alterarAgendamento(dados, page);
+    }
+
+    async reagendar(dados) {
+        return await this.alterar({
+            cliente: dados.cliente,
+            telefone: dados.telefone,
+            data: dados.data,
+            horario: dados.novoHorario || dados.horario
+        });
+    }
+
+}
+
+module.exports = new AgendaEngine();
+
+
+===== ARQUIVO: C:\Users\Z�\Desktop\robo-minha-agenda\src\engines\agenda\agendaRules.js =====
+
+const SERVICOS = require('../../config/servicos');
+
+const HORARIOS_FUNCIONAMENTO = [
+    { inicio: 8 * 60, fim: 12 * 60 },
+    { inicio: 13 * 60, fim: 18 * 60 }
+];
+
+function normalizarTexto(texto) {
+    return String(texto || '')
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .trim();
+}
+
+function horarioParaMinutos(horario) {
+    const [hora, minuto] = String(horario || '').split(':').map(Number);
+
+    if (Number.isNaN(hora) || Number.isNaN(minuto)) {
+        throw new Error(`Horário inválido: ${horario}`);
+    }
+
+    return hora * 60 + minuto;
+}
+
+function minutosParaHorario(minutos) {
+    const hora = Math.floor(minutos / 60);
+    const minuto = minutos % 60;
+
+    return `${String(hora).padStart(2, '0')}:${String(minuto).padStart(2, '0')}`;
+}
+
+function obterDuracaoDoServico(servico) {
+    const servicoNormalizado = normalizarTexto(servico);
+    return SERVICOS[servicoNormalizado] || 60;
+}
+
+function extrairIntervaloDoAtendimento(texto) {
+    const regex = /(\d{2}:\d{2})\s*-\s*(\d{2}:\d{2})/;
+    const resultado = String(texto || '').match(regex);
+
+    if (!resultado) return null;
+
+    return {
+        inicio: horarioParaMinutos(resultado[1]),
+        fim: horarioParaMinutos(resultado[2]),
+        texto
+    };
+}
+
+function existeConflito(inicioNovo, fimNovo, atendimentos = []) {
+    for (const atendimento of atendimentos) {
+        const intervalo = extrairIntervaloDoAtendimento(atendimento);
+
+        if (!intervalo) continue;
+
+        const conflito =
+            inicioNovo < intervalo.fim &&
+            fimNovo > intervalo.inicio;
+
+        if (conflito) return intervalo;
+    }
+
+    return null;
+}
+
+function estaDentroDoHorarioFuncionamento(inicio, fim) {
+    return HORARIOS_FUNCIONAMENTO.some((periodo) => {
+        return inicio >= periodo.inicio && fim <= periodo.fim;
+    });
+}
+
+function buscarProximoHorarioLivre(inicioSolicitado, duracao, atendimentos = []) {
+    let horarioAtual = inicioSolicitado;
+
+    while (horarioAtual < 18 * 60) {
+        const fimAtual = horarioAtual + duracao;
+
+        if (!estaDentroDoHorarioFuncionamento(horarioAtual, fimAtual)) {
+            if (horarioAtual < 12 * 60) {
+                horarioAtual = 13 * 60;
+                continue;
+            }
+
+            horarioAtual += 30;
+            continue;
+        }
+
+        const conflito = existeConflito(horarioAtual, fimAtual, atendimentos);
+
+        if (!conflito) {
+            return minutosParaHorario(horarioAtual);
+        }
+
+        horarioAtual = conflito.fim;
+    }
+
+    return null;
+}
+
+function gerarHorariosLivres(duracao, atendimentos = [], limite = 6) {
+    const horariosLivres = [];
+
+    for (const periodo of HORARIOS_FUNCIONAMENTO) {
+        let horarioAtual = periodo.inicio;
+
+        while (horarioAtual + duracao <= periodo.fim) {
+            const fimAtual = horarioAtual + duracao;
+            const conflito = existeConflito(horarioAtual, fimAtual, atendimentos);
+
+            if (!conflito) {
+                horariosLivres.push(minutosParaHorario(horarioAtual));
+
+                if (horariosLivres.length >= limite) {
+                    return horariosLivres;
+                }
+
+                horarioAtual += 30;
+                continue;
+            }
+
+            horarioAtual = conflito.fim;
+        }
+    }
+
+    return horariosLivres;
+}
+
+module.exports = {
+    HORARIOS_FUNCIONAMENTO,
+    normalizarTexto,
+    horarioParaMinutos,
+    minutosParaHorario,
+    obterDuracaoDoServico,
+    extrairIntervaloDoAtendimento,
+    existeConflito,
+    estaDentroDoHorarioFuncionamento,
+    buscarProximoHorarioLivre,
+    gerarHorariosLivres
+};
+
+
+===== ARQUIVO: C:\Users\Z�\Desktop\robo-minha-agenda\src\engines\agenda\agendaStatus.js =====
+
+module.exports = Object.freeze({
+
+    AGENDAMENTO_CRIADO: 'AGENDAMENTO_CRIADO',
+    AGENDAMENTO_CANCELADO: 'AGENDAMENTO_CANCELADO',
+    AGENDAMENTO_REAGENDADO: 'AGENDAMENTO_REAGENDADO',
+
+    AGENDAMENTO_ENCONTRADO: 'AGENDAMENTO_ENCONTRADO',
+    AGENDAMENTO_NAO_ENCONTRADO: 'AGENDAMENTO_NAO_ENCONTRADO',
+
+    HORARIO_VALIDO: 'HORARIO_VALIDO',
+    HORARIO_OCUPADO: 'HORARIO_OCUPADO',
+    HORARIOS_ENCONTRADOS: 'HORARIOS_ENCONTRADOS',
+    SEM_HORARIOS_LIVRES: 'SEM_HORARIOS_LIVRES',
+
+    FORA_DO_HORARIO: 'FORA_DO_HORARIO',
+
+    MULTIPLOS_CLIENTES: 'MULTIPLOS_CLIENTES',
+
+    ACAO_INVALIDA: 'ACAO_INVALIDA',
+
+    ERRO: 'ERRO'
+
+});
+
+
+===== ARQUIVO: C:\Users\Z�\Desktop\robo-minha-agenda\src\engines\agenda\agendaValidator.js =====
+
+const {
+    horarioParaMinutos,
+    obterDuracaoDoServico,
+    existeConflito,
+    estaDentroDoHorarioFuncionamento,
+    buscarProximoHorarioLivre,
+    gerarHorariosLivres
+} = require('./agendaRules');
+
+function validarCriacaoAgendamento(dados) {
+    const { horario, servico, atendimentos = [] } = dados;
+
+    const duracao = obterDuracaoDoServico(servico);
+    const inicio = horarioParaMinutos(horario);
+    const fim = inicio + duracao;
+
+    if (!estaDentroDoHorarioFuncionamento(inicio, fim)) {
+        const proximoHorario = buscarProximoHorarioLivre(
+            inicio,
+            duracao,
+            atendimentos
+        );
+
+        return {
+            valido: false,
+            status: 'FORA_DO_HORARIO',
+            proximoHorario,
+            mensagem: proximoHorario
+                ? `Esse horário está fora do horário de funcionamento. O próximo horário disponível é ${proximoHorario}.`
+                : 'Esse horário está fora do horário de funcionamento.'
+        };
+    }
+
+    const conflito = existeConflito(
+        inicio,
+        fim,
+        atendimentos
+    );
+
+    if (conflito) {
+        const proximoHorario = buscarProximoHorarioLivre(
+            inicio,
+            duracao,
+            atendimentos
+        );
+
+        return {
+            valido: false,
+            status: 'HORARIO_OCUPADO',
+            proximoHorario,
+            mensagem: proximoHorario
+                ? `Esse horário está ocupado. O próximo horário disponível é ${proximoHorario}.`
+                : 'Esse horário está ocupado.'
+        };
+    }
+
+    return {
+        valido: true,
+        duracao,
+        inicio,
+        fim
+    };
+}
+
+function consultarHorariosDisponiveis(dados) {
+    const {
+        servico,
+        atendimentos = [],
+        limite
+    } = dados;
+
+    const duracao = obterDuracaoDoServico(servico);
+
+    const horarios = gerarHorariosLivres(
+        duracao,
+        atendimentos,
+        Number(limite || 6)
+    );
+
+    return {
+        status: horarios.length
+            ? 'HORARIOS_ENCONTRADOS'
+            : 'SEM_HORARIOS_LIVRES',
+        servico,
+        duracao,
+        horarios,
+        mensagem: horarios.length
+            ? `Horários livres encontrados: ${horarios.join(', ')}.`
+            : 'Não encontrei horários livres.'
+    };
+}
+
+module.exports = {
+    validarCriacaoAgendamento,
+    consultarHorariosDisponiveis
+};
+
+
+===== ARQUIVO: C:\Users\Z�\Desktop\robo-minha-agenda\src\managers\BrowserManager.js =====
+
+const { chromium } = require('playwright');
+const fs = require('fs');
+const Logger = require('../core/Logger');
+
+class BrowserManager {
+    constructor() {
+        this.sessao = null;
+    }
+
+    async abrirSessao() {
+        if (this.sessao && await this.sessaoEstaViva()) {
+            Logger.info('Reutilizando sessão existente.');
+            return this.sessao;
+        }
+
+        await this.fecharSessao();
+
+        if (!fs.existsSync('auth.json')) {
+            throw new Error('Arquivo auth.json não encontrado. Rode node gravar.js e faça login primeiro.');
+        }
+
+        Logger.info('Abrindo navegador...');
+
+        const browser = await chromium.launch({
+            headless: true,
+            args: [
+                '--no-sandbox',
+                '--disable-setuid-sandbox',
+                '--disable-dev-shm-usage'
+            ]
+        });
+
+        const context = await browser.newContext({
+            storageState: 'auth.json',
+            viewport: null
+        });
+
+        const page = await context.newPage();
+
+        Logger.info('Acessando Minha Agenda...');
+
+        await page.goto('https://portal.minhaagendaapp.com.br/agenda', {
+            waitUntil: 'domcontentloaded',
+            timeout: 60000
+        });
+
+        await page.waitForTimeout(8000);
+
+        if (page.url().includes('login')) {
+            await browser.close();
+            this.sessao = null;
+
+            throw new Error('Sessão expirada. Apague auth.json, rode node gravar.js e faça login novamente.');
+        }
+
+        this.sessao = {
+            browser,
+            context,
+            page
+        };
+
+        Logger.success('Sessão iniciada.');
+
+        return this.sessao;
+    }
+
+    async sessaoEstaViva() {
+        try {
+            if (!this.sessao || !this.sessao.page || this.sessao.page.isClosed()) {
+                return false;
+            }
+
+            await this.sessao.page.title();
+
+            return true;
+        } catch (erro) {
+            return false;
+        }
+    }
+
+    async fecharSessao(sessao = this.sessao) {
+        if (!sessao || !sessao.browser) return;
+
+        try {
+            Logger.info('Fechando navegador antigo...');
+            await sessao.browser.close();
+        } catch (erro) {
+            Logger.warn('Navegador antigo já estava fechado.');
+        }
+
+        if (sessao === this.sessao) {
+            this.sessao = null;
+        }
+    }
+}
+
+module.exports = new BrowserManager();
+
+
+===== ARQUIVO: C:\Users\Z�\Desktop\robo-minha-agenda\src\managers\SessionManager.js =====
+
+class SessionManager {
+    constructor() {
+        this.sessions = new Map();
+    }
+
+    get(sessionId) {
+        if (!sessionId) {
+            throw new Error('sessionId é obrigatório.');
+        }
+
+        if (!this.sessions.has(sessionId)) {
+            this.sessions.set(sessionId, {
+                action: null,
+                dados: {},
+                etapa: null,
+                atualizadoEm: new Date()
+            });
+        }
+
+        return this.sessions.get(sessionId);
+    }
+
+    update(sessionId, novosDados = {}) {
+        const session = this.get(sessionId);
+
+        session.action = novosDados.action || session.action;
+
+        session.dados = {
+            ...session.dados,
+            ...(novosDados.dados || {})
+        };
+
+        session.etapa = novosDados.etapa || session.etapa;
+        session.atualizadoEm = new Date();
+
+        this.sessions.set(sessionId, session);
+
+        return session;
+    }
+
+    clear(sessionId) {
+        this.sessions.delete(sessionId);
+
+        return {
+            success: true,
+            mensagem: 'Sessão limpa com sucesso.'
+        };
+    }
+
+    getDados(sessionId) {
+        return this.get(sessionId).dados;
+    }
+}
+
+module.exports = new SessionManager();
+
+
+===== ARQUIVO: C:\Users\Z�\Desktop\robo-minha-agenda\src\orchestrators\orchestrators.js =====
+
+const Kernel = require('../core/Kernel');
+const AgendaResponder = require('../responders/AgendaResponder');
+
+class AgendaOrchestrator {
+    async executar(action, dados = {}) {
+        const acao = String(action || '').toLowerCase().trim();
+
+        if (!acao) {
+            return this.erro(
+                'ACAO_OBRIGATORIA',
+                'Informe o que deseja fazer: criar, consultar, alterar, cancelar ou horarios.'
+            );
+        }
+
+        const validacao = this.validar(acao, dados);
+
+        if (!validacao.valido) {
+            return this.erro('DADOS_INCOMPLETOS', validacao.mensagem, validacao.campo);
+        }
+
+        const resultadoEngine = await Kernel.execute('agenda', acao, dados);
+
+        return AgendaResponder.responder(resultadoEngine);
+    }
+
+    validar(action, dados) {
+        const obrigatorios = {
+    horarios: ['servico', 'data'],
+    criar: ['servico', 'cliente', 'telefone', 'data', 'horario'],
+    consultar: ['cliente', 'telefone', 'data'],
+    cancelar: ['cliente', 'telefone', 'data'],
+    alterar: ['cliente', 'telefone', 'data']
+};
+
+        if (!obrigatorios[action]) {
+            return {
+                valido: false,
+                campo: 'action',
+                mensagem: `A ação "${action}" não existe.`
+            };
+        }
+
+        for (const campo of obrigatorios[action]) {
+            if (!dados[campo]) {
+                return {
+                    valido: false,
+                    campo,
+                    mensagem: `O campo "${campo}" é obrigatório.`
+                };
+            }
+        }
+
+        if (action === 'alterar') {
+            const temAlteracao =
+                dados.horario ||
+                dados.servico ||
+                dados.clienteNovo ||
+                dados.telefoneNovo;
+
+            if (!temAlteracao) {
+                return {
+                    valido: false,
+                    campo: 'alteracao',
+                    mensagem: 'Informe pelo menos um dado para alterar: horario, servico, clienteNovo ou telefoneNovo.'
+                };
+            }
+        }
+
+        return {
+            valido: true
+        };
+    }
+
+    erro(status, mensagem, campo = null) {
+        return {
+            ok: false,
+            success: false,
+            status,
+            campo,
+            mensagem
+        };
+    }
+}
+
+module.exports = new AgendaOrchestrator();
+
+
+===== ARQUIVO: C:\Users\Z�\Desktop\robo-minha-agenda\src\responders\AgendaResponder.js =====
+
+class AgendaResponder {
+
+    responder(resultado = {}) {
+
+        switch (resultado.status) {
+
+            case 'HORARIOS_ENCONTRADOS':
+                return {
+                    ok: true,
+                    mensagem: resultado.mensagem || 'Horários encontrados.',
+                    dados: resultado
+                };
+
+            case 'SEM_HORARIOS_LIVRES':
+                return {
+                    ok: true,
+                    mensagem: resultado.mensagem || 'Não encontrei horários livres.',
+                    dados: resultado
+                };
+
+            case 'FORA_DO_HORARIO':
+                return {
+                    ok: false,
+                    mensagem: resultado.mensagem,
+                    dados: resultado
+                };
+
+            case 'HORARIO_OCUPADO':
+                return {
+                    ok: false,
+                    mensagem: resultado.mensagem || 'Esse horário já está ocupado.',
+                    dados: resultado
+                };
+
+            case 'AGENDAMENTO_CRIADO':
+                return {
+                    ok: true,
+                    mensagem: resultado.mensagem || 'Perfeito! Seu agendamento foi realizado com sucesso.',
+                    dados: resultado
+                };
+
+            case 'AGENDAMENTO_NAO_CONFIRMADO':
+                return {
+                    ok: false,
+                    mensagem: resultado.mensagem || 'O agendamento não foi confirmado na agenda.',
+                    dados: resultado
+                };
+
+            case 'AGENDAMENTO_ALTERADO':
+                return {
+                    ok: true,
+                    mensagem: resultado.mensagem || 'Seu agendamento foi alterado com sucesso.',
+                    dados: resultado
+                };
+
+            case 'AGENDAMENTO_CANCELADO':
+                return {
+                    ok: true,
+                    mensagem: resultado.mensagem || 'Seu agendamento foi cancelado.',
+                    dados: resultado
+                };
+
+            case 'AGENDAMENTO_ENCONTRADO':
+                return {
+                    ok: true,
+                    mensagem: resultado.mensagem || 'Encontrei seu agendamento.',
+                    dados: resultado
+                };
+
+            case 'AGENDAMENTO_NAO_ENCONTRADO':
+                return {
+                    ok: false,
+                    mensagem: resultado.mensagem || 'Não encontrei nenhum agendamento.',
+                    dados: resultado
+                };
+
+            case 'MULTIPLOS_AGENDAMENTOS':
+                return {
+                    ok: true,
+                    mensagem: resultado.mensagem || 'Encontrei mais de um agendamento.',
+                    dados: resultado
+                };
+
+            case 'DADOS_INCOMPLETOS':
+                return {
+                    ok: false,
+                    mensagem: resultado.mensagem || 'Dados incompletos.',
+                    dados: resultado
+                };
+
+            default:
+                return {
+                    ok: false,
+                    mensagem: resultado.mensagem || `Status não tratado: ${resultado.status || 'SEM_STATUS'}`,
+                    dados: resultado
+                };
+        }
+    }
+
+}
+
+module.exports = new AgendaResponder();
+
+
+===== ARQUIVO: C:\Users\Z�\Desktop\robo-minha-agenda\src\services\agendaAtendimentoService.js =====
+
+const Debugger = require('../core/Debugger');
+
+const {
+    atendimentoCombina,
+    extrairDadosDoTextoAtendimento
+} = require('./agendaUtils');
+
+const salvarAgendamento = async (page) => {
+    await Debugger.step(page, '013-antes-salvar-agendamento');
+
+    const botoesSalvar = page.getByRole('button', { name: /^salvar$/i });
+    const total = await botoesSalvar.count();
+
+    if (total === 0) {
+        return {
+            status: 'ERRO_INTERNO',
+            mensagem: 'Botão Salvar não encontrado.'
+        };
+    }
+
+    const botaoSalvar = botoesSalvar.nth(total - 1);
+
+    await botaoSalvar.scrollIntoViewIfNeeded().catch(() => {});
+    await botaoSalvar.click({ force: true, timeout: 10000 });
+
+    await page.waitForTimeout(4000);
+
+    await Debugger.step(page, '014-depois-click-salvar');
+
+    const textoTela = await page.locator('body').innerText().catch(() => '');
+
+    const modalAindaAberto = await page
+        .getByText('Criando Atendimento', { exact: false })
+        .isVisible()
+        .catch(() => false);
+
+    if (textoTela.includes('Já existe atendimento')) {
+        return {
+            status: 'HORARIO_OCUPADO',
+            mensagem: 'Esse horário já está ocupado.'
+        };
+    }
+
+    if (textoTela.includes('Preencha esse campo para continuar')) {
+        return {
+            status: 'DADOS_INCOMPLETOS',
+            mensagem: 'Existe um campo obrigatório não preenchido no Minha Agenda.',
+            detalhe: textoTela
+        };
+    }
+
+    if (modalAindaAberto) {
+        return {
+            status: 'ERRO_INTERNO',
+            mensagem: 'O sistema clicou em Salvar, mas o modal continuou aberto.',
+            detalhe: textoTela
+        };
+    }
+
+    await Debugger.step(page, '015-agendamento-salvo');
+
+    return {
+        status: 'SALVO'
+    };
+};
+
+const listarAtendimentosDoDia = async (page) => {
+    await Debugger.step(page, '015-inicio-listar-atendimentos');
+
+    await page.waitForTimeout(4000);
+
+    const eventos = page.locator('.fc-time-grid-event, .fc-event, .fc-timegrid-event');
+    const total = await eventos.count();
+
+    await Debugger.step(page, `016-total-eventos-${total}`);
+
+    const atendimentos = [];
+
+    for (let i = 0; i < total; i++) {
+        const evento = eventos.nth(i);
+        const visivel = await evento.isVisible().catch(() => false);
+
+        if (!visivel) continue;
+
+        const texto = await evento.innerText().catch(() => '');
+
+        if (texto.trim()) {
+            atendimentos.push(texto);
+        }
+    }
+
+    return atendimentos;
+};
+
+const abrirAtendimentoPorCliente = async (page, cliente, telefone) => {
+    await Debugger.step(page, '017-inicio-abrir-atendimento');
+
+    await page.waitForTimeout(4000);
+
+    const eventos = page.locator('.fc-time-grid-event, .fc-event, .fc-timegrid-event');
+    const total = await eventos.count();
+
+    await Debugger.step(page, `018-total-eventos-abrir-${total}`);
+
+    const encontrados = [];
+
+    for (let i = 0; i < total; i++) {
+        const evento = eventos.nth(i);
+        const visivel = await evento.isVisible().catch(() => false);
+
+        if (!visivel) continue;
+
+        const texto = await evento.innerText().catch(() => '');
+
+        if (atendimentoCombina(texto, cliente, telefone)) {
+            encontrados.push({
+                indice: i,
+                evento,
+                texto
+            });
+        }
+    }
+
+    await Debugger.step(page, `019-encontrados-abrir-${encontrados.length}`);
+
+    if (encontrados.length === 0) {
+        return {
+            encontrado: false,
+            multiplos: false,
+            texto: null
+        };
+    }
+
+    if (encontrados.length > 1) {
+        return {
+            encontrado: true,
+            multiplos: true,
+            texto: encontrados.map(item => item.texto)
+        };
+    }
+
+    await page.keyboard.press('Escape').catch(() => {});
+    await page.waitForTimeout(500);
+
+    await encontrados[0].evento.click({
+        force: true,
+        timeout: 10000
+    });
+
+    await page.waitForTimeout(1500);
+
+    await Debugger.step(page, '020-atendimento-aberto');
+
+    return {
+        encontrado: true,
+        multiplos: false,
+        texto: encontrados[0].texto
+    };
+};
+
+const consultarAtendimentoPorCliente = async (page, cliente, telefone) => {
+    await Debugger.step(page, '021-inicio-consultar-atendimento');
+
+    await page.waitForTimeout(4000);
+
+    const eventos = page.locator('.fc-time-grid-event, .fc-event, .fc-timegrid-event');
+    const total = await eventos.count();
+
+    await Debugger.step(page, `022-total-eventos-consulta-${total}`);
+
+    const encontrados = [];
+
+    for (let i = 0; i < total; i++) {
+        const evento = eventos.nth(i);
+        const visivel = await evento.isVisible().catch(() => false);
+
+        if (!visivel) continue;
+
+        const texto = await evento.innerText().catch(() => '');
+
+        if (atendimentoCombina(texto, cliente, telefone)) {
+            encontrados.push(extrairDadosDoTextoAtendimento(texto));
+        }
+    }
+
+    await Debugger.step(page, `023-encontrados-consulta-${encontrados.length}`);
+
+    if (encontrados.length === 0) {
+        return {
+            encontrado: false,
+            multiplos: false,
+            atendimentos: []
+        };
+    }
+
+    if (encontrados.length > 1) {
+        return {
+            encontrado: true,
+            multiplos: true,
+            atendimentos: encontrados
+        };
+    }
+
+    return {
+        encontrado: true,
+        multiplos: false,
+        ...encontrados[0]
+    };
+};
+
+const deletarAgendamento = async (page) => {
+    await Debugger.step(page, '024-inicio-deletar');
+
+    await page.waitForTimeout(1500);
+
+    await page.getByText('DELETAR', { exact: false }).click({
+        force: true,
+        timeout: 10000
+    });
+
+    await Debugger.step(page, '025-clicou-deletar');
+
+    await page.waitForTimeout(1000);
+
+    await page.getByText('SIM', { exact: false }).click({
+        force: true,
+        timeout: 10000
+    });
+
+    await page.waitForTimeout(4000);
+
+    await Debugger.step(page, '026-deletado');
+};
+
+const alterarHorarioAgendamento = async (page, novoHorario) => {
+    await Debugger.step(page, '027-inicio-alterar-horario');
+
+    await page.waitForTimeout(1000);
+
+    await page.getByText('EDITAR', { exact: false }).click({
+        force: true,
+        timeout: 10000
+    });
+
+    await page.waitForTimeout(2000);
+
+    await Debugger.step(page, '028-tela-editar-aberta');
+
+    const campoHora = page.locator('input[name="startTime"]');
+
+    await campoHora.waitFor({
+        state: 'visible',
+        timeout: 10000
+    });
+
+    await campoHora.click({ force: true });
+    await campoHora.fill('');
+    await campoHora.fill(novoHorario);
+
+    await page.waitForTimeout(800);
+
+    await Debugger.step(page, '029-horario-alterado');
+
+    await page.getByRole('button', { name: /^salvar$/i }).click({
+        force: true,
+        timeout: 10000
+    });
+
+    await page.waitForTimeout(4000);
+
+    await Debugger.step(page, '030-alteracao-salva');
+};
+
+module.exports = {
+    salvarAgendamento,
+    listarAtendimentosDoDia,
+    abrirAtendimentoPorCliente,
+    consultarAtendimentoPorCliente,
+    deletarAgendamento,
+    alterarHorarioAgendamento
+};
+
+
+===== ARQUIVO: C:\Users\Z�\Desktop\robo-minha-agenda\src\services\agendaHorarioService.js =====
+
+const Debugger = require('../core/Debugger');
+
+const abrirHorario = async (page, horario) => {
+    await Debugger.step(page, '001-inicio-abrir-horario');
+
+    try {
+        await page.waitForTimeout(3000);
+
+        const horarioLimpo = String(horario).replace(/^0/, '');
+        const linhaHorario = page.locator(`tr[data-time="${horarioLimpo}"]`);
+        const totalLinhas = await linhaHorario.count();
+
+        await Debugger.step(page, `002-linha-horario-${horarioLimpo}-${totalLinhas}`);
+
+        if (totalLinhas === 0) {
+            return 'ERRO_LINHA_HORARIO_NAO_ENCONTRADA';
+        }
+
+        const linha = linhaHorario.last();
+        const celulas = linha.locator('td');
+        const totalCelulas = await celulas.count();
+
+        await Debugger.step(page, `003-total-celulas-horario-${totalCelulas}`);
+
+        if (totalCelulas === 0) {
+            return 'ERRO_CELULA_HORARIO_NAO_ENCONTRADA';
+        }
+
+        let clicou = false;
+
+        for (let i = totalCelulas - 1; i >= 0; i--) {
+            const celula = celulas.nth(i);
+            const visivel = await celula.isVisible().catch(() => false);
+            const box = await celula.boundingBox().catch(() => null);
+
+            if (!visivel || !box || box.width < 10 || box.height < 10) {
+                continue;
+            }
+
+            await Debugger.step(page, `004-tentando-celula-${i}`);
+
+            await celula.click({
+                force: true,
+                timeout: 5000
+            }).catch(async () => {
+                await page.mouse.click(
+                    box.x + box.width / 2,
+                    box.y + box.height / 2
+                );
+            });
+
+            await page.waitForTimeout(1500);
+
+            const abriu = await page
+                .getByText('Criando Atendimento', { exact: false })
+                .isVisible()
+                .catch(() => false);
+
+            await Debugger.step(page, `005-modal-abriu-celula-${i}-${abriu}`);
+
+            if (abriu) {
+                clicou = true;
+                break;
+            }
+        }
+
+        if (!clicou) {
+            return 'ERRO_MODAL_NAO_ABRIU';
+        }
+
+        const campoHora = page.locator('input[name="startTime"]');
+
+        await campoHora.waitFor({
+            state: 'visible',
+            timeout: 10000
+        });
+
+        await campoHora.click({ force: true });
+        await campoHora.fill('');
+        await campoHora.fill(horario);
+
+        await page.waitForTimeout(500);
+
+        const valorHorario = await campoHora.inputValue().catch(() => '');
+
+        await Debugger.step(page, `006-horario-modal-ajustado-${valorHorario}`);
+
+        if (valorHorario !== horario) {
+            return 'ERRO_HORARIO_MODAL_DIFERENTE';
+        }
+
+        return 'HORARIO_LIVRE';
+
+    } catch (erro) {
+        console.log('[ERRO abrirHorario]', erro.message);
+        await Debugger.step(page, '007-erro-geral-abrir-horario');
+
+        return 'ERRO_ABRIR_HORARIO';
+    }
+};
+
+module.exports = {
+    abrirHorario
+};
+
+
+===== ARQUIVO: C:\Users\Z�\Desktop\robo-minha-agenda\src\services\agendaNavigationService.js =====
+
+const Debugger = require('../core/Debugger');
+
+function criarDataLocal(data) {
+    const [ano, mes, dia] = String(data).split('-').map(Number);
+    return new Date(ano, mes - 1, dia);
+}
+
+async function clicarDataSeVisivel(page, data) {
+    const botaoData = page.locator(`button[value="${data}"]`);
+    const total = await botaoData.count();
+
+    if (total === 0) return false;
+
+    await botaoData.first().click({
+        force: true,
+        timeout: 10000
+    });
+
+    await page.waitForTimeout(1500);
+    return true;
+}
+
+async function clicarNavegacao(page, direcao) {
+    const grupoHoje = page
+        .locator('div[role="group"]')
+        .filter({ hasText: 'Hoje' })
+        .first();
+
+    const botoes = grupoHoje.locator('button');
+
+    const botao = direcao === 'proximo'
+        ? botoes.last()
+        : botoes.first();
+
+    await botao.click({
+        force: true,
+        timeout: 10000
+    });
+
+    await page.waitForTimeout(1500);
+}
+
+const irParaData = async (page, data) => {
+    await Debugger.step(page, 'N001-ir-para-data-inicio');
+
+    if (!data) {
+        await Debugger.step(page, 'N002-data-ausente');
+        throw new Error('Data obrigatória para navegar na agenda.');
+    }
+
+    await page.goto('https://portal.minhaagendaapp.com.br/agenda', {
+        waitUntil: 'domcontentloaded',
+        timeout: 60000
+    });
+
+    await page.waitForTimeout(5000);
+
+    await Debugger.step(page, `N003-agenda-aberta-${data}`);
+
+    const clicouDireto = await clicarDataSeVisivel(page, data);
+
+    if (clicouDireto) {
+        await Debugger.step(page, `N004-data-visivel-clicada-${data}`);
+        return;
+    }
+
+    const hoje = new Date();
+    hoje.setHours(0, 0, 0, 0);
+
+    const alvo = criarDataLocal(data);
+    alvo.setHours(0, 0, 0, 0);
+
+    const direcao = alvo > hoje ? 'proximo' : 'anterior';
+
+    for (let i = 0; i < 60; i++) {
+        await clicarNavegacao(page, direcao);
+
+        await Debugger.step(page, `N005-navegacao-${direcao}-${i + 1}`);
+
+        const encontrou = await clicarDataSeVisivel(page, data);
+
+        if (encontrou) {
+            await Debugger.step(page, `N006-data-encontrada-${data}`);
+            return;
+        }
+    }
+
+    await Debugger.step(page, `N007-data-nao-encontrada-${data}`);
+
+    throw new Error(`Não foi possível navegar até a data ${data}.`);
+};
+
+module.exports = {
+    irParaData
+};
+
+
+===== ARQUIVO: C:\Users\Z�\Desktop\robo-minha-agenda\src\services\agendaService.js =====
+
+const {
+    abrirHorario
+} = require('./agendaHorarioService');
+
+const {
+    selecionarServico
+} = require('./agendaServicoService');
+
+const {
+    salvarAgendamento,
+    listarAtendimentosDoDia,
+    abrirAtendimentoPorCliente,
+    consultarAtendimentoPorCliente,
+    deletarAgendamento,
+    alterarHorarioAgendamento
+} = require('./agendaAtendimentoService');
+
+module.exports = {
+    abrirHorario,
+    selecionarServico,
+    salvarAgendamento,
+    listarAtendimentosDoDia,
+    abrirAtendimentoPorCliente,
+    consultarAtendimentoPorCliente,
+    deletarAgendamento,
+    alterarHorarioAgendamento
+};
+
+
+===== ARQUIVO: C:\Users\Z�\Desktop\robo-minha-agenda\src\services\agendaServicoService.js =====
+
+const Debugger = require('../core/Debugger');
+
+async function listarCamposDownshift(page) {
+    const campos = page.locator('input[id^="downshift-"][id$="-input"]');
+    const total = await campos.count().catch(() => 0);
+
+    const visiveis = [];
+
+    for (let i = 0; i < total; i++) {
+        const campo = campos.nth(i);
+        const visivel = await campo.isVisible().catch(() => false);
+
+        if (!visivel) continue;
+
+        const id = await campo.getAttribute('id').catch(() => '');
+        const value = await campo.inputValue().catch(() => '');
+
+        visiveis.push({
+            indice: i,
+            campo,
+            id,
+            value
+        });
+    }
+
+    return visiveis;
+}
+
+async function buscarOpcoesServico(page, servico) {
+    const opcoes = page
+        .locator('[id^="downshift-"][id*="-item"], li, [role="option"], .MuiAutocomplete-option')
+        .filter({ hasText: new RegExp(servico, 'i') });
+
+    const total = await opcoes.count().catch(() => 0);
+
+    return {
+        opcoes,
+        total
+    };
+}
+
+async function servicoFoiSelecionado(page) {
+    const textoTela = await page.locator('body').innerText().catch(() => '');
+    return !textoTela.includes('Total: R$ 0,00');
+}
+
+const selecionarServico = async (page, servico) => {
+    await Debugger.step(page, '008-inicio-selecionar-servico');
+
+    await page.waitForTimeout(2500);
+
+    const campos = await listarCamposDownshift(page);
+
+    await Debugger.step(page, `008-total-campos-downshift-visiveis-${campos.length}`);
+
+    if (!campos.length) {
+        throw new Error('Nenhum campo de serviço foi encontrado.');
+    }
+
+    let campoCorreto = null;
+    let opcoesCorretas = null;
+
+    for (const item of campos.reverse()) {
+        await Debugger.step(page, `008-testando-campo-servico-${item.id || item.indice}`);
+
+        await item.campo.click({ force: true, timeout: 10000 });
+        await item.campo.fill('');
+        await item.campo.fill(servico);
+
+        await page.waitForTimeout(1500);
+
+        const { opcoes, total } = await buscarOpcoesServico(page, servico);
+
+        await Debugger.step(page, `009-opcoes-no-campo-${item.id || item.indice}-${total}`);
+
+        if (total > 0) {
+            campoCorreto = item.campo;
+            opcoesCorretas = opcoes;
+            break;
+        }
+    }
+
+    if (!campoCorreto || !opcoesCorretas) {
+        throw new Error('Nenhuma opção de serviço foi encontrada.');
+    }
+
+    await opcoesCorretas.first().click({
+        force: true,
+        timeout: 10000
+    });
+
+    await page.waitForTimeout(2500);
+
+    await Debugger.step(page, '010-servico-selecionado');
+
+    const selecionado = await servicoFoiSelecionado(page);
+
+    if (!selecionado) {
+        await Debugger.step(page, '011-servico-nao-selecionado');
+        throw new Error('Serviço não foi selecionado corretamente.');
+    }
+
+    await Debugger.step(page, '012-servico-confirmado');
+};
+
+module.exports = {
+    selecionarServico
+};
+
+
+===== ARQUIVO: C:\Users\Z�\Desktop\robo-minha-agenda\src\services\agendaUtils.js =====
+
+function normalizarBusca(texto) {
+    return String(texto || '')
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .trim();
+}
+
+function normalizarTelefone(telefone) {
+    return String(telefone || '').replace(/\D/g, '');
+}
+
+function atendimentoCombina(texto, cliente, telefone) {
+    const textoNormalizado = normalizarBusca(texto);
+    const clienteNormalizado = normalizarBusca(cliente);
+
+    const textoTelefone = normalizarTelefone(texto);
+    const telefoneNormalizado = normalizarTelefone(telefone);
+
+    const nomeCombina =
+        clienteNormalizado &&
+        textoNormalizado.includes(clienteNormalizado);
+
+    if (!telefoneNormalizado) return nomeCombina;
+
+    const telefoneCombina = textoTelefone.includes(telefoneNormalizado);
+
+    return telefoneCombina || nomeCombina;
+}
+
+function extrairDadosDoTextoAtendimento(texto) {
+    const linhas = String(texto || '')
+        .split('\n')
+        .map(linha => linha.trim())
+        .filter(Boolean);
+
+    const horario = linhas[0] || null;
+    const cliente = linhas[1] || null;
+    const servico = linhas[2] || null;
+
+    let inicio = null;
+    let fim = null;
+
+    if (horario && horario.includes('-')) {
+        const partes = horario.split('-').map(parte => parte.trim());
+        inicio = partes[0];
+        fim = partes[1];
+    }
+
+    return {
+        inicio,
+        fim,
+        horario,
+        cliente,
+        servico,
+        textoOriginal: texto
+    };
+}
+
+module.exports = {
+    normalizarBusca,
+    normalizarTelefone,
+    atendimentoCombina,
+    extrairDadosDoTextoAtendimento
+};
+
+
+===== ARQUIVO: C:\Users\Z�\Desktop\robo-minha-agenda\src\services\clienteAutocompleteService.js =====
+
+function normalizarTexto(texto) {
+    return String(texto || '')
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .trim();
+}
+
+function normalizarTelefone(telefone) {
+    return String(telefone || '').replace(/\D/g, '');
+}
+
+function nomeExato(textoOpcao, cliente) {
+    const clienteNormalizado = normalizarTexto(cliente);
+
+    return String(textoOpcao || '')
+        .split('\n')
+        .map(linha => normalizarTexto(linha))
+        .filter(Boolean)
+        .some(linha => linha === clienteNormalizado);
+}
+
+function telefoneCombina(textoOpcao, telefone) {
+    const telefoneCliente = normalizarTelefone(telefone);
+    const telefoneOpcao = normalizarTelefone(textoOpcao);
+
+    if (!telefoneCliente || !telefoneOpcao) return false;
+
+    return telefoneOpcao.includes(telefoneCliente) || telefoneCliente.includes(telefoneOpcao);
+}
+
+async function encontrarCampoCliente(page) {
+    const candidatos = [
+        page.getByRole('textbox', { name: /cliente/i }),
+        page.locator('input[placeholder*="Cliente" i]'),
+        page.locator('input[name*="cliente" i]')
+    ];
+
+    for (const candidato of candidatos) {
+        const total = await candidato.count().catch(() => 0);
+
+        for (let i = 0; i < total; i++) {
+            const campo = candidato.nth(i);
+            const visivel = await campo.isVisible().catch(() => false);
+
+            if (visivel) return campo;
+        }
+    }
+
+    return null;
+}
+
+async function preencherBuscaCliente(page, cliente) {
+    const campo = await encontrarCampoCliente(page);
+
+    if (!campo) return null;
+
+    await campo.click({ force: true, timeout: 10000 });
+    await campo.fill('');
+    await campo.fill(cliente);
+
+    await page.waitForTimeout(1500);
+
+    return campo;
+}
+
+async function lerOpcoesCliente(page, cliente, telefone) {
+    const opcoes = page
+        .locator('li, [role="option"], .MuiAutocomplete-option, [id*="option"], [id*="item"]')
+        .filter({ hasText: new RegExp(cliente, 'i') });
+
+    const total = await opcoes.count();
+    const resultado = [];
+
+    for (let i = 0; i < total; i++) {
+        const opcao = opcoes.nth(i);
+        const texto = await opcao.innerText().catch(() => '');
+
+        resultado.push({
+            indice: i,
+            opcao,
+            texto,
+            nomeExato: nomeExato(texto, cliente),
+            telefoneCombina: telefoneCombina(texto, telefone),
+            possuiTelefone: normalizarTelefone(texto).length >= 8
+        });
+    }
+
+    return resultado;
+}
+
+async function clicarAdicionarCliente(page) {
+    const candidatos = [
+        page.getByText('ADICIONAR CLIENTE', { exact: false }),
+        page.getByText('Adicionar cliente', { exact: false }),
+        page.getByRole('button', { name: /adicionar cliente/i }),
+        page.locator('button').filter({ hasText: /adicionar/i })
+    ];
+
+    for (const candidato of candidatos) {
+        const total = await candidato.count().catch(() => 0);
+
+        for (let i = 0; i < total; i++) {
+            const botao = candidato.nth(i);
+            const visivel = await botao.isVisible().catch(() => false);
+
+            if (!visivel) continue;
+
+            await botao.click({ force: true, timeout: 10000 });
+            return true;
+        }
+    }
+
+    return false;
+}
+
+module.exports = {
+    normalizarTexto,
+    normalizarTelefone,
+    preencherBuscaCliente,
+    lerOpcoesCliente,
+    clicarAdicionarCliente
+};
+
+
+===== ARQUIVO: C:\Users\Z�\Desktop\robo-minha-agenda\src\services\clienteBuscaService.js =====
+
+const Debugger = require('../core/Debugger');
+
+const {
+    nomeExato,
+    nomeContem,
+    telefoneExiste,
+    telefoneCombina
+} = require('./clienteUtils');
+
+async function encontrarCampoCliente(page) {
+    const candidatos = [
+        page.getByRole('textbox', { name: /cliente/i }),
+        page.locator('input[placeholder*="Cliente" i]'),
+        page.locator('input[name*="cliente" i]')
+    ];
+
+    for (const candidato of candidatos) {
+        const total = await candidato.count().catch(() => 0);
+
+        if (!total) continue;
+
+        for (let i = 0; i < total; i++) {
+            const campo = candidato.nth(i);
+            const visivel = await campo.isVisible().catch(() => false);
+
+            if (visivel) return campo;
+        }
+    }
+
+    return null;
+}
+
+async function buscarCliente(page, cliente, telefone = '') {
+    await Debugger.step(page, 'C001-selecionar-cliente-inicio');
+
+    const campo = await encontrarCampoCliente(page);
+
+    if (!campo) {
+        await Debugger.step(page, 'C001-campo-cliente-nao-encontrado');
+
+        return {
+            status: 'ERRO_CAMPO_CLIENTE_NAO_ENCONTRADO'
+        };
+    }
+
+    await campo.click({ force: true });
+    await campo.fill('');
+    await campo.fill(cliente);
+
+    await Debugger.step(page, 'C002-cliente-digitado');
+
+    await page.waitForTimeout(1500);
+
+    const opcoes = page
+        .locator('li, [role="option"], .MuiAutocomplete-option, [id*="option"], [id*="item"]')
+        .filter({ hasText: new RegExp(cliente, 'i') });
+
+    const total = await opcoes.count();
+
+    await Debugger.step(page, `C003-opcoes-autocomplete-${total}`);
+
+    if (total === 0) {
+        await Debugger.step(page, 'C005-cliente-nao-encontrado');
+
+        return {
+            status: 'CLIENTE_NAO_ENCONTRADO'
+        };
+    }
+
+    const clientes = [];
+
+    for (let i = 0; i < total; i++) {
+        const opcao = opcoes.nth(i);
+        const texto = await opcao.innerText().catch(() => '');
+
+        await Debugger.step(page, `C003-texto-opcao-${i}-${String(texto).replace(/\s+/g, ' ').slice(0, 120)}`);
+
+        clientes.push({
+            opcao,
+            texto,
+            nomeExato: nomeExato(texto, cliente),
+            nomeContem: nomeContem(texto, cliente),
+            telefoneExiste: telefoneExiste(texto),
+            telefoneCombina: telefoneCombina(texto, telefone)
+        });
+    }
+
+    const porTelefone = clientes.filter(c => c.telefoneCombina);
+
+    await Debugger.step(page, `C003-clientes-por-telefone-${porTelefone.length}`);
+
+    if (porTelefone.length === 1) {
+        await porTelefone[0].opcao.click({ force: true });
+        await page.waitForTimeout(1000);
+
+        await Debugger.step(page, 'C004-cliente-selecionado-por-telefone');
+
+        return {
+            status: 'CLIENTE_SELECIONADO'
+        };
+    }
+
+    const nomeSeguro = clientes.filter(c => {
+        if (!c.nomeExato) return false;
+
+        if (telefone && c.telefoneExiste) return false;
+
+        return true;
+    });
+
+    await Debugger.step(page, `C003-clientes-nome-exato-seguros-${nomeSeguro.length}`);
+
+    if (nomeSeguro.length === 1) {
+        await nomeSeguro[0].opcao.click({ force: true });
+        await page.waitForTimeout(1000);
+
+        await Debugger.step(page, 'C004-cliente-selecionado-por-nome');
+
+        return {
+            status: 'CLIENTE_SELECIONADO'
+        };
+    }
+
+    const nomeContemSemTelefone = clientes.filter(c => {
+        if (!c.nomeContem) return false;
+
+        if (c.telefoneExiste && telefone) return false;
+
+        return true;
+    });
+
+    await Debugger.step(page, `C003-clientes-nome-contem-sem-telefone-${nomeContemSemTelefone.length}`);
+
+    if (nomeContemSemTelefone.length === 1) {
+        await nomeContemSemTelefone[0].opcao.click({ force: true });
+        await page.waitForTimeout(1000);
+
+        await Debugger.step(page, 'C004-cliente-selecionado-por-unica-opcao-sem-telefone');
+
+        return {
+            status: 'CLIENTE_SELECIONADO'
+        };
+    }
+
+    const parecidos = clientes.filter(c => c.nomeContem);
+
+    if (parecidos.length) {
+        await Debugger.step(page, 'C005-clientes-parecidos-ignorados');
+    }
+
+    return {
+        status: 'CLIENTE_NAO_ENCONTRADO'
+    };
+}
+
+module.exports = {
+    buscarCliente,
+    encontrarCampoCliente
+};
+
+
+===== ARQUIVO: C:\Users\Z�\Desktop\robo-minha-agenda\src\services\clienteCriacaoService.js =====
+
+const Debugger = require('../core/Debugger');
+
+const { buscarCliente } = require('./clienteBuscaService');
+
+async function clicarBotaoAdicionarCliente(page) {
+    const candidatos = [
+        page.getByText('ADICIONAR CLIENTE', { exact: false }),
+        page.getByText('Adicionar cliente', { exact: false }),
+        page.getByText('Novo cliente', { exact: false }),
+        page.getByText('Cadastrar cliente', { exact: false }),
+        page.getByRole('button', { name: /adicionar cliente/i }),
+        page.getByRole('button', { name: /novo cliente/i }),
+        page.getByRole('button', { name: /cadastrar cliente/i }),
+        page.locator('button').filter({ hasText: /adicionar/i }),
+        page.locator('button').filter({ hasText: /cliente/i })
+    ];
+
+    for (const candidato of candidatos) {
+        const total = await candidato.count().catch(() => 0);
+
+        if (!total) continue;
+
+        for (let i = 0; i < total; i++) {
+            const botao = candidato.nth(i);
+            const visivel = await botao.isVisible().catch(() => false);
+
+            if (!visivel) continue;
+
+            await botao.click({ force: true, timeout: 10000 });
+            return true;
+        }
+    }
+
+    return false;
+}
+
+async function criarCliente(page, dados) {
+    await Debugger.step(page, 'C006-criar-cliente-inicio');
+
+    const { cliente, telefone } = dados;
+
+    const clicouAdicionar = await clicarBotaoAdicionarCliente(page);
+
+    await Debugger.step(page, `C006-clicou-adicionar-cliente-${clicouAdicionar}`);
+
+    if (!clicouAdicionar) {
+        return {
+            status: 'ERRO_BOTAO_ADICIONAR_CLIENTE'
+        };
+    }
+
+    await page.waitForTimeout(1500);
+
+    await Debugger.step(page, 'C007-modal-criar-cliente');
+
+    const campos = page.getByRole('textbox');
+    const totalCampos = await campos.count();
+
+    await Debugger.step(page, `C007-total-campos-cliente-${totalCampos}`);
+
+    if (totalCampos < 2) {
+        return {
+            status: 'ERRO_CAMPOS_CRIAR_CLIENTE'
+        };
+    }
+
+    await campos.nth(0).click({ force: true, timeout: 10000 });
+    await campos.nth(0).fill('');
+    await campos.nth(0).fill(cliente);
+
+    await Debugger.step(page, 'C008-nome-cliente-preenchido');
+
+    if (telefone) {
+        await campos.nth(1).click({ force: true, timeout: 10000 });
+        await campos.nth(1).fill('');
+        await campos.nth(1).fill(telefone);
+
+        await Debugger.step(page, 'C009-telefone-cliente-preenchido');
+    }
+
+    await page.waitForTimeout(800);
+
+    const botoesSalvar = page.getByRole('button', { name: /^salvar$/i });
+    const totalSalvar = await botoesSalvar.count();
+
+    await Debugger.step(page, `C009-total-botoes-salvar-${totalSalvar}`);
+
+    if (totalSalvar === 0) {
+        return {
+            status: 'ERRO_BOTAO_SALVAR_CLIENTE'
+        };
+    }
+
+    await botoesSalvar.last().click({ force: true, timeout: 10000 });
+
+    await page.waitForTimeout(4000);
+
+    await Debugger.step(page, 'C010-cliente-salvo');
+
+    return {
+        status: 'CLIENTE_CRIADO'
+    };
+}
+
+async function modalAtendimentoDisponivel(page) {
+    const criandoAtendimento = await page
+        .getByText('Criando Atendimento', { exact: false })
+        .isVisible()
+        .catch(() => false);
+
+    const campoServico = await page
+        .locator('#downshift-1-input')
+        .isVisible()
+        .catch(() => false);
+
+    return criandoAtendimento && campoServico;
+}
+
+async function criarESelecionarCliente(page, dados) {
+    const criacao = await criarCliente(page, dados);
+
+    await Debugger.step(page, `C013-status-criacao-${criacao.status}`);
+
+    if (criacao.status !== 'CLIENTE_CRIADO') {
+        return criacao;
+    }
+
+    await Debugger.step(page, 'C014-cliente-criado-precisa-reabrir');
+
+    return {
+        status: 'CLIENTE_CRIADO_PRECISA_REABRIR'
+    };
+}
+
+module.exports = {
+    criarCliente,
+    criarESelecionarCliente,
+    clicarBotaoAdicionarCliente
+};
+
+
+===== ARQUIVO: C:\Users\Z�\Desktop\robo-minha-agenda\src\services\clienteService.js =====
+
+const Debugger = require('../core/Debugger');
+
+const { buscarCliente } = require('./clienteBuscaService');
+const clienteCriacaoService = require('./clienteCriacaoService');
+
+async function selecionarCliente(page, cliente, telefone = '') {
+    return await buscarCliente(page, cliente, telefone);
+}
+
+async function criarCliente(page, dados) {
+    return await clienteCriacaoService.criarCliente(page, dados);
+}
+
+async function selecionarOuCriarCliente(page, dados) {
+    await Debugger.step(page, 'C011-selecionar-ou-criar-inicio');
+
+    const { cliente, telefone } = dados;
+
+    const selecao = await buscarCliente(page, cliente, telefone);
+
+    await Debugger.step(page, `C012-status-selecao-${selecao.status}`);
+
+    if (selecao.status === 'CLIENTE_SELECIONADO') {
+        return selecao;
+    }
+
+    if (selecao.status === 'CLIENTE_AMBIGUO') {
+        return selecao;
+    }
+
+    if (selecao.status !== 'CLIENTE_NAO_ENCONTRADO') {
+        return selecao;
+    }
+
+    return await clienteCriacaoService.criarESelecionarCliente(page, {
+        cliente,
+        telefone
+    });
+}
+
+module.exports = {
+    selecionarCliente,
+    criarCliente,
+    selecionarOuCriarCliente
+};
+
+
+===== ARQUIVO: C:\Users\Z�\Desktop\robo-minha-agenda\src\services\clienteUtils.js =====
+
+function normalizarTexto(texto) {
+    return String(texto || '')
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .trim();
+}
+
+function normalizarTelefone(telefone) {
+    return String(telefone || '').replace(/\D/g, '');
+}
+
+function nomeExato(textoOpcao, cliente) {
+    const clienteNormalizado = normalizarTexto(cliente);
+
+    return String(textoOpcao || '')
+        .split('\n')
+        .map(linha => normalizarTexto(linha))
+        .filter(Boolean)
+        .some(linha => linha === clienteNormalizado);
+}
+
+function nomeContem(textoOpcao, cliente) {
+    const textoNormalizado = normalizarTexto(textoOpcao);
+    const clienteNormalizado = normalizarTexto(cliente);
+
+    return clienteNormalizado && textoNormalizado.includes(clienteNormalizado);
+}
+
+function telefoneExiste(textoOpcao) {
+    return normalizarTelefone(textoOpcao).length >= 8;
+}
+
+function telefoneCombina(textoOpcao, telefone) {
+    const telefoneCliente = normalizarTelefone(telefone);
+    const telefoneOpcao = normalizarTelefone(textoOpcao);
+
+    if (!telefoneCliente || !telefoneOpcao) return false;
+
+    return (
+        telefoneOpcao.includes(telefoneCliente) ||
+        telefoneCliente.includes(telefoneOpcao)
+    );
+}
+
+module.exports = {
+    normalizarTexto,
+    normalizarTelefone,
+    nomeExato,
+    nomeContem,
+    telefoneExiste,
+    telefoneCombina
+};
+
+
+===== ARQUIVO: C:\Users\Z�\Desktop\robo-minha-agenda\src\utils\browser.js =====
+
+const BrowserManager = require('../managers/BrowserManager');
+
+async function abrirBrowser() {
+    return await BrowserManager.abrirSessao();
+}
+
+module.exports = {
+    abrirBrowser
+};
+
+
+===== ARQUIVO: C:\Users\Z�\Desktop\robo-minha-agenda\src\validators\commandValidator.js =====
+
+class CommandValidator {
+
+    agenda(action, dados = {}) {
+
+        switch (action) {
+
+            case 'criar':
+                return this.criar(dados);
+
+            case 'cadastrar_cliente':
+                return this.cadastrarCliente(dados);
+
+            case 'consultar':
+                return this.buscar(dados);
+
+            case 'cancelar':
+                return this.buscar(dados);
+
+            case 'alterar':
+                return this.alterar(dados);
+
+            case 'reagendar':
+                return this.reagendar(dados);
+
+            case 'horarios':
+                return this.horarios(dados);
+
+            default:
+                throw new Error(`Ação "${action}" não existe.`);
+        }
+
+    }
+
+    validarTelefone(telefone) {
+        const numero = String(telefone || '').replace(/\D/g, '');
+
+        if (!numero) {
+            throw new Error('Telefone obrigatório.');
+        }
+
+        if (!/^\d{10,11}$/.test(numero)) {
+            throw new Error('Telefone inválido.');
+        }
+    }
+
+    validarHorario(horario, mensagem = 'Horário obrigatório.') {
+        if (!horario) {
+            throw new Error(mensagem);
+        }
+
+        if (!/^\d{2}:\d{2}$/.test(horario)) {
+            throw new Error('Horário inválido.');
+        }
+    }
+
+    criar(dados) {
+        this.validarHorario(dados.horario);
+
+        if (!dados.cliente) {
+            throw new Error('Cliente obrigatório.');
+        }
+
+        this.validarTelefone(dados.telefone);
+
+        if (!dados.servico) {
+            throw new Error('Serviço obrigatório.');
+        }
+    }
+
+    cadastrarCliente(dados) {
+        if (!dados.cliente) {
+            throw new Error('Cliente obrigatório.');
+        }
+
+        this.validarTelefone(dados.telefone);
+    }
+
+    buscar(dados) {
+        if (!dados.cliente && !dados.telefone) {
+            throw new Error('Informe cliente ou telefone.');
+        }
+
+        if (dados.telefone) {
+            this.validarTelefone(dados.telefone);
+        }
+    }
+
+    alterar(dados) {
+        this.buscar(dados);
+
+        if (!dados.horario && !dados.servico && !dados.clienteNovo) {
+            throw new Error('Nenhuma alteração informada.');
+        }
+
+        if (dados.horario) {
+            this.validarHorario(dados.horario);
+        }
+    }
+
+    reagendar(dados) {
+        this.buscar(dados);
+        this.validarHorario(dados.novoHorario, 'Novo horário obrigatório.');
+    }
+
+    horarios(dados) {
+        if (!dados.servico) {
+            throw new Error('Serviço obrigatório.');
+        }
+    }
+
+}
+
+module.exports = new CommandValidator();
+
+
+===== ARQUIVO: C:\Users\Z�\Desktop\robo-minha-agenda\abrir.js =====
+
+const { abrirBrowser } = require('./src/utils/browser');
+
+(async () => {
+    try {
+        console.log('Abrindo Minha Agenda...');
+
+        await abrirBrowser();
+
+        console.log('Sessão aberta.');
+        console.log('Pode usar o app. Para encerrar, pressione CTRL + C no terminal.');
+
+        await new Promise(() => {});
+    } catch (erro) {
+        console.error(erro);
+    }
+})();
+
+
+===== ARQUIVO: C:\Users\Z�\Desktop\robo-minha-agenda\app.js =====
+
+const { criarAgendamento } = require('./src/controllers/agendamentoController');
+
+const dados = {
+    horario: process.argv[2],
+    cliente: process.argv[3],
+    servico: process.argv[4]
+};
+
+criarAgendamento(dados).then((resposta) => {
+    console.log(resposta);
+});
+
+
+===== ARQUIVO: C:\Users\Z�\Desktop\robo-minha-agenda\auth.json =====
+
+{
+  "cookies": [
+    {
+      "name": "m",
+      "value": "9ab0a97b-b566-4e1d-913e-697a6462ac56d23607",
+      "domain": "m.stripe.com",
+      "path": "/",
+      "expires": 1817384268.871275,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "__stripe_mid",
+      "value": "426c587f-6f84-449c-a9c4-2e6a6edcfefd520656",
+      "domain": ".portal.minhaagendaapp.com.br",
+      "path": "/",
+      "expires": 1814360268,
+      "httpOnly": false,
+      "secure": true,
+      "sameSite": "Strict"
+    },
+    {
+      "name": "__stripe_sid",
+      "value": "89c68a8f-3f86-452b-ba62-272596aea67bbad4f7",
+      "domain": ".portal.minhaagendaapp.com.br",
+      "path": "/",
+      "expires": 1782826068,
+      "httpOnly": false,
+      "secure": true,
+      "sameSite": "Strict"
+    }
+  ],
+  "origins": [
+    {
+      "origin": "https://portal.minhaagendaapp.com.br",
+      "localStorage": [
+        {
+          "name": "minhaagenda-spa-companysettings",
+          "value": "{\"createdById\":null,\"createdAt\":null,\"updatedById\":null,\"updatedAt\":null,\"id\":null,\"companyId\":null,\"showServiceValue\":false,\"greetingText\":\"Oi #{cliente}, tudo bem?\",\"goodbyeText\":\"Obrigado.\",\"creditCardRate\":0,\"debitCardRate\":0,\"workingScheduleStartTime\":\"08:00\",\"workingScheduleEndTime\":\"12:00\",\"workingScheduleStartTime2\":\"13:00\",\"workingScheduleEndTime2\":\"20:00\"}"
+        },
+        {
+          "name": "minhaagenda-spa-STORAGE_AGENDA_EMPLOYEE_SELECTION",
+          "value": "{\"selectedEmployeeIds\":[1293077],\"employeeList\":[{\"id\":1293077,\"name\":\"Quadra 1\",\"cpf\":null,\"cnpj\":null,\"email\":null,\"avatarUrl\":null,\"profession\":null,\"agendaColorId\":null,\"agendaIcon\":null,\"phone\":null,\"commission\":null,\"enabled\":true,\"professional\":true,\"colorId\":null,\"roles\":[],\"onlineSchedulingEnabled\":true,\"revenueExcluded\":false,\"deleted\":false,\"blocked\":false,\"allowSpecificSchedule\":false,\"master\":false}]}"
+        },
+        {
+          "name": "minhaagenda-spa-STORAGE_AGENDA_ROOM_SELECTION",
+          "value": "{\"selectedRoomIds\":[],\"roomList\":[]}"
+        },
+        {
+          "name": "minhaagenda-spa-STORAGE_BIRTHDAY_SETTINGS",
+          "value": "{\"selectionDay\":7,\"hasBirthdayComing\":false,\"birthdayLastCheckedMoment\":\"2026-06-30T12:57:44.542Z\"}"
+        },
+        {
+          "name": "minhaagenda-spa-userdetails",
+          "value": "{\"access_token\":\"71c38d10-3e45-48e9-bfef-d6cd0539a23b\",\"token_type\":\"bearer\",\"expires_in\":2591999,\"scope\":\"read write\",\"principal\":{\"username\":\"lauraevangelista16@gmail.com\",\"authorities\":[{\"authority\":\"ADMIN\"}],\"accountNonExpired\":true,\"accountNonLocked\":true,\"credentialsNonExpired\":true,\"enabled\":true,\"id\":1293078,\"email\":\"lauraevangelista16@gmail.com\",\"name\":\"laura \",\"forceResetPassword\":false,\"mostRecentInstallationId\":null,\"agendaColorId\":3,\"agendaIcon\":\"racquet\",\"accountType\":\"TRIAL\",\"subscriptionType\":null,\"trialExpirationDate\":\"2026-07-10\",\"lastPaidAt\":null,\"companySettings\":{\"createdById\":null,\"createdAt\":null,\"updatedById\":null,\"updatedAt\":null,\"id\":null,\"companyId\":null,\"showServiceValue\":false,\"greetingText\":\"Oi #{cliente}, tudo bem?\",\"goodbyeText\":\"Obrigado.\",\"creditCardRate\":0,\"debitCardRate\":0,\"workingScheduleStartTime\":\"08:00\",\"workingScheduleEndTime\":\"12:00\",\"workingScheduleStartTime2\":\"13:00\",\"workingScheduleEndTime2\":\"20:00\"},\"companyId\":1069747,\"paymentBoleto\":false,\"paidGracePeriodEndDate\":null,\"maxNumberUsers\":3,\"master\":true,\"locale\":\"PT_BR\",\"occupationAreaId\":6},\"roles\":[\"ADMIN\"],\"expiryDate\":1785416263118}"
+        },
+        {
+          "name": "authVersion",
+          "value": "1782824264139"
+        },
+        {
+          "name": "minhaagenda-spa-STORAGE_AGENDA_LAYOUT_CONFIG",
+          "value": "{\"durationInterval\":30,\"lineSize\":45}"
+        }
+      ]
+    }
+  ]
+}
+
+
+===== ARQUIVO: C:\Users\Z�\Desktop\robo-minha-agenda\cancelar.js =====
+
+const { cancelarAgendamento } = require('./src/controllers/cancelamentoController');
+
+const dados = {
+    cliente: process.argv[2]
+};
+
+cancelarAgendamento(dados).then((resposta) => {
+    console.log(resposta);
+});
+
+
+===== ARQUIVO: C:\Users\Z�\Desktop\robo-minha-agenda\criarAgendamento_backup.js =====
+
+const { chromium } = require('playwright');
+
+const cliente = 'la';
+const telefone = '66666666666';
+const servico = 'un';
+
+(async () => {
+  const browser = await chromium.launch({ headless: false });
+
+  const context = await browser.newContext({
+    storageState: 'auth.json'
+  });
+
+  const page = await context.newPage();
+
+  await page.goto('https://portal.minhaagendaapp.com.br/agenda', {
+    waitUntil: 'domcontentloaded'
+  });
+
+  await page.waitForTimeout(2000);
+
+  await page.getByText(':30').nth(1).click();
+
+  await page.getByRole('textbox', { name: 'Cliente' }).click();
+  await page.getByRole('textbox', { name: 'Cliente' }).fill(cliente);
+  await page.getByText('Lau - (66) 66666-').click();
+
+  await page.getByRole('textbox', { name: 'Digite para buscar ou' }).click();
+  await page.getByRole('textbox', { name: 'Digite para buscar ou' }).fill(servico);
+  await page.getByText('Unha').click();
+
+  await page.getByRole('button', { name: 'Salvar' }).click();
+
+  await page.waitForTimeout(3000);
+
+  console.log('Agendamento criado com sucesso!');
+
+  await browser.close();
+})();
+
+
+===== ARQUIVO: C:\Users\Z�\Desktop\robo-minha-agenda\engine.js =====
+
+const Kernel = require('./src/core/Kernel');
+const AgendaEngine = require('./src/engines/agenda/agendaEngine');
+
+Kernel.registrar('agenda', AgendaEngine);
+
+async function executar() {
+
+    const engine = process.argv[2];
+    const action = process.argv[3];
+
+    let dados = {};
+
+    if (engine === 'agenda') {
+
+        switch (action) {
+
+            case 'criar':
+                dados = {
+                    horario: process.argv[4],
+                    cliente: process.argv[5],
+                    telefone: process.argv[6],
+                    servico: process.argv[7]
+                };
+                break;
+
+            case 'consultar':
+                dados = {
+                    cliente: process.argv[4],
+                    telefone: process.argv[5]
+                };
+                break;
+
+            case 'cancelar':
+                dados = {
+                    cliente: process.argv[4],
+                    telefone: process.argv[5]
+                };
+                break;
+
+            case 'horarios':
+                dados = {
+                    servico: process.argv[4],
+                    limite: process.argv[5]
+                };
+                break;
+
+            case 'alterar':
+                dados = {
+                    cliente: process.argv[4],
+                    telefone: process.argv[5],
+                    horario: process.argv[6],
+                    servico: process.argv[7],
+                    clienteNovo: process.argv[8]
+                };
+                break;
+
+            case 'reagendar':
+                dados = {
+                    cliente: process.argv[4],
+                    telefone: process.argv[5],
+                    novoHorario: process.argv[6]
+                };
+                break;
+
+            default:
+                throw new Error(`Ação "${action}" não existe.`);
+        }
+
+    } else {
+
+        throw new Error(`Engine "${engine}" não encontrada.`);
+
+    }
+
+    const resposta = await Kernel.execute(
+        engine,
+        action,
+        dados
+    );
+
+    console.log(JSON.stringify(resposta, null, 2));
+
+}
+
+executar().catch((erro) => {
+
+    console.error(erro);
+
+    process.exit(1);
+
+});
+
+
+===== ARQUIVO: C:\Users\Z�\Desktop\robo-minha-agenda\gravar.js =====
+
+const { chromium } = require('playwright');
+
+(async () => {
+    const browser = await chromium.launch({
+        headless: false,
+        slowMo: 200
+    });
+
+    const context = await browser.newContext({
+        viewport: null
+    });
+
+    const page = await context.newPage();
+
+    await page.goto('https://portal.minhaagendaapp.com.br/login', {
+        waitUntil: 'domcontentloaded'
+    });
+
+    console.log('Faça login normalmente. Depois que a agenda abrir, volte aqui e pressione ENTER.');
+
+    process.stdin.resume();
+
+    process.stdin.once('data', async () => {
+        await context.storageState({
+            path: 'auth.json'
+        });
+
+        console.log('Sessão salva em auth.json.');
+
+        await browser.close();
+
+        process.exit(0);
+    });
+})();
+
+
+===== ARQUIVO: C:\Users\Z�\Desktop\robo-minha-agenda\package.json =====
+
+{
+  "name": "robo-minha-agenda",
+  "version": "1.0.0",
+  "description": "",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "express": "^5.2.1",
+    "playwright": "^1.61.1"
+  }
+}
+
+
+===== ARQUIVO: C:\Users\Z�\Desktop\robo-minha-agenda\server.js =====
+
+const express = require('express');
+
+const Kernel = require('./src/core/Kernel');
+const AgendaEngine = require('./src/engines/agenda/agendaEngine');
+const AgendaOrchestrator = require('./src/orchestrators/orchestrators');
+const ErrorHandler = require('./src/core/ErrorHandler');
+
+Kernel.registrar('agenda', AgendaEngine);
+
+const app = express();
+
+app.use(express.json());
+
+app.post('/agenda', async (req, res) => {
+    try {
+        const { action, dados } = req.body;
+
+        const resposta = await AgendaOrchestrator.executar(action, dados || {});
+
+        if (resposta.success === false) {
+            return res.status(400).json(resposta);
+        }
+
+        return res.json(resposta);
+
+    } catch (erro) {
+        return res.status(400).json(
+            ErrorHandler.tratar(erro)
+        );
+    }
+});
+
+app.get('/health', (req, res) => {
+    return res.json({
+        status: 'ONLINE',
+        mensagem: 'Genius Engine rodando.'
+    });
+});
+
+const PORT = process.env.PORT || 3000;
+
+app.listen(PORT, '0.0.0.0', () => {
+    console.log(`Genius Engine rodando na porta ${PORT}`);
+});

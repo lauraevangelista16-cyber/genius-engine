@@ -8,7 +8,7 @@ class AgendaOrchestrator {
         if (!acao) {
             return this.erro(
                 'ACAO_OBRIGATORIA',
-                'Informe o que deseja fazer: criar, consultar, alterar, cancelar ou horarios.'
+                'Informe o que deseja fazer: criar, consultar, alterar, cancelar, cadastrar_cliente ou horarios.'
             );
         }
 
@@ -25,12 +25,13 @@ class AgendaOrchestrator {
 
     validar(action, dados) {
         const obrigatorios = {
-    horarios: ['servico', 'data'],
-    criar: ['servico', 'cliente', 'telefone', 'data', 'horario'],
-    consultar: ['cliente', 'telefone', 'data'],
-    cancelar: ['cliente', 'telefone', 'data'],
-    alterar: ['cliente', 'telefone', 'data']
-};
+            horarios: ['servico', 'data'],
+            criar: ['servico', 'cliente', 'telefone', 'data', 'horario'],
+            cadastrar_cliente: ['cliente', 'telefone', 'data', 'horario'],
+            consultar: ['cliente', 'telefone', 'data'],
+            cancelar: ['cliente', 'telefone', 'data'],
+            alterar: ['cliente', 'telefone', 'data']
+        };
 
         if (!obrigatorios[action]) {
             return {

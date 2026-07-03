@@ -32,6 +32,34 @@ class AgendaResponder {
                     dados: resultado
                 };
 
+            case 'CLIENTE_CADASTRADO':
+                return {
+                    ok: true,
+                    mensagem: resultado.mensagem || 'Cliente cadastrado com sucesso.',
+                    dados: resultado
+                };
+
+            case 'CLIENTE_JA_CADASTRADO':
+                return {
+                    ok: true,
+                    mensagem: resultado.mensagem || 'Cliente já estava cadastrado.',
+                    dados: resultado
+                };
+
+            case 'CLIENTE_NAO_CADASTRADO':
+                return {
+                    ok: false,
+                    mensagem: resultado.mensagem || 'Cliente ainda não está cadastrado.',
+                    dados: resultado
+                };
+
+            case 'ERRO_CLIENTE':
+                return {
+                    ok: false,
+                    mensagem: resultado.mensagem || 'Erro ao processar o cliente.',
+                    dados: resultado
+                };
+
             case 'AGENDAMENTO_CRIADO':
                 return {
                     ok: true,
