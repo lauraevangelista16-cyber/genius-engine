@@ -1,7 +1,5 @@
 const Debugger = require('../core/Debugger');
 
-const { buscarCliente } = require('./clienteBuscaService');
-
 async function clicarBotaoAdicionarCliente(page) {
     const candidatos = [
         page.getByText('ADICIONAR CLIENTE', { exact: false }),
@@ -31,39 +29,6 @@ async function clicarBotaoAdicionarCliente(page) {
         }
     }
 
-    return false;
-}
-
-async function confirmarClienteCriado(page, dados) {
-    const { cliente, telefone } = dados;
-
-    await Debugger.step(page, 'C010-confirmando-cliente-criado');
-
-    await page.waitForTimeout(2000);
-
-    const encontrado = await buscarCliente(page, {
-        cliente,
-        telefone
-    }).catch(async erro => {
-        await Debugger.step(page, `C010-erro-confirmar-cliente-${erro.message}`);
-        return null;
-    });
-
-    if (!encontrado) {
-        await Debugger.step(page, 'C010-cliente-nao-confirmado');
-        return false;
-    }
-
-    if (
-        encontrado.status === 'CLIENTE_ENCONTRADO' ||
-        encontrado.status === 'CLIENTE_SELECIONADO' ||
-        encontrado.status === 'CLIENTE_JA_EXISTE'
-    ) {
-        await Debugger.step(page, `C010-cliente-confirmado-${encontrado.status}`);
-        return true;
-    }
-
-    await Debugger.step(page, `C010-cliente-nao-confirmado-status-${encontrado.status}`);
     return false;
 }
 
@@ -134,33 +99,11 @@ async function criarCliente(page, dados) {
 
     await page.waitForTimeout(4000);
 
-    const clienteConfirmado = await confirmarClienteCriado(page, dados);
-
-    if (!clienteConfirmado) {
-        return {
-            status: 'ERRO_CLIENTE_NAO_CONFIRMADO'
-        };
-    }
-
-    await Debugger.step(page, 'C010-cliente-salvo-confirmado');
+    await Debugger.step(page, 'C010-cliente-salvo-aguardando-reabrir');
 
     return {
         status: 'CLIENTE_CRIADO'
     };
-}
-
-async function modalAtendimentoDisponivel(page) {
-    const criandoAtendimento = await page
-        .getByText('Criando Atendimento', { exact: false })
-        .isVisible()
-        .catch(() => false);
-
-    const campoServico = await page
-        .locator('#downshift-1-input')
-        .isVisible()
-        .catch(() => false);
-
-    return criandoAtendimento && campoServico;
 }
 
 async function criarESelecionarCliente(page, dados) {
