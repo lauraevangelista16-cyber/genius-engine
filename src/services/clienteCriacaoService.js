@@ -93,13 +93,27 @@ async function criarCliente(page, dados) {
 
     await botoesSalvar.last().click({ force: true, timeout: 10000 });
 
-    await page.waitForTimeout(3000);
+    await page.waitForTimeout(4000);
 
     await Debugger.step(page, 'C010-cliente-salvo');
 
     return {
         status: 'CLIENTE_CRIADO'
     };
+}
+
+async function modalAtendimentoDisponivel(page) {
+    const criandoAtendimento = await page
+        .getByText('Criando Atendimento', { exact: false })
+        .isVisible()
+        .catch(() => false);
+
+    const campoServico = await page
+        .locator('#downshift-1-input')
+        .isVisible()
+        .catch(() => false);
+
+    return criandoAtendimento && campoServico;
 }
 
 async function criarESelecionarCliente(page, dados) {
@@ -111,10 +125,25 @@ async function criarESelecionarCliente(page, dados) {
         return criacao;
     }
 
+    await page.waitForTimeout(2000);
+
+    const atendimentoDisponivel = await modalAtendimentoDisponivel(page);
+
+    await Debugger.step(page, `C014-modal-atendimento-disponivel-${atendimentoDisponivel}`);
+
+    if (atendimentoDisponivel) {
+        return {
+            status: 'CLIENTE_SELECIONADO'
+        };
+    }
+
     for (let tentativa = 1; tentativa <= 3; tentativa++) {
         await page.waitForTimeout(2000);
 
         await Debugger.step(page, `C014-tentativa-selecionar-apos-criar-${tentativa}`);
+
+        await page.keyboard.press('Escape').catch(() => {});
+        await page.waitForTimeout(800);
 
         const selecao = await buscarCliente(
             page,
@@ -129,8 +158,6 @@ async function criarESelecionarCliente(page, dados) {
                 status: 'CLIENTE_SELECIONADO'
             };
         }
-
-        await page.keyboard.press('Escape').catch(() => {});
     }
 
     return {
