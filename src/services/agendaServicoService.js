@@ -1,100 +1,81 @@
 const Debugger = require('../core/Debugger');
 
+function escaparRegex(texto) {
+    return String(texto || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+async function obterValorCampo(campo) {
+    return await campo.inputValue().catch(() => '');
+}
+
 async function campoClientePreenchido(page) {
     const campoCliente = page.locator('#downshift-0-input');
 
     const existe = await campoCliente.count().catch(() => 0);
     if (!existe) return true;
 
-    const valor = await campoCliente.inputValue().catch(() => '');
+    const valor = await obterValorCampo(campoCliente);
     return Boolean(valor && valor.trim());
 }
 
 async function localizarCampoServico(page) {
-    const campoDireto = page.locator('#downshift-1-input');
+    const campoServico = page.locator('#downshift-1-input');
 
-    if (await campoDireto.isVisible().catch(() => false)) {
-        return campoDireto;
-    }
-
-    const candidatos = [
-        page.getByRole('textbox', { name: /servi|procedimento/i }),
-        page.locator('input[placeholder*="Serv" i]'),
-        page.locator('input[placeholder*="Proced" i]')
-    ];
-
-    for (const candidato of candidatos) {
-        const total = await candidato.count().catch(() => 0);
-
-        for (let i = 0; i < total; i++) {
-            const campo = candidato.nth(i);
-            const visivel = await campo.isVisible().catch(() => false);
-            if (visivel) return campo;
-        }
+    if (await campoServico.isVisible().catch(() => false)) {
+        return campoServico;
     }
 
     return null;
 }
 
-async function buscarOpcaoServicoDoCampo(page, campoServico, servico) {
-    const idCampo = await campoServico.getAttribute('id').catch(() => '');
-
-    if (idCampo) {
-        const numero = idCampo.replace('downshift-', '').replace('-input', '');
-        const opcoesDoCampo = page
-            .locator(`[id^="downshift-${numero}-item"]`)
-            .filter({ hasText: new RegExp(servico, 'i') });
-
-        const totalDoCampo = await opcoesDoCampo.count().catch(() => 0);
-
-        await Debugger.step(page, `009-opcoes-servico-vinculadas-${idCampo}-${totalDoCampo}`);
-
-        if (totalDoCampo > 0) {
-            return opcoesDoCampo.first();
-        }
-    }
-
-    const opcoesGerais = page
-        .locator('[role="option"], .MuiAutocomplete-option, li')
-        .filter({ hasText: new RegExp(servico, 'i') });
-
-    const totalGerais = await opcoesGerais.count().catch(() => 0);
-
-    await Debugger.step(page, `009-opcoes-servico-gerais-${totalGerais}`);
-
-    if (totalGerais > 0) {
-        return opcoesGerais.first();
-    }
-
-    return null;
-}
-
-async function preencherServico(page, campoServico, servico) {
+async function preencherCampoServico(page, campoServico, servico) {
     await campoServico.click({ force: true, timeout: 10000 });
 
-    await page.keyboard.press(process.platform === 'darwin' ? 'Meta+A' : 'Control+A').catch(() => {});
+    await page.keyboard.press('Control+A').catch(() => {});
     await page.keyboard.press('Backspace').catch(() => {});
 
     await campoServico.fill('').catch(() => {});
-    await campoServico.type(servico, { delay: 80 }).catch(async () => {
+    await campoServico.type(servico, { delay: 100 }).catch(async () => {
         await campoServico.fill(servico);
     });
 
-    await page.waitForTimeout(2000);
+    await page.waitForTimeout(2500);
+}
+
+async function escolherOpcaoServico(page, servico) {
+    const termo = escaparRegex(servico);
+
+    const opcoesVinculadas = page
+        .locator('[id^="downshift-1-item"]')
+        .filter({ hasText: new RegExp(termo, 'i') });
+
+    const totalVinculadas = await opcoesVinculadas.count().catch(() => 0);
+
+    await Debugger.step(page, `009-opcoes-servico-vinculadas-${totalVinculadas}`);
+
+    if (totalVinculadas > 0) {
+        await opcoesVinculadas.first().click({ force: true, timeout: 10000 });
+        return true;
+    }
+
+    await page.keyboard.press('ArrowDown').catch(() => {});
+    await page.waitForTimeout(500);
+    await page.keyboard.press('Enter').catch(() => {});
+    await page.waitForTimeout(1500);
+
+    return true;
 }
 
 async function servicoFoiSelecionado(page, servico) {
     const textoTela = await page.locator('body').innerText().catch(() => '');
 
-    if (textoTela.includes('Total: R$') && !textoTela.includes('Total: R$ 0,00')) {
-        return true;
-    }
+    const temTotalPago =
+        textoTela.includes('Total: R$') &&
+        !textoTela.includes('Total: R$ 0,00');
 
-    if (new RegExp(servico, 'i').test(textoTela) && !textoTela.includes('ADICIONAR SERVIÇO')) {
-        return true;
-    }
+    const temServico = new RegExp(escaparRegex(servico), 'i').test(textoTela);
 
-    return false;
+    return temTotalPago && temServico;
 }
 
 const selecionarServico = async (page, servico) => {
@@ -106,10 +87,10 @@ const selecionarServico = async (page, servico) => {
 
     await page.waitForTimeout(2000);
 
-    const clienteOkAntes = await campoClientePreenchido(page);
-    await Debugger.step(page, `008-cliente-preenchido-antes-servico-${clienteOkAntes}`);
+    const clienteAntes = await campoClientePreenchido(page);
+    await Debugger.step(page, `008-cliente-preenchido-antes-servico-${clienteAntes}`);
 
-    if (!clienteOkAntes) {
+    if (!clienteAntes) {
         throw new Error('Campo cliente ficou vazio antes de selecionar o serviço.');
     }
 
@@ -119,25 +100,21 @@ const selecionarServico = async (page, servico) => {
         throw new Error('Campo de serviço não encontrado.');
     }
 
-    const idCampoServico = await campoServico.getAttribute('id').catch(() => '');
-    await Debugger.step(page, `008-campo-servico-usado-${idCampoServico || 'sem-id'}`);
+    await Debugger.step(page, '008-campo-servico-usado-downshift-1-input');
 
-    await preencherServico(page, campoServico, servico);
+    await preencherCampoServico(page, campoServico, servico);
 
-    const opcao = await buscarOpcaoServicoDoCampo(page, campoServico, servico);
+    const valorDigitado = await obterValorCampo(campoServico);
+    await Debugger.step(page, `009-valor-campo-servico-${valorDigitado}`);
 
-    if (!opcao) {
-        throw new Error(`Nenhuma opção de serviço foi encontrada para: ${servico}`);
-    }
-
-    await opcao.click({ force: true, timeout: 10000 });
+    await escolherOpcaoServico(page, servico);
 
     await page.waitForTimeout(2500);
 
-    const clienteOkDepois = await campoClientePreenchido(page);
-    await Debugger.step(page, `011-cliente-preenchido-depois-servico-${clienteOkDepois}`);
+    const clienteDepois = await campoClientePreenchido(page);
+    await Debugger.step(page, `011-cliente-preenchido-depois-servico-${clienteDepois}`);
 
-    if (!clienteOkDepois) {
+    if (!clienteDepois) {
         throw new Error('Campo cliente foi apagado ao selecionar o serviço.');
     }
 
