@@ -15,13 +15,11 @@ async function clicarBotaoAdicionarCliente(page) {
 
     for (const candidato of candidatos) {
         const total = await candidato.count().catch(() => 0);
-
         if (!total) continue;
 
         for (let i = 0; i < total; i++) {
             const botao = candidato.nth(i);
             const visivel = await botao.isVisible().catch(() => false);
-
             if (!visivel) continue;
 
             await botao.click({ force: true, timeout: 10000 });
@@ -38,9 +36,7 @@ async function criarCliente(page, dados) {
     const { cliente, telefone } = dados;
 
     if (!cliente) {
-        return {
-            status: 'ERRO_CLIENTE_OBRIGATORIO'
-        };
+        return { status: 'ERRO_CLIENTE_OBRIGATORIO' };
     }
 
     const clicouAdicionar = await clicarBotaoAdicionarCliente(page);
@@ -48,9 +44,7 @@ async function criarCliente(page, dados) {
     await Debugger.step(page, `C006-clicou-adicionar-cliente-${clicouAdicionar}`);
 
     if (!clicouAdicionar) {
-        return {
-            status: 'ERRO_BOTAO_ADICIONAR_CLIENTE'
-        };
+        return { status: 'ERRO_BOTAO_ADICIONAR_CLIENTE' };
     }
 
     await page.waitForTimeout(1500);
@@ -63,9 +57,7 @@ async function criarCliente(page, dados) {
     await Debugger.step(page, `C007-total-campos-cliente-${totalCampos}`);
 
     if (totalCampos < 2) {
-        return {
-            status: 'ERRO_CAMPOS_CRIAR_CLIENTE'
-        };
+        return { status: 'ERRO_CAMPOS_CRIAR_CLIENTE' };
     }
 
     await campos.nth(0).click({ force: true, timeout: 10000 });
@@ -87,19 +79,17 @@ async function criarCliente(page, dados) {
     const botoesSalvar = page.getByRole('button', { name: /^salvar$/i });
     const totalSalvar = await botoesSalvar.count();
 
-    await Debugger.step(page, `C009-total-botoes-salvar-${totalSalvar}`);
+    await Debugger.step(page, `C009-total-botoes-salvar-cliente-${totalSalvar}`);
 
     if (totalSalvar === 0) {
-        return {
-            status: 'ERRO_BOTAO_SALVAR_CLIENTE'
-        };
+        return { status: 'ERRO_BOTAO_SALVAR_CLIENTE' };
     }
 
     await botoesSalvar.last().click({ force: true, timeout: 10000 });
 
-    await page.waitForTimeout(4000);
+    await page.waitForTimeout(2000);
 
-    await Debugger.step(page, 'C010-cliente-salvo-aguardando-reabrir');
+    await Debugger.step(page, 'C010-cliente-salvo-no-modal-atendimento');
 
     return {
         status: 'CLIENTE_CRIADO'
@@ -111,15 +101,7 @@ async function criarESelecionarCliente(page, dados) {
 
     await Debugger.step(page, `C013-status-criacao-${criacao.status}`);
 
-    if (criacao.status !== 'CLIENTE_CRIADO') {
-        return criacao;
-    }
-
-    await Debugger.step(page, 'C014-cliente-criado-precisa-reabrir');
-
-    return {
-        status: 'CLIENTE_CRIADO_PRECISA_REABRIR'
-    };
+    return criacao;
 }
 
 module.exports = {

@@ -135,22 +135,24 @@ class MinhaAgendaAdapter {
         await Debugger.step(page, `A006-status-cliente-${cliente.status}`);
 
         if (cliente.status === 'CLIENTE_NAO_ENCONTRADO') {
-            await page.keyboard.press('Escape').catch(() => {});
+            await Debugger.step(page, 'A006-cliente-nao-encontrado-criando-no-mesmo-atendimento');
 
-            return {
-                status: 'CLIENTE_NAO_CADASTRADO',
-                mensagem: 'Cliente ainda não cadastrado. Cadastre o cliente antes de confirmar o agendamento.',
-                dados: {
-                    cliente: dadosNormalizados.cliente,
-                    telefone: dadosNormalizados.telefone,
-                    servico: dadosNormalizados.servico,
-                    data: dadosNormalizados.data,
-                    horario: dadosNormalizados.horario
-                }
-            };
-        }
+            const criacao = await criarCliente(page, {
+                cliente: dadosNormalizados.cliente,
+                telefone: dadosNormalizados.telefone
+            });
 
-        if (cliente.status !== 'CLIENTE_SELECIONADO') {
+            await Debugger.step(page, `A006-status-cliente-criado-no-modal-${criacao.status}`);
+
+            if (criacao.status !== 'CLIENTE_CRIADO') {
+                await page.keyboard.press('Escape').catch(() => {});
+
+                return {
+                    status: 'ERRO_CLIENTE',
+                    mensagem: 'Não foi possível criar o cliente no atendimento.'
+                };
+            }
+        } else if (cliente.status !== 'CLIENTE_SELECIONADO') {
             await page.keyboard.press('Escape').catch(() => {});
 
             return {
