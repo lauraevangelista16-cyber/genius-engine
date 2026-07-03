@@ -34,10 +34,49 @@ async function clicarBotaoAdicionarCliente(page) {
     return false;
 }
 
+async function confirmarClienteCriado(page, dados) {
+    const { cliente, telefone } = dados;
+
+    await Debugger.step(page, 'C010-confirmando-cliente-criado');
+
+    await page.waitForTimeout(2000);
+
+    const encontrado = await buscarCliente(page, {
+        cliente,
+        telefone
+    }).catch(async erro => {
+        await Debugger.step(page, `C010-erro-confirmar-cliente-${erro.message}`);
+        return null;
+    });
+
+    if (!encontrado) {
+        await Debugger.step(page, 'C010-cliente-nao-confirmado');
+        return false;
+    }
+
+    if (
+        encontrado.status === 'CLIENTE_ENCONTRADO' ||
+        encontrado.status === 'CLIENTE_SELECIONADO' ||
+        encontrado.status === 'CLIENTE_JA_EXISTE'
+    ) {
+        await Debugger.step(page, `C010-cliente-confirmado-${encontrado.status}`);
+        return true;
+    }
+
+    await Debugger.step(page, `C010-cliente-nao-confirmado-status-${encontrado.status}`);
+    return false;
+}
+
 async function criarCliente(page, dados) {
     await Debugger.step(page, 'C006-criar-cliente-inicio');
 
     const { cliente, telefone } = dados;
+
+    if (!cliente) {
+        return {
+            status: 'ERRO_CLIENTE_OBRIGATORIO'
+        };
+    }
 
     const clicouAdicionar = await clicarBotaoAdicionarCliente(page);
 
@@ -95,7 +134,15 @@ async function criarCliente(page, dados) {
 
     await page.waitForTimeout(4000);
 
-    await Debugger.step(page, 'C010-cliente-salvo');
+    const clienteConfirmado = await confirmarClienteCriado(page, dados);
+
+    if (!clienteConfirmado) {
+        return {
+            status: 'ERRO_CLIENTE_NAO_CONFIRMADO'
+        };
+    }
+
+    await Debugger.step(page, 'C010-cliente-salvo-confirmado');
 
     return {
         status: 'CLIENTE_CRIADO'
