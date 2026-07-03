@@ -52,13 +52,6 @@ class MinhaAgendaAdapter {
 
         await Debugger.step(page, 'A000-cadastrar-cliente-inicio');
 
-        if (!dadosNormalizados.data || !dadosNormalizados.horario) {
-            return {
-                status: 'DADOS_INCOMPLETOS',
-                mensagem: 'Para cadastrar cliente pelo Minha Agenda, informe data e horário para abrir o formulário.'
-            };
-        }
-
         await irParaData(page, dadosNormalizados.data);
 
         const statusHorario = await abrirHorario(page, dadosNormalizados.horario);
@@ -68,7 +61,7 @@ class MinhaAgendaAdapter {
         if (statusHorario !== 'HORARIO_LIVRE') {
             return {
                 status: 'HORARIO_OCUPADO',
-                mensagem: `O horário ${dadosNormalizados.horario} está ocupado. Use outro horário apenas para abrir o cadastro.`
+                mensagem: `O horário ${dadosNormalizados.horario} está ocupado.`
             };
         }
 
@@ -108,7 +101,7 @@ class MinhaAgendaAdapter {
 
         return {
             status: 'CLIENTE_CADASTRADO',
-            mensagem: 'Cliente cadastrado com sucesso. Agora já posso seguir com o agendamento.'
+            mensagem: 'Cliente cadastrado com sucesso.'
         };
     }
 
@@ -133,7 +126,7 @@ class MinhaAgendaAdapter {
             };
         }
 
-        const cliente = await selecionarCliente(
+        let cliente = await selecionarCliente(
             page,
             dadosNormalizados.cliente,
             dadosNormalizados.telefone
@@ -142,19 +135,59 @@ class MinhaAgendaAdapter {
         await Debugger.step(page, `A006-status-cliente-${cliente.status}`);
 
         if (cliente.status === 'CLIENTE_NAO_ENCONTRADO') {
-            await page.keyboard.press('Escape').catch(() => {});
+            await Debugger.step(page, 'A006-cliente-nao-encontrado-criando');
 
-            return {
-                status: 'CLIENTE_NAO_CADASTRADO',
-                mensagem: 'Cliente ainda não cadastrado. Cadastre o cliente antes de confirmar o agendamento.',
-                dados: {
-                    cliente: dadosNormalizados.cliente,
-                    telefone: dadosNormalizados.telefone,
-                    servico: dadosNormalizados.servico,
-                    data: dadosNormalizados.data,
-                    horario: dadosNormalizados.horario
+            const criacao = await criarCliente(page, {
+                cliente: dadosNormalizados.cliente,
+                telefone: dadosNormalizados.telefone
+            });
+
+            await Debugger.step(page, `A006-status-criacao-cliente-${criacao.status}`);
+
+            if (criacao.status !== 'CLIENTE_CRIADO') {
+                await page.keyboard.press('Escape').catch(() => {});
+
+                return {
+                    status: 'ERRO_CLIENTE',
+                    mensagem: 'Cliente não encontrado e não foi possível cadastrá-lo.'
+                };
+            }
+
+            await page.keyboard.press('Escape').catch(() => {});
+            await page.waitForTimeout(2500);
+
+            await irParaData(page, dadosNormalizados.data);
+
+            await Debugger.step(page, 'A006-data-reaberta-apos-criar-cliente');
+
+            const statusHorarioReaberto = await abrirHorario(page, dadosNormalizados.horario);
+
+            await Debugger.step(page, `A006-status-horario-reaberto-${statusHorarioReaberto}`);
+
+            if (statusHorarioReaberto !== 'HORARIO_LIVRE') {
+                return {
+                    status: 'HORARIO_OCUPADO',
+                    mensagem: `O horário ${dadosNormalizados.horario} já está ocupado.`
+                };
+            }
+
+            for (let tentativa = 1; tentativa <= 5; tentativa++) {
+                await Debugger.step(page, `A006-tentativa-selecionar-cliente-criado-${tentativa}`);
+
+                cliente = await selecionarCliente(
+                    page,
+                    dadosNormalizados.cliente,
+                    dadosNormalizados.telefone
+                );
+
+                await Debugger.step(page, `A006-status-cliente-criado-${cliente.status}`);
+
+                if (cliente.status === 'CLIENTE_SELECIONADO') {
+                    break;
                 }
-            };
+
+                await page.waitForTimeout(2500);
+            }
         }
 
         if (cliente.status !== 'CLIENTE_SELECIONADO') {
@@ -162,7 +195,7 @@ class MinhaAgendaAdapter {
 
             return {
                 status: 'ERRO_CLIENTE',
-                mensagem: 'Não foi possível selecionar o cliente.'
+                mensagem: 'Não foi possível selecionar ou cadastrar o cliente.'
             };
         }
 
