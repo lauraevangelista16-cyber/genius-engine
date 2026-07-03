@@ -1,5 +1,7 @@
 const Debugger = require('../core/Debugger');
 
+const { buscarCliente } = require('./clienteBuscaService');
+
 async function clicarBotaoAdicionarCliente(page) {
     const candidatos = [
         page.getByText('ADICIONAR CLIENTE', { exact: false }),
@@ -109,10 +111,30 @@ async function criarESelecionarCliente(page, dados) {
         return criacao;
     }
 
-    await Debugger.step(page, 'C014-cliente-criado-considerado-selecionado');
+    for (let tentativa = 1; tentativa <= 3; tentativa++) {
+        await page.waitForTimeout(2000);
+
+        await Debugger.step(page, `C014-tentativa-selecionar-apos-criar-${tentativa}`);
+
+        const selecao = await buscarCliente(
+            page,
+            dados.cliente,
+            dados.telefone
+        );
+
+        await Debugger.step(page, `C014-status-selecao-apos-criar-${selecao.status}`);
+
+        if (selecao.status === 'CLIENTE_SELECIONADO') {
+            return {
+                status: 'CLIENTE_SELECIONADO'
+            };
+        }
+
+        await page.keyboard.press('Escape').catch(() => {});
+    }
 
     return {
-        status: 'CLIENTE_SELECIONADO'
+        status: 'ERRO_SELECIONAR_CLIENTE_APOS_CRIAR'
     };
 }
 
