@@ -1,106 +1,153 @@
 const Debugger = require('../core/Debugger');
 
-async function listarCamposDownshift(page) {
-    const campos = page.locator('input[id^="downshift-"][id$="-input"]');
-    const total = await campos.count().catch(() => 0);
+async function listarCamposServico(page) {
+    const candidatos = [
+        page.getByRole('textbox', { name: /servi|procedimento|atendimento/i }),
+        page.locator('input[placeholder*="Serv" i]'),
+        page.locator('input[placeholder*="Proced" i]'),
+        page.locator('input[id^="downshift-"][id$="-input"]')
+    ];
 
-    const visiveis = [];
+    const campos = [];
+    const idsUsados = new Set();
 
-    for (let i = 0; i < total; i++) {
-        const campo = campos.nth(i);
-        const visivel = await campo.isVisible().catch(() => false);
+    for (const candidato of candidatos) {
+        const total = await candidato.count().catch(() => 0);
 
-        if (!visivel) continue;
+        for (let i = 0; i < total; i++) {
+            const campo = candidato.nth(i);
+            const visivel = await campo.isVisible().catch(() => false);
 
-        const id = await campo.getAttribute('id').catch(() => '');
-        const value = await campo.inputValue().catch(() => '');
+            if (!visivel) continue;
 
-        visiveis.push({
-            indice: i,
-            campo,
-            id,
-            value
-        });
+            const id = await campo.getAttribute('id').catch(() => '');
+            const placeholder = await campo.getAttribute('placeholder').catch(() => '');
+            const value = await campo.inputValue().catch(() => '');
+            const chave = id || `${placeholder}-${i}`;
+
+            if (idsUsados.has(chave)) continue;
+            idsUsados.add(chave);
+
+            campos.push({
+                campo,
+                id,
+                placeholder,
+                value,
+                indice: campos.length
+            });
+        }
     }
 
-    return visiveis;
+    return campos;
 }
 
 async function buscarOpcoesServico(page, servico) {
-    const opcoes = page
-        .locator('[id^="downshift-"][id*="-item"], li, [role="option"], .MuiAutocomplete-option')
+    const seletorOpcoes = '[role="option"], li, .MuiAutocomplete-option, [id^="downshift-"][id*="-item"]';
+
+    const opcoesFiltradas = page
+        .locator(seletorOpcoes)
         .filter({ hasText: new RegExp(servico, 'i') });
 
-    const total = await opcoes.count().catch(() => 0);
+    const totalFiltradas = await opcoesFiltradas.count().catch(() => 0);
+
+    if (totalFiltradas > 0) {
+        return {
+            opcoes: opcoesFiltradas,
+            total: totalFiltradas,
+            tipo: 'filtradas'
+        };
+    }
+
+    const opcoesVisiveis = page.locator(seletorOpcoes);
+    const total = await opcoesVisiveis.count().catch(() => 0);
 
     return {
-        opcoes,
-        total
+        opcoes: opcoesVisiveis,
+        total,
+        tipo: 'visiveis'
     };
+}
+
+async function limparEPreencherCampo(page, campo, texto) {
+    await campo.click({ force: true, timeout: 10000 });
+
+    await page.keyboard.press(process.platform === 'darwin' ? 'Meta+A' : 'Control+A').catch(() => {});
+    await page.keyboard.press('Backspace').catch(() => {});
+
+    await campo.fill('').catch(() => {});
+    await campo.type(texto, { delay: 80 }).catch(async () => {
+        await campo.fill(texto);
+    });
 }
 
 async function servicoFoiSelecionado(page) {
     const textoTela = await page.locator('body').innerText().catch(() => '');
-    return !textoTela.includes('Total: R$ 0,00');
+
+    if (!textoTela.includes('Total: R$ 0,00')) return true;
+    if (textoTela.includes('Total: R$') && !textoTela.includes('Total: R$ 0,00')) return true;
+
+    return false;
 }
 
 const selecionarServico = async (page, servico) => {
     await Debugger.step(page, '008-inicio-selecionar-servico');
 
+    if (!servico) {
+        throw new Error('Serviço não informado.');
+    }
+
     await page.waitForTimeout(2500);
 
-    const campos = await listarCamposDownshift(page);
+    const campos = await listarCamposServico(page);
 
-    await Debugger.step(page, `008-total-campos-downshift-visiveis-${campos.length}`);
+    await Debugger.step(page, `008-total-campos-servico-visiveis-${campos.length}`);
 
     if (!campos.length) {
         throw new Error('Nenhum campo de serviço foi encontrado.');
     }
 
-    let campoCorreto = null;
-    let opcoesCorretas = null;
+    const camposOrdenados = [...campos].reverse();
 
-    for (const item of campos.reverse()) {
-        await Debugger.step(page, `008-testando-campo-servico-${item.id || item.indice}`);
+    for (const item of camposOrdenados) {
+        await Debugger.step(
+            page,
+            `008-testando-campo-servico-${item.id || item.placeholder || item.indice}`
+        );
 
-        await item.campo.click({ force: true, timeout: 10000 });
-        await item.campo.fill('');
-        await item.campo.fill(servico);
+        await limparEPreencherCampo(page, item.campo, servico);
 
-        await page.waitForTimeout(1500);
+        await page.waitForTimeout(2500);
 
-        const { opcoes, total } = await buscarOpcoesServico(page, servico);
+        const { opcoes, total, tipo } = await buscarOpcoesServico(page, servico);
 
-        await Debugger.step(page, `009-opcoes-no-campo-${item.id || item.indice}-${total}`);
+        await Debugger.step(
+            page,
+            `009-opcoes-servico-${item.id || item.placeholder || item.indice}-${tipo}-${total}`
+        );
 
         if (total > 0) {
-            campoCorreto = item.campo;
-            opcoesCorretas = opcoes;
-            break;
+            await opcoes.first().click({
+                force: true,
+                timeout: 10000
+            });
+
+            await page.waitForTimeout(2500);
+
+            const selecionado = await servicoFoiSelecionado(page);
+
+            if (selecionado) {
+                await Debugger.step(page, '012-servico-confirmado');
+                return;
+            }
+
+            await Debugger.step(page, '011-servico-nao-confirmado-tentando-proximo');
         }
+
+        await page.keyboard.press('Escape').catch(() => {});
+        await page.waitForTimeout(500);
     }
 
-    if (!campoCorreto || !opcoesCorretas) {
-        throw new Error('Nenhuma opção de serviço foi encontrada.');
-    }
-
-    await opcoesCorretas.first().click({
-        force: true,
-        timeout: 10000
-    });
-
-    await page.waitForTimeout(2500);
-
-    await Debugger.step(page, '010-servico-selecionado');
-
-    const selecionado = await servicoFoiSelecionado(page);
-
-    if (!selecionado) {
-        await Debugger.step(page, '011-servico-nao-selecionado');
-        throw new Error('Serviço não foi selecionado corretamente.');
-    }
-
-    await Debugger.step(page, '012-servico-confirmado');
+    throw new Error(`Nenhuma opção de serviço foi encontrada para: ${servico}`);
 };
 
 module.exports = {
