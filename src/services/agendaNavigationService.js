@@ -96,8 +96,11 @@ const irParaData = async (page, data) => {
     throw new Error(`Não foi possível navegar até a data ${data}.`);
 };
 
+async function clicarNavegacao(page, direcao = 'proximo') {
+    return navegarDia(page, direcao);
+}
 module.exports = {
     irParaData,
     navegarDia,
-    clicarNavegacao
+    // clicarNavegacao
 };
