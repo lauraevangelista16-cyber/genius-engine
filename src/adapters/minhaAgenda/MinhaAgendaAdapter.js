@@ -153,25 +153,6 @@ class MinhaAgendaAdapter {
                 };
             }
 
-            await page.waitForTimeout(1500);
-
-            const clienteReSelecionado = await selecionarCliente(
-                page,
-                dadosNormalizados.cliente,
-                dadosNormalizados.telefone
-            );
-
-            await Debugger.step(page, `A006-status-cliente-reselecionado-${clienteReSelecionado.status}`);
-
-            if (clienteReSelecionado.status !== 'CLIENTE_SELECIONADO') {
-                await page.keyboard.press('Escape').catch(() => {});
-
-                return {
-                    status: 'ERRO_CLIENTE',
-                    mensagem: 'Cliente foi criado, mas não foi possível selecioná-lo no atendimento.'
-                };
-            }
-
         } else if (cliente.status !== 'CLIENTE_SELECIONADO') {
             await page.keyboard.press('Escape').catch(() => {});
 

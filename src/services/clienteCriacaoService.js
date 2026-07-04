@@ -30,6 +30,62 @@ async function clicarBotaoAdicionarCliente(page) {
     return false;
 }
 
+async function obterCampoClienteAtendimento(page) {
+    const candidatos = [
+        page.locator('#downshift-0-input'),
+        page.getByRole('textbox', { name: /cliente/i }),
+        page.locator('input[placeholder*="Cliente" i]'),
+        page.locator('input[name*="cliente" i]')
+    ];
+
+    for (const candidato of candidatos) {
+        const total = await candidato.count().catch(() => 0);
+        if (!total) continue;
+
+        for (let i = 0; i < total; i++) {
+            const campo = candidato.nth(i);
+            const visivel = await campo.isVisible().catch(() => false);
+
+            if (visivel) {
+                return campo;
+            }
+        }
+    }
+
+    return null;
+}
+
+async function garantirClienteNoAtendimento(page, cliente) {
+    await page.waitForTimeout(1000);
+
+    const campoCliente = await obterCampoClienteAtendimento(page);
+
+    if (!campoCliente) {
+        await Debugger.step(page, 'C010-campo-cliente-atendimento-nao-encontrado');
+        return false;
+    }
+
+    const valorAtual = await campoCliente.inputValue().catch(() => '');
+
+    await Debugger.step(page, `C010-valor-cliente-apos-criacao-${valorAtual || 'vazio'}`);
+
+    if (valorAtual && valorAtual.trim()) {
+        return true;
+    }
+
+    await campoCliente.click({ force: true, timeout: 10000 });
+    await campoCliente.fill('');
+    await campoCliente.fill(cliente);
+
+    await page.waitForTimeout(800);
+
+    const valorDepois = await campoCliente.inputValue().catch(() => '');
+
+    await Debugger.step(page, `C010-valor-cliente-repreenchido-${valorDepois || 'vazio'}`);
+
+    return Boolean(valorDepois && valorDepois.trim());
+}
+
 async function criarCliente(page, dados) {
     await Debugger.step(page, 'C006-criar-cliente-inicio');
 
@@ -87,9 +143,19 @@ async function criarCliente(page, dados) {
 
     await botoesSalvar.last().click({ force: true, timeout: 10000 });
 
-    await page.waitForTimeout(2000);
+    await page.waitForTimeout(2500);
 
     await Debugger.step(page, 'C010-cliente-salvo-no-modal-atendimento');
+
+    const clienteMantidoNoAtendimento = await garantirClienteNoAtendimento(page, cliente);
+
+    await Debugger.step(page, `C010-cliente-mantido-no-atendimento-${clienteMantidoNoAtendimento}`);
+
+    if (!clienteMantidoNoAtendimento) {
+        return {
+            status: 'ERRO_CLIENTE_NAO_MANTIDO_NO_ATENDIMENTO'
+        };
+    }
 
     return {
         status: 'CLIENTE_CRIADO'
