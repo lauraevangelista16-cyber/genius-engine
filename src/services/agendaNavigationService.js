@@ -20,22 +20,28 @@ async function clicarDataSeVisivel(page, data) {
     return true;
 }
 
-async function clicarNavegacao(page, direcao) {
+async function navegarDia(page, direcao = 'proximo') {
     const grupoHoje = page
         .locator('div[role="group"]')
         .filter({ hasText: 'Hoje' })
         .first();
 
+    await grupoHoje.waitFor({ state: 'attached', timeout: 10000 });
+    await grupoHoje.scrollIntoViewIfNeeded();
+    await page.waitForTimeout(500);
+
     const botoes = grupoHoje.locator('button');
+    const total = await botoes.count();
+
+    if (!total) {
+        throw new Error('Botões de navegação da agenda não encontrados.');
+    }
 
     const botao = direcao === 'proximo'
-        ? botoes.last()
-        : botoes.first();
+        ? botoes.nth(total - 1)
+        : botoes.nth(0);
 
-    await botao.click({
-        force: true,
-        timeout: 10000
-    });
+    await botao.evaluate((el) => el.click());
 
     await page.waitForTimeout(1500);
 }
