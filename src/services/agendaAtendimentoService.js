@@ -60,32 +60,40 @@ const salvarAgendamento = async (page) => {
     }
 
     if (
-        textoTela.includes('Preencha esse campo para continuar') ||
-        textoTela.includes('campo obrigatório') ||
-        textoTela.includes('obrigatório')
-    ) {
-        return {
-            status: 'DADOS_INCOMPLETOS',
-            mensagem: 'Existe um campo obrigatório não preenchido no Minha Agenda.',
-            detalhe: textoTela
-        };
-    }
+    textoTela.includes('Preencha esse campo para continuar') ||
+    textoTela.includes('campo obrigatório') ||
+    textoTela.includes('obrigatório')
+) {
+    return {
+        status: 'DADOS_INCOMPLETOS',
+        mensagem: 'Existe um campo obrigatório não preenchido no Minha Agenda.',
+        detalhe: textoTela
+    };
+}
 
-    const dialogAberto = await page.locator('[role="dialog"]').count().catch(() => 0);
+await step(page, '014C2-passou-validacoes-texto');
 
-    await step(page, `014D-dialogs-abertos-${dialogAberto}`);
+const dialogAberto = await Promise.race([
+    page.locator('[role="dialog"]').count().catch(() => 0),
+    new Promise(resolve => setTimeout(() => resolve(0), 2000))
+]);
 
-    const botaoSalvarAindaVisivel = await botaoSalvar.isVisible().catch(() => false);
+await step(page, `014D-dialogs-abertos-${dialogAberto}`);
 
-    await step(page, `014E-botao-salvar-ainda-visivel-${botaoSalvarAindaVisivel}`);
+const botaoSalvarAindaVisivel = await Promise.race([
+    botaoSalvar.isVisible().catch(() => false),
+    new Promise(resolve => setTimeout(() => resolve(false), 2000))
+]);
 
-    if (botaoSalvarAindaVisivel) {
-        return {
-            status: 'ERRO_INTERNO',
-            mensagem: 'O sistema clicou em Salvar, mas o modal continuou aberto.',
-            detalhe: textoTela
-        };
-    }
+await step(page, `014E-botao-salvar-ainda-visivel-${botaoSalvarAindaVisivel}`);
+
+if (botaoSalvarAindaVisivel) {
+    return {
+        status: 'ERRO_INTERNO',
+        mensagem: 'O sistema clicou em Salvar, mas o modal continuou aberto.',
+        detalhe: textoTela
+    };
+}
 
     await step(page, '015-agendamento-salvo');
 
