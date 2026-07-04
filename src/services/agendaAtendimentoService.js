@@ -5,34 +5,52 @@ const {
     extrairDadosDoTextoAtendimento
 } = require('./agendaUtils');
 
-const salvarAgendamento = async (page) => {
-    await Debugger.step(page, '013-antes-salvar-agendamento');
+async function step(page, nome) {
+    console.log(`[agendaAtendimentoService] ${nome}`);
+    await Debugger.step(page, nome).catch(() => {});
+}
 
-    const botoesSalvar = page.getByRole('button', { name: /^salvar$/i });
-    const total = await botoesSalvar.count();
+async function obterTextoTela(page) {
+    return await Promise.race([
+        page.evaluate(() => document.body ? document.body.innerText : ''),
+        new Promise(resolve => setTimeout(() => resolve(''), 3000))
+    ]);
+}
+
+const salvarAgendamento = async (page) => {
+    await step(page, '013-antes-salvar-agendamento');
+
+    const modalAtendimento = page.locator('[role="dialog"]').last();
+
+    const botoesSalvar = modalAtendimento.getByRole('button', { name: /^salvar$/i });
+    const total = await botoesSalvar.count().catch(() => 0);
+
+    await step(page, `013B-total-botoes-salvar-atendimento-${total}`);
 
     if (total === 0) {
         return {
             status: 'ERRO_INTERNO',
-            mensagem: 'Botão Salvar não encontrado.'
+            mensagem: 'Botão Salvar do atendimento não encontrado.'
         };
     }
 
-    const botaoSalvar = botoesSalvar.nth(total - 1);
+    const botaoSalvar = botoesSalvar.first();
 
     await botaoSalvar.scrollIntoViewIfNeeded().catch(() => {});
+
+    await step(page, '013C-antes-click-real-salvar');
+
     await botaoSalvar.click({ force: true, timeout: 10000 });
 
-    await page.waitForTimeout(4000);
+    await step(page, '014-depois-click-salvar');
 
-    await Debugger.step(page, '014-depois-click-salvar');
+    await page.waitForTimeout(3000);
 
-    const textoTela = await page.locator('body').innerText().catch(() => '');
+    await step(page, '014B-depois-wait-salvar');
 
-    const modalAindaAberto = await page
-        .getByText('Criando Atendimento', { exact: false })
-        .isVisible()
-        .catch(() => false);
+    const textoTela = await obterTextoTela(page);
+
+    await step(page, '014C-texto-tela-coletado');
 
     if (textoTela.includes('Já existe atendimento')) {
         return {
@@ -41,7 +59,11 @@ const salvarAgendamento = async (page) => {
         };
     }
 
-    if (textoTela.includes('Preencha esse campo para continuar')) {
+    if (
+        textoTela.includes('Preencha esse campo para continuar') ||
+        textoTela.includes('campo obrigatório') ||
+        textoTela.includes('obrigatório')
+    ) {
         return {
             status: 'DADOS_INCOMPLETOS',
             mensagem: 'Existe um campo obrigatório não preenchido no Minha Agenda.',
@@ -49,7 +71,15 @@ const salvarAgendamento = async (page) => {
         };
     }
 
-    if (modalAindaAberto) {
+    const dialogAberto = await page.locator('[role="dialog"]').count().catch(() => 0);
+
+    await step(page, `014D-dialogs-abertos-${dialogAberto}`);
+
+    const botaoSalvarAindaVisivel = await botaoSalvar.isVisible().catch(() => false);
+
+    await step(page, `014E-botao-salvar-ainda-visivel-${botaoSalvarAindaVisivel}`);
+
+    if (botaoSalvarAindaVisivel) {
         return {
             status: 'ERRO_INTERNO',
             mensagem: 'O sistema clicou em Salvar, mas o modal continuou aberto.',
@@ -57,7 +87,7 @@ const salvarAgendamento = async (page) => {
         };
     }
 
-    await Debugger.step(page, '015-agendamento-salvo');
+    await step(page, '015-agendamento-salvo');
 
     return {
         status: 'SALVO'
@@ -65,14 +95,14 @@ const salvarAgendamento = async (page) => {
 };
 
 const listarAtendimentosDoDia = async (page) => {
-    await Debugger.step(page, '015-inicio-listar-atendimentos');
+    await step(page, '015-inicio-listar-atendimentos');
 
     await page.waitForTimeout(4000);
 
     const eventos = page.locator('.fc-time-grid-event, .fc-event, .fc-timegrid-event');
     const total = await eventos.count();
 
-    await Debugger.step(page, `016-total-eventos-${total}`);
+    await step(page, `016-total-eventos-${total}`);
 
     const atendimentos = [];
 
@@ -93,14 +123,14 @@ const listarAtendimentosDoDia = async (page) => {
 };
 
 const abrirAtendimentoPorCliente = async (page, cliente, telefone) => {
-    await Debugger.step(page, '017-inicio-abrir-atendimento');
+    await step(page, '017-inicio-abrir-atendimento');
 
     await page.waitForTimeout(4000);
 
     const eventos = page.locator('.fc-time-grid-event, .fc-event, .fc-timegrid-event');
     const total = await eventos.count();
 
-    await Debugger.step(page, `018-total-eventos-abrir-${total}`);
+    await step(page, `018-total-eventos-abrir-${total}`);
 
     const encontrados = [];
 
@@ -121,7 +151,7 @@ const abrirAtendimentoPorCliente = async (page, cliente, telefone) => {
         }
     }
 
-    await Debugger.step(page, `019-encontrados-abrir-${encontrados.length}`);
+    await step(page, `019-encontrados-abrir-${encontrados.length}`);
 
     if (encontrados.length === 0) {
         return {
@@ -149,7 +179,7 @@ const abrirAtendimentoPorCliente = async (page, cliente, telefone) => {
 
     await page.waitForTimeout(1500);
 
-    await Debugger.step(page, '020-atendimento-aberto');
+    await step(page, '020-atendimento-aberto');
 
     return {
         encontrado: true,
@@ -159,14 +189,14 @@ const abrirAtendimentoPorCliente = async (page, cliente, telefone) => {
 };
 
 const consultarAtendimentoPorCliente = async (page, cliente, telefone) => {
-    await Debugger.step(page, '021-inicio-consultar-atendimento');
+    await step(page, '021-inicio-consultar-atendimento');
 
     await page.waitForTimeout(4000);
 
     const eventos = page.locator('.fc-time-grid-event, .fc-event, .fc-timegrid-event');
     const total = await eventos.count();
 
-    await Debugger.step(page, `022-total-eventos-consulta-${total}`);
+    await step(page, `022-total-eventos-consulta-${total}`);
 
     const encontrados = [];
 
@@ -183,7 +213,7 @@ const consultarAtendimentoPorCliente = async (page, cliente, telefone) => {
         }
     }
 
-    await Debugger.step(page, `023-encontrados-consulta-${encontrados.length}`);
+    await step(page, `023-encontrados-consulta-${encontrados.length}`);
 
     if (encontrados.length === 0) {
         return {
@@ -209,7 +239,7 @@ const consultarAtendimentoPorCliente = async (page, cliente, telefone) => {
 };
 
 const deletarAgendamento = async (page) => {
-    await Debugger.step(page, '024-inicio-deletar');
+    await step(page, '024-inicio-deletar');
 
     await page.waitForTimeout(1500);
 
@@ -218,7 +248,7 @@ const deletarAgendamento = async (page) => {
         timeout: 10000
     });
 
-    await Debugger.step(page, '025-clicou-deletar');
+    await step(page, '025-clicou-deletar');
 
     await page.waitForTimeout(1000);
 
@@ -229,11 +259,11 @@ const deletarAgendamento = async (page) => {
 
     await page.waitForTimeout(4000);
 
-    await Debugger.step(page, '026-deletado');
+    await step(page, '026-deletado');
 };
 
 const alterarHorarioAgendamento = async (page, novoHorario) => {
-    await Debugger.step(page, '027-inicio-alterar-horario');
+    await step(page, '027-inicio-alterar-horario');
 
     await page.waitForTimeout(1000);
 
@@ -244,7 +274,7 @@ const alterarHorarioAgendamento = async (page, novoHorario) => {
 
     await page.waitForTimeout(2000);
 
-    await Debugger.step(page, '028-tela-editar-aberta');
+    await step(page, '028-tela-editar-aberta');
 
     const campoHora = page.locator('input[name="startTime"]');
 
@@ -259,7 +289,7 @@ const alterarHorarioAgendamento = async (page, novoHorario) => {
 
     await page.waitForTimeout(800);
 
-    await Debugger.step(page, '029-horario-alterado');
+    await step(page, '029-horario-alterado');
 
     await page.getByRole('button', { name: /^salvar$/i }).click({
         force: true,
@@ -268,7 +298,7 @@ const alterarHorarioAgendamento = async (page, novoHorario) => {
 
     await page.waitForTimeout(4000);
 
-    await Debugger.step(page, '030-alteracao-salva');
+    await step(page, '030-alteracao-salva');
 };
 
 module.exports = {
