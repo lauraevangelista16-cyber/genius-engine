@@ -17,9 +17,10 @@ app.post('/agenda', async (req, res) => {
 
         const resposta = await AgendaOrchestrator.executar(action, dados || {});
 
-        if (resposta.success === false) {
-            return res.status(400).json(resposta);
-        }
+        if (resposta.ok === false || resposta.success === false) {
+    return res.status(400).json(resposta);
+}
+return res.json(resposta);
 
         return res.json(resposta);
 
