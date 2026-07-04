@@ -21,33 +21,32 @@ async function clicarDataSeVisivel(page, data) {
 }
 
 async function navegarDia(page, direcao = 'proximo') {
-    const grupoHoje = page
+    const grupos = page
         .locator('div[role="group"]')
-        .filter({ hasText: 'Hoje' })
-        .first();
+        .filter({ hasText: 'Hoje' });
 
-    await grupoHoje.waitFor({ state: 'attached', timeout: 10000 });
-    await grupoHoje.scrollIntoViewIfNeeded();
-    await page.waitForTimeout(500);
+    const totalGrupos = await grupos.count();
 
+    if (!totalGrupos) {
+        throw new Error('Grupo Hoje não encontrado na agenda.');
+    }
+
+    const grupoHoje = grupos.first();
     const botoes = grupoHoje.locator('button');
-    const total = await botoes.count();
 
-    if (!total) {
+    const totalBotoes = await botoes.count();
+
+    if (!totalBotoes) {
         throw new Error('Botões de navegação da agenda não encontrados.');
     }
 
-    const botao = direcao === 'proximo'
-        ? botoes.nth(total - 1)
-        : botoes.nth(0);
+    const indice = direcao === 'proximo'
+        ? totalBotoes - 1
+        : 0;
 
-    await botao.evaluate((el) => el.click());
+    await botoes.nth(indice).evaluate(el => el.click());
 
     await page.waitForTimeout(1500);
-}
-
-async function clicarNavegacao(page, direcao = 'proximo') {
-    return navegarDia(page, direcao);
 }
 
 const irParaData = async (page, data) => {
@@ -83,7 +82,7 @@ const irParaData = async (page, data) => {
     const direcao = alvo > hoje ? 'proximo' : 'anterior';
 
     for (let i = 0; i < 60; i++) {
-        await clicarNavegacao(page, direcao);
+        await navegarDia(page, direcao);
 
         await Debugger.step(page, `N005-navegacao-${direcao}-${i + 1}`);
 
@@ -103,5 +102,5 @@ const irParaData = async (page, data) => {
 module.exports = {
     irParaData,
     navegarDia,
-    clicarNavegacao
+    clicarNavegacao: navegarDia
 };
