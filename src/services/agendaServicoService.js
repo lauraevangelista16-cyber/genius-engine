@@ -8,14 +8,44 @@ async function obterValorCampo(campo) {
     return await campo.inputValue().catch(() => '');
 }
 
+function textoClienteValido(texto) {
+    const valor = String(texto || '').trim();
+
+    if (!valor) return false;
+    if (/digite para buscar/i.test(valor)) return false;
+    if (/nenhum resultado/i.test(valor)) return false;
+    if (/adicionar cliente/i.test(valor)) return false;
+    if (/cliente/i.test(valor) && valor.length <= 10) return false;
+
+    return true;
+}
+
 async function campoClientePreenchido(page) {
     const campoCliente = page.locator('#downshift-0-input');
+    const existeInput = await campoCliente.count().catch(() => 0);
 
-    const existe = await campoCliente.count().catch(() => 0);
-    if (!existe) return true;
+    if (existeInput) {
+        const valorInput = await obterValorCampo(campoCliente);
 
-    const valor = await obterValorCampo(campoCliente);
-    return Boolean(valor && valor.trim());
+        if (textoClienteValido(valorInput)) {
+            return true;
+        }
+    }
+
+    const dialog = page.locator('[role="dialog"]').last();
+    const textoModal = await dialog.innerText().catch(async () => {
+        return await page.locator('body').innerText().catch(() => '');
+    });
+
+    const match = String(textoModal || '').match(/Cliente\s*\n\s*([^\n]+)/i);
+
+    if (!match) {
+        return false;
+    }
+
+    const valorCliente = match[1];
+
+    return textoClienteValido(valorCliente);
 }
 
 async function localizarCampoServico(page) {
@@ -58,6 +88,19 @@ async function escolherOpcaoServico(page, servico) {
         return true;
     }
 
+    const opcoesTexto = page
+        .locator('li, [role="option"], [id*="item"]')
+        .filter({ hasText: new RegExp(termo, 'i') });
+
+    const totalTexto = await opcoesTexto.count().catch(() => 0);
+
+    await Debugger.step(page, `009-opcoes-servico-texto-${totalTexto}`);
+
+    if (totalTexto > 0) {
+        await opcoesTexto.first().click({ force: true, timeout: 10000 });
+        return true;
+    }
+
     await page.keyboard.press('ArrowDown').catch(() => {});
     await page.waitForTimeout(500);
     await page.keyboard.press('Enter').catch(() => {});
@@ -67,15 +110,18 @@ async function escolherOpcaoServico(page, servico) {
 }
 
 async function servicoFoiSelecionado(page, servico) {
-    const textoTela = await page.locator('body').innerText().catch(() => '');
-
-    const temTotalPago =
-        textoTela.includes('Total: R$') &&
-        !textoTela.includes('Total: R$ 0,00');
+    const textoTela = await page.locator('[role="dialog"]').last().innerText().catch(async () => {
+        return await page.locator('body').innerText().catch(() => '');
+    });
 
     const temServico = new RegExp(escaparRegex(servico), 'i').test(textoTela);
 
-    return temTotalPago && temServico;
+    const temAreaServico =
+        /Serviços/i.test(textoTela) ||
+        /Adicionar serviço/i.test(textoTela) ||
+        /Total:\s*R\$/i.test(textoTela);
+
+    return temServico && temAreaServico;
 }
 
 const selecionarServico = async (page, servico) => {
@@ -105,7 +151,7 @@ const selecionarServico = async (page, servico) => {
     await preencherCampoServico(page, campoServico, servico);
 
     const valorDigitado = await obterValorCampo(campoServico);
-    await Debugger.step(page, `009-valor-campo-servico-${valorDigitado}`);
+    await Debugger.step(page, `009-valor-campo-servico-${valorDigitado || 'vazio'}`);
 
     await escolherOpcaoServico(page, servico);
 
