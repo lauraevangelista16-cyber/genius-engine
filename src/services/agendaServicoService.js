@@ -20,6 +20,12 @@ function textoClienteValido(texto) {
     return true;
 }
 
+async function obterTextoModal(page) {
+    return await page.locator('[role="dialog"]').last().innerText().catch(async () => {
+        return await page.locator('body').innerText().catch(() => '');
+    });
+}
+
 async function campoClientePreenchido(page) {
     const campoCliente = page.locator('#downshift-0-input');
     const existeInput = await campoCliente.count().catch(() => 0);
@@ -32,20 +38,12 @@ async function campoClientePreenchido(page) {
         }
     }
 
-    const dialog = page.locator('[role="dialog"]').last();
-    const textoModal = await dialog.innerText().catch(async () => {
-        return await page.locator('body').innerText().catch(() => '');
-    });
-
+    const textoModal = await obterTextoModal(page);
     const match = String(textoModal || '').match(/Cliente\s*\n\s*([^\n]+)/i);
 
-    if (!match) {
-        return false;
-    }
+    if (!match) return false;
 
-    const valorCliente = match[1];
-
-    return textoClienteValido(valorCliente);
+    return textoClienteValido(match[1]);
 }
 
 async function localizarCampoServico(page) {
@@ -110,18 +108,35 @@ async function escolherOpcaoServico(page, servico) {
 }
 
 async function servicoFoiSelecionado(page, servico) {
-    const textoTela = await page.locator('[role="dialog"]').last().innerText().catch(async () => {
-        return await page.locator('body').innerText().catch(() => '');
-    });
+    const termo = escaparRegex(servico);
 
-    const temServico = new RegExp(escaparRegex(servico), 'i').test(textoTela);
+    const campoServico = page.locator('#downshift-1-input');
+    const valorInput = await obterValorCampo(campoServico);
 
-    const temAreaServico =
-        /Serviços/i.test(textoTela) ||
-        /Adicionar serviço/i.test(textoTela) ||
-        /Total:\s*R\$/i.test(textoTela);
+    await Debugger.step(page, `011-valor-servico-apos-selecao-${valorInput || 'vazio'}`);
 
-    return temServico && temAreaServico;
+    if (new RegExp(termo, 'i').test(valorInput)) {
+        return true;
+    }
+
+    const textoModal = await obterTextoModal(page);
+
+    await Debugger.step(
+        page,
+        `011-texto-modal-pos-servico-${String(textoModal).replace(/\s+/g, ' ').slice(0, 120)}`
+    );
+
+    if (new RegExp(termo, 'i').test(textoModal)) {
+        return true;
+    }
+
+    const servicosSelecionados = page
+        .locator('body')
+        .filter({ hasText: new RegExp(termo, 'i') });
+
+    const total = await servicosSelecionados.count().catch(() => 0);
+
+    return total > 0;
 }
 
 const selecionarServico = async (page, servico) => {
