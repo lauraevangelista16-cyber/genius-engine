@@ -53,47 +53,55 @@ const salvarAgendamento = async (page) => {
     await step(page, '014C-texto-tela-coletado');
 
     if (textoTela.includes('Já existe atendimento')) {
+        await step(page, '014C1-horario-ocupado-detectado');
+
         return {
             status: 'HORARIO_OCUPADO',
-            mensagem: 'Esse horário já está ocupado.'
+            mensagem: 'Esse horário já está ocupado.',
+            detalhe: textoTela
         };
     }
 
     if (
-    textoTela.includes('Preencha esse campo para continuar') ||
-    textoTela.includes('campo obrigatório') ||
-    textoTela.includes('obrigatório')
-) {
-    return {
-        status: 'DADOS_INCOMPLETOS',
-        mensagem: 'Existe um campo obrigatório não preenchido no Minha Agenda.',
-        detalhe: textoTela
-    };
-}
+        textoTela.includes('Preencha esse campo para continuar') ||
+        textoTela.includes('campo obrigatório') ||
+        textoTela.includes('obrigatório')
+    ) {
+        await step(page, '014C1-dados-incompletos-detectado');
 
-await step(page, '014C2-passou-validacoes-texto');
+        console.log('[DADOS_INCOMPLETOS_TEXTO]');
+        console.log(textoTela);
 
-const dialogAberto = await Promise.race([
-    page.locator('[role="dialog"]').count().catch(() => 0),
-    new Promise(resolve => setTimeout(() => resolve(0), 2000))
-]);
+        return {
+            status: 'DADOS_INCOMPLETOS',
+            mensagem: 'Existe um campo obrigatório não preenchido no Minha Agenda.',
+            detalhe: textoTela
+        };
+    }
 
-await step(page, `014D-dialogs-abertos-${dialogAberto}`);
+    await step(page, '014C2-passou-validacoes-texto');
 
-const botaoSalvarAindaVisivel = await Promise.race([
-    botaoSalvar.isVisible().catch(() => false),
-    new Promise(resolve => setTimeout(() => resolve(false), 2000))
-]);
+    const dialogAberto = await Promise.race([
+        page.locator('[role="dialog"]').count().catch(() => 0),
+        new Promise(resolve => setTimeout(() => resolve(0), 2000))
+    ]);
 
-await step(page, `014E-botao-salvar-ainda-visivel-${botaoSalvarAindaVisivel}`);
+    await step(page, `014D-dialogs-abertos-${dialogAberto}`);
 
-if (botaoSalvarAindaVisivel) {
-    return {
-        status: 'ERRO_INTERNO',
-        mensagem: 'O sistema clicou em Salvar, mas o modal continuou aberto.',
-        detalhe: textoTela
-    };
-}
+    const botaoSalvarAindaVisivel = await Promise.race([
+        botaoSalvar.isVisible().catch(() => false),
+        new Promise(resolve => setTimeout(() => resolve(false), 2000))
+    ]);
+
+    await step(page, `014E-botao-salvar-ainda-visivel-${botaoSalvarAindaVisivel}`);
+
+    if (botaoSalvarAindaVisivel) {
+        return {
+            status: 'ERRO_INTERNO',
+            mensagem: 'O sistema clicou em Salvar, mas o modal continuou aberto.',
+            detalhe: textoTela
+        };
+    }
 
     await step(page, '015-agendamento-salvo');
 
