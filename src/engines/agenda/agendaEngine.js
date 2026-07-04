@@ -74,11 +74,11 @@ class AgendaEngine {
             page
         );
 
-        return consultarHorariosDisponiveis({
-            servico: dados.servico,
-            limite: dados.limite,
-            atendimentos
-        });
+       return consultarHorariosDisponiveis({
+    servico: dados.servico,
+    limite: dados.limite,
+    atendimentos: atendimentos.atendimentos || []
+});
     }
 
     async alterar(dados) {
