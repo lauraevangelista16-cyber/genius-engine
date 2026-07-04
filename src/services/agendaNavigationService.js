@@ -97,5 +97,7 @@ const irParaData = async (page, data) => {
 };
 
 module.exports = {
-    irParaData
+    irParaData,
+    navegarDia,
+    clicarNavegacao
 };
