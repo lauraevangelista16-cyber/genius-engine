@@ -46,6 +46,10 @@ async function navegarDia(page, direcao = 'proximo') {
     await page.waitForTimeout(1500);
 }
 
+async function clicarNavegacao(page, direcao = 'proximo') {
+    return navegarDia(page, direcao);
+}
+
 const irParaData = async (page, data) => {
     await Debugger.step(page, 'N001-ir-para-data-inicio');
 
@@ -96,9 +100,8 @@ const irParaData = async (page, data) => {
     throw new Error(`Não foi possível navegar até a data ${data}.`);
 };
 
-
 module.exports = {
     irParaData,
     navegarDia,
-    clicarNavegacao: navegarDia
+    clicarNavegacao
 };
