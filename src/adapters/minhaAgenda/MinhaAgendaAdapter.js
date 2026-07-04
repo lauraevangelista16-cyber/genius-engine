@@ -426,39 +426,48 @@ class MinhaAgendaAdapter {
                 };
             }
 
-            if (dadosNormalizados.horario) {
-                await alterarHorarioAgendamento(page, dadosNormalizados.horario);
-                await step(page, 'A021-horario-alterado');
-            }
+            const horarioParaAlterar = dadosNormalizados.novo_horario || dadosNormalizados.horario;
 
-            if (dadosNormalizados.clienteNovo) {
-                const clienteAlterado = await selecionarOuCriarCliente(page, {
-                    cliente: dadosNormalizados.clienteNovo,
-                    telefone: dadosNormalizados.telefoneNovo,
-                    data: dadosNormalizados.data,
-                    horario: dadosNormalizados.horario
-                });
+if (horarioParaAlterar) {
+    await alterarHorarioAgendamento(page, horarioParaAlterar);
+    await step(page, 'A021-horario-alterado');
 
-                await step(page, `A022-cliente-alterado-${clienteAlterado.status}`);
-            }
+    return {
+        status: 'AGENDAMENTO_ALTERADO',
+        mensagem: 'Agendamento alterado com sucesso.'
+    };
+}
 
-            if (dadosNormalizados.servico) {
-                await selecionarServico(page, dadosNormalizados.servico);
-                await step(page, 'A023-servico-alterado');
-            }
+if (dadosNormalizados.clienteNovo) {
+    const clienteAlterado = await selecionarOuCriarCliente(page, {
+        cliente: dadosNormalizados.clienteNovo,
+        telefone: dadosNormalizados.telefoneNovo,
+        data: dadosNormalizados.data,
+        horario: dadosNormalizados.horario
+    });
 
-            const resultadoSalvar = await salvarAgendamento(page);
+    await step(page, `A022-cliente-alterado-${clienteAlterado.status}`);
+}
 
-            await step(page, `A024-alteracao-salvar-${resultadoSalvar.status}`);
+if (dadosNormalizados.servico) {
+    await selecionarServico(page, dadosNormalizados.servico);
+    await step(page, 'A023-servico-alterado');
+}
 
-            if (resultadoSalvar.status !== 'SALVO') {
-                return resultadoSalvar;
-            }
+        
 
-            return {
-                status: 'AGENDAMENTO_ALTERADO',
-                mensagem: 'Agendamento alterado com sucesso.'
-            };
+const resultadoSalvar = await salvarAgendamento(page);
+
+await step(page, `A024-alteracao-salvar-${resultadoSalvar.status}`);
+
+if (resultadoSalvar.status !== 'SALVO') {
+    return resultadoSalvar;
+}
+
+return {
+    status: 'AGENDAMENTO_ALTERADO',
+    mensagem: 'Agendamento alterado com sucesso.'
+};
         } catch (erro) {
             console.error('[MinhaAgendaAdapter] erro alterarAgendamento:', erro);
 
