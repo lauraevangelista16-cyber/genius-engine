@@ -25,10 +25,13 @@ async function consultarHorariosLivres(dados) {
 
 async function criarAgendamento(dados) {
     try {
-        return await MinhaAgendaAdapter.criarAgendamento(
-            dados,
-            validarCriacaoAgendamento
-        );
+        const validacao = validarCriacaoAgendamento(dados);
+
+if (validacao && validacao.ok === false) {
+    return validacao;
+}
+
+return await MinhaAgendaAdapter.criarAgendamento(dados);
 
     } catch (erro) {
         return {

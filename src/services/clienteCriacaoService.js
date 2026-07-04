@@ -86,10 +86,111 @@ async function garantirClienteNoAtendimento(page, cliente) {
     return Boolean(valorDepois && valorDepois.trim());
 }
 
+function converterDataParaBR(dataISO) {
+    if (!dataISO) return '';
+
+    const partes = String(dataISO).split('-');
+    if (partes.length !== 3) return String(dataISO);
+
+    const [ano, mes, dia] = partes;
+    return `${dia}/${mes}/${ano}`;
+}
+
+async function obterCampoDataAtendimento(page) {
+    const candidatos = [
+        page.locator('input[name="date"]'),
+        page.locator('input[name="data"]'),
+        page.locator('input[placeholder*="Data" i]'),
+        page.locator('input[aria-label*="Data" i]')
+    ];
+
+    for (const candidato of candidatos) {
+        const total = await candidato.count().catch(() => 0);
+        if (!total) continue;
+
+        for (let i = 0; i < total; i++) {
+            const campo = candidato.nth(i);
+            const visivel = await campo.isVisible().catch(() => false);
+            if (visivel) return campo;
+        }
+    }
+
+    return null;
+}
+
+async function obterCampoHoraAtendimento(page) {
+    const candidatos = [
+        page.locator('input[name="startTime"]'),
+        page.locator('input[name="horaInicio"]'),
+        page.locator('input[placeholder*="Hora" i]'),
+        page.locator('input[aria-label*="Hora" i]')
+    ];
+
+    for (const candidato of candidatos) {
+        const total = await candidato.count().catch(() => 0);
+        if (!total) continue;
+
+        for (let i = 0; i < total; i++) {
+            const campo = candidato.nth(i);
+            const visivel = await campo.isVisible().catch(() => false);
+            if (visivel) return campo;
+        }
+    }
+
+    return null;
+}
+
+async function garantirDataHoraNoAtendimento(page, data, horario) {
+    await page.waitForTimeout(500);
+
+    const campoData = await obterCampoDataAtendimento(page);
+    const campoHora = await obterCampoHoraAtendimento(page);
+
+    const valorDataAtual = campoData ? await campoData.inputValue().catch(() => '') : '';
+    const valorHoraAtual = campoHora ? await campoHora.inputValue().catch(() => '') : '';
+
+    await Debugger.step(page, `C010B-data-hora-apos-salvar-cliente-data-${valorDataAtual || 'vazio'}-hora-${valorHoraAtual || 'vazio'}`);
+
+    let dataOk = Boolean(valorDataAtual && valorDataAtual.trim());
+    let horaOk = Boolean(valorHoraAtual && valorHoraAtual.trim());
+
+    if (!dataOk && campoData && data) {
+        const dataBR = converterDataParaBR(data);
+
+        await campoData.click({ force: true, timeout: 10000 });
+        await campoData.fill('');
+        await campoData.fill(dataBR);
+
+        await page.waitForTimeout(500);
+
+        const dataDepois = await campoData.inputValue().catch(() => '');
+
+        await Debugger.step(page, `C010B-data-repreenchida-${dataDepois || 'vazio'}`);
+
+        dataOk = Boolean(dataDepois && dataDepois.trim());
+    }
+
+    if (!horaOk && campoHora && horario) {
+        await campoHora.click({ force: true, timeout: 10000 });
+        await campoHora.fill('');
+        await campoHora.fill(horario);
+
+        await page.waitForTimeout(500);
+
+        const horaDepois = await campoHora.inputValue().catch(() => '');
+
+        await Debugger.step(page, `C010B-hora-repreenchida-${horaDepois || 'vazio'}`);
+
+        horaOk = Boolean(horaDepois && horaDepois.trim());
+    }
+
+    return dataOk && horaOk;
+}
+
 async function criarCliente(page, dados) {
     await Debugger.step(page, 'C006-criar-cliente-inicio');
 
-    const { cliente, telefone } = dados;
+    const { cliente, telefone, data, horario } = dados;
 
     if (!cliente) {
         return { status: 'ERRO_CLIENTE_OBRIGATORIO' };
@@ -107,9 +208,10 @@ async function criarCliente(page, dados) {
 
     await Debugger.step(page, 'C007-modal-criar-cliente');
 
-    const campos = page.getByRole('textbox');
-    const totalCampos = await campos.count();
+    const modalCliente = page.locator('[role="dialog"]').last();
 
+    const campos = modalCliente.getByRole('textbox');
+    const totalCampos = await campos.count();
     await Debugger.step(page, `C007-total-campos-cliente-${totalCampos}`);
 
     if (totalCampos < 2) {
@@ -132,7 +234,7 @@ async function criarCliente(page, dados) {
 
     await page.waitForTimeout(800);
 
-    const botoesSalvar = page.getByRole('button', { name: /^salvar$/i });
+    const botoesSalvar = modalCliente.getByRole('button', { name: /^salvar$/i });
     const totalSalvar = await botoesSalvar.count();
 
     await Debugger.step(page, `C009-total-botoes-salvar-cliente-${totalSalvar}`);
@@ -141,8 +243,7 @@ async function criarCliente(page, dados) {
         return { status: 'ERRO_BOTAO_SALVAR_CLIENTE' };
     }
 
-    await botoesSalvar.last().click({ force: true, timeout: 10000 });
-
+    await botoesSalvar.first().click({ force: true, timeout: 10000 });
     await page.waitForTimeout(2500);
 
     await Debugger.step(page, 'C010-cliente-salvo-no-modal-atendimento');
@@ -154,6 +255,16 @@ async function criarCliente(page, dados) {
     if (!clienteMantidoNoAtendimento) {
         return {
             status: 'ERRO_CLIENTE_NAO_MANTIDO_NO_ATENDIMENTO'
+        };
+    }
+
+    const dataHoraMantidas = await garantirDataHoraNoAtendimento(page, data, horario);
+
+    await Debugger.step(page, `C010B-data-hora-mantidas-${dataHoraMantidas}`);
+
+    if (!dataHoraMantidas) {
+        return {
+            status: 'ERRO_DATA_HORA_NAO_MANTIDAS_NO_ATENDIMENTO'
         };
     }
 

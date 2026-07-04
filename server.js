@@ -1,3 +1,4 @@
+console.log('🔥 APP INICIOU - LOG TESTE');
 const express = require('express');
 
 const Kernel = require('./src/core/Kernel');
