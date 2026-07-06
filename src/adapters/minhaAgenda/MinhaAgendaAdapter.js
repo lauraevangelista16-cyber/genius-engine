@@ -345,8 +345,8 @@ class MinhaAgendaAdapter {
         };
     }
 }
-    }
-    async consultarAgendamento(dados = {}) {
+    
+ async consultarAgendamento(dados = {}) {
         const dadosNormalizados = normalizarDados(dados);
         const page = await obterPage();
 
