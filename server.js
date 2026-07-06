@@ -57,6 +57,7 @@ app.get('/health', (req, res) => {
 
     return res.json({
         status: 'ONLINE',
+        versao: 'logs-teste-001',
         mensagem: 'Genius Engine rodando.'
     });
 });
