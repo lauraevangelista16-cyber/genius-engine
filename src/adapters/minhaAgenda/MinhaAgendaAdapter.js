@@ -419,10 +419,14 @@ class MinhaAgendaAdapter {
             let houveAlteracao = false;
 
             if (horarioParaAlterar) {
-                await alterarHorarioAgendamento(page, horarioParaAlterar);
-                await step(page, 'A021-horario-alterado');
-                houveAlteracao = true;
-            }
+    await alterarHorarioAgendamento(page, horarioParaAlterar);
+    await step(page, 'A021-horario-alterado');
+
+    return {
+        status: 'AGENDAMENTO_ALTERADO',
+        mensagem: 'Agendamento alterado com sucesso.'
+    };
+}
 
             if (dadosNormalizados.clienteNovo) {
                 const clienteAlterado = await selecionarOuCriarCliente(page, {
