@@ -65,10 +65,38 @@ async function garantirClienteNoAtendimento(page, cliente, telefone) {
         return false;
     }
 
-    const telefoneNormalizado = String(telefone || '').replace(/\D/g, '');
-    const nomeNormalizado = String(cliente || '').toLowerCase().trim();
+    // ===========================
+    // NOVO PASSO
+    // Verifica se o cliente já ficou selecionado
+    // ===========================
 
-    await campoCliente.click({ force: true, timeout: 10000 });
+    const valorAtual = (await campoCliente.inputValue().catch(() => '')).trim().toLowerCase();
+
+    await Debugger.step(
+        page,
+        `C010-valor-atual-cliente-${valorAtual || 'vazio'}`
+    );
+
+    if (
+        valorAtual &&
+        valorAtual.includes(String(cliente).trim().toLowerCase())
+    ) {
+        await Debugger.step(
+            page,
+            'C010-cliente-ja-estava-selecionado'
+        );
+
+        return true;
+    }
+
+    // ===========================
+    // Só tenta buscar novamente
+    // se realmente estiver vazio
+    // ===========================
+
+    const telefoneNormalizado = String(telefone || '').replace(/\D/g, '');
+
+    await campoCliente.click({ force: true });
     await campoCliente.fill('');
     await campoCliente.fill(cliente);
 
@@ -77,48 +105,51 @@ async function garantirClienteNoAtendimento(page, cliente, telefone) {
     const opcoes = page.locator('[role="option"]');
     const totalOpcoes = await opcoes.count();
 
-    await Debugger.step(page, `C010-opcoes-cliente-apos-criacao-${totalOpcoes}`);
-
-    let opcaoPorNome = null;
+    await Debugger.step(
+        page,
+        `C010-opcoes-cliente-apos-criacao-${totalOpcoes}`
+    );
 
     for (let i = 0; i < totalOpcoes; i++) {
+
         const opcao = opcoes.nth(i);
-        const textoOriginal = await opcao.innerText();
-        const texto = textoOriginal.toLowerCase();
-        const numerosOpcao = texto.replace(/\D/g, '');
 
-        await Debugger.step(page, `C010-opcao-cliente-${i}-${texto}`);
+        const texto = (await opcao.innerText()).toLowerCase();
 
-        const bateTelefone =
+        await Debugger.step(
+            page,
+            `C010-opcao-cliente-${i}-${texto}`
+        );
+
+        const numeros = texto.replace(/\D/g, '');
+
+        const telefoneOk =
             telefoneNormalizado &&
-            numerosOpcao.includes(telefoneNormalizado.slice(-8));
+            numeros.includes(telefoneNormalizado.slice(-8));
 
-        const bateNome = texto.includes(nomeNormalizado);
+        const nomeOk =
+            texto.includes(String(cliente).toLowerCase());
 
-        if (bateTelefone && bateNome) {
-            await opcao.click({ force: true, timeout: 10000 });
+        if (telefoneOk || nomeOk) {
+
+            await opcao.click({ force: true });
+
             await page.waitForTimeout(800);
 
-            await Debugger.step(page, 'C010-cliente-selecionado-por-nome-e-telefone');
+            await Debugger.step(
+                page,
+                'C010-cliente-selecionado-no-autocomplete'
+            );
 
             return true;
         }
-
-        if (!telefoneNormalizado && bateNome && !opcaoPorNome) {
-            opcaoPorNome = opcao;
-        }
     }
 
-    if (opcaoPorNome) {
-        await opcaoPorNome.click({ force: true, timeout: 10000 });
-        await page.waitForTimeout(800);
+    await Debugger.step(
+        page,
+        'C010-cliente-nao-encontrado-com-nome-e-telefone'
+    );
 
-        await Debugger.step(page, 'C010-cliente-selecionado-apenas-por-nome-sem-telefone');
-
-        return true;
-    }
-
-    await Debugger.step(page, 'C010-cliente-nao-encontrado-com-nome-e-telefone');
     return false;
 }
 
