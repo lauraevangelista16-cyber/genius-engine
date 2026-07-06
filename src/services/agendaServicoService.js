@@ -99,12 +99,7 @@ async function escolherOpcaoServico(page, servico) {
         return true;
     }
 
-    await page.keyboard.press('ArrowDown').catch(() => {});
-    await page.waitForTimeout(500);
-    await page.keyboard.press('Enter').catch(() => {});
-    await page.waitForTimeout(1500);
-
-    return true;
+    return false;
 }
 
 async function servicoFoiSelecionado(page, servico) {
@@ -143,7 +138,10 @@ const selecionarServico = async (page, servico) => {
     await Debugger.step(page, '008-inicio-selecionar-servico');
 
     if (!servico) {
-        throw new Error('Serviço não informado.');
+        return {
+            status: 'SERVICO_OBRIGATORIO',
+            mensagem: 'Informe um serviço.'
+        };
     }
 
     await page.waitForTimeout(2000);
@@ -152,13 +150,19 @@ const selecionarServico = async (page, servico) => {
     await Debugger.step(page, `008-cliente-preenchido-antes-servico-${clienteAntes}`);
 
     if (!clienteAntes) {
-        throw new Error('Campo cliente ficou vazio antes de selecionar o serviço.');
+        return {
+            status: 'ERRO_CLIENTE',
+            mensagem: 'Campo cliente ficou vazio antes de selecionar o serviço.'
+        };
     }
 
     const campoServico = await localizarCampoServico(page);
 
     if (!campoServico) {
-        throw new Error('Campo de serviço não encontrado.');
+        return {
+            status: 'ERRO_CAMPO_SERVICO',
+            mensagem: 'Campo de serviço não encontrado.'
+        };
     }
 
     await Debugger.step(page, '008-campo-servico-usado-downshift-1-input');
@@ -168,7 +172,16 @@ const selecionarServico = async (page, servico) => {
     const valorDigitado = await obterValorCampo(campoServico);
     await Debugger.step(page, `009-valor-campo-servico-${valorDigitado || 'vazio'}`);
 
-    await escolherOpcaoServico(page, servico);
+    const opcaoEscolhida = await escolherOpcaoServico(page, servico);
+
+    if (!opcaoEscolhida) {
+        await Debugger.step(page, '010-servico-sem-opcao-disponivel');
+
+        return {
+            status: 'SERVICO_INEXISTENTE',
+            mensagem: `Não encontrei o serviço "${servico}".`
+        };
+    }
 
     await page.waitForTimeout(2500);
 
@@ -176,17 +189,28 @@ const selecionarServico = async (page, servico) => {
     await Debugger.step(page, `011-cliente-preenchido-depois-servico-${clienteDepois}`);
 
     if (!clienteDepois) {
-        throw new Error('Campo cliente foi apagado ao selecionar o serviço.');
+        return {
+            status: 'ERRO_CLIENTE',
+            mensagem: 'Campo cliente foi apagado durante a seleção do serviço.'
+        };
     }
 
     const selecionado = await servicoFoiSelecionado(page, servico);
 
     if (!selecionado) {
         await Debugger.step(page, '011-servico-nao-confirmado');
-        throw new Error('Serviço não foi selecionado corretamente.');
+
+        return {
+            status: 'SERVICO_INEXISTENTE',
+            mensagem: `Não encontrei o serviço "${servico}".`
+        };
     }
 
     await Debugger.step(page, '012-servico-confirmado');
+
+    return {
+        status: 'SERVICO_SELECIONADO'
+    };
 };
 
 module.exports = {
