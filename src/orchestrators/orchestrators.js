@@ -2,7 +2,9 @@ const Kernel = require('../core/Kernel');
 const AgendaResponder = require('../responders/AgendaResponder');
 
 class AgendaOrchestrator {
+
     async executar(action, dados = {}) {
+
         const acao = String(action || '').toLowerCase().trim();
 
         if (!acao) {
@@ -12,64 +14,43 @@ class AgendaOrchestrator {
             );
         }
 
-        const validacao = this.validar(acao, dados);
+        const acoesValidas = [
+            'criar',
+            'consultar',
+            'cancelar',
+            'alterar',
+            'reagendar',
+            'cadastrar_cliente',
+            'horarios'
+        ];
 
-        if (!validacao.valido) {
-            return this.erro('DADOS_INCOMPLETOS', validacao.mensagem, validacao.campo);
+        if (!acoesValidas.includes(acao)) {
+            return this.erro(
+                'ACAO_INVALIDA',
+                `A ação "${acao}" não existe.`,
+                'action'
+            );
         }
 
-        const resultadoEngine = await Kernel.execute('agenda', acao, dados);
+        try {
 
-        return AgendaResponder.responder(resultadoEngine);
-    }
+            const resultadoEngine = await Kernel.execute(
+                'agenda',
+                acao,
+                dados
+            );
 
-    validar(action, dados) {
-        const obrigatorios = {
-            horarios: ['servico', 'data'],
-            criar: ['servico', 'cliente', 'telefone', 'data', 'horario'],
-            cadastrar_cliente: ['cliente', 'telefone', 'data', 'horario'],
-            consultar: ['cliente', 'telefone', 'data'],
-            cancelar: ['cliente', 'telefone', 'data'],
-            alterar: ['cliente', 'telefone', 'data']
-        };
+            return AgendaResponder.responder(resultadoEngine);
 
-        if (!obrigatorios[action]) {
-            return {
-                valido: false,
-                campo: 'action',
-                mensagem: `A ação "${action}" não existe.`
-            };
+        } catch (erro) {
+
+            return this.erro(
+                'ERRO',
+                erro.message
+            );
+
         }
 
-        for (const campo of obrigatorios[action]) {
-            if (!dados[campo]) {
-                return {
-                    valido: false,
-                    campo,
-                    mensagem: `O campo "${campo}" é obrigatório.`
-                };
-            }
-        }
-
-        if (action === 'alterar') {
-            const temAlteracao =
-                dados.horario ||
-                dados.servico ||
-                dados.clienteNovo ||
-                dados.telefoneNovo;
-
-            if (!temAlteracao) {
-                return {
-                    valido: false,
-                    campo: 'alteracao',
-                    mensagem: 'Informe pelo menos um dado para alterar: horario, servico, clienteNovo ou telefoneNovo.'
-                };
-            }
-        }
-
-        return {
-            valido: true
-        };
     }
 
     erro(status, mensagem, campo = null) {
@@ -81,6 +62,7 @@ class AgendaOrchestrator {
             mensagem
         };
     }
+
 }
 
 module.exports = new AgendaOrchestrator();
