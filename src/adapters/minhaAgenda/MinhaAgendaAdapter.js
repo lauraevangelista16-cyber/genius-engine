@@ -237,7 +237,21 @@ class MinhaAgendaAdapter {
 
             await snapshotFormulario(page, 'antes-salvar');
 
-            const resultadoSalvar = await salvarAgendamento(page);
+const textoTelaAntesSalvar = await page.locator('body').innerText();
+
+if (
+    textoTelaAntesSalvar.includes('Cliente') &&
+    textoTelaAntesSalvar.includes('Preencha esse campo para continuar')
+) {
+    await step(page, 'A007B-cliente-vazio-antes-salvar');
+
+    return {
+        status: 'ERRO_CLIENTE_NAO_SELECIONADO',
+        mensagem: 'O cliente foi criado, mas não ficou selecionado no atendimento.'
+    };
+}
+
+const resultadoSalvar = await salvarAgendamento(page);
 
             await step(page, `A008-status-salvar-${resultadoSalvar.status}`);
 

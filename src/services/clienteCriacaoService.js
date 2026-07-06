@@ -55,7 +55,7 @@ async function obterCampoClienteAtendimento(page) {
     return null;
 }
 
-async function garantirClienteNoAtendimento(page, cliente) {
+async function garantirClienteNoAtendimento(page, cliente, telefone) {
     await page.waitForTimeout(1000);
 
     const campoCliente = await obterCampoClienteAtendimento(page);
@@ -65,25 +65,44 @@ async function garantirClienteNoAtendimento(page, cliente) {
         return false;
     }
 
-    const valorAtual = await campoCliente.inputValue().catch(() => '');
-
-    await Debugger.step(page, `C010-valor-cliente-apos-criacao-${valorAtual || 'vazio'}`);
-
-    if (valorAtual && valorAtual.trim()) {
-        return true;
-    }
+    const telefoneNormalizado = String(telefone || '').replace(/\D/g, '');
 
     await campoCliente.click({ force: true, timeout: 10000 });
     await campoCliente.fill('');
     await campoCliente.fill(cliente);
 
-    await page.waitForTimeout(800);
+    await page.waitForTimeout(1200);
 
-    const valorDepois = await campoCliente.inputValue().catch(() => '');
+    const opcoes = page.locator('[role="option"]');
+    const totalOpcoes = await opcoes.count();
 
-    await Debugger.step(page, `C010-valor-cliente-repreenchido-${valorDepois || 'vazio'}`);
+    await Debugger.step(page, `C010-opcoes-cliente-apos-criacao-${totalOpcoes}`);
 
-    return Boolean(valorDepois && valorDepois.trim());
+    for (let i = 0; i < totalOpcoes; i++) {
+        const opcao = opcoes.nth(i);
+        const texto = (await opcao.innerText()).toLowerCase();
+        const numerosOpcao = texto.replace(/\D/g, '');
+
+        await Debugger.step(page, `C010-opcao-cliente-${i}-${texto}`);
+
+        const bateTelefone =
+            telefoneNormalizado &&
+            numerosOpcao.includes(telefoneNormalizado.slice(-8));
+
+        const bateNome = texto.includes(String(cliente).toLowerCase());
+
+        if (bateTelefone || bateNome) {
+            await opcao.click({ force: true, timeout: 10000 });
+            await page.waitForTimeout(800);
+
+            await Debugger.step(page, 'C010-cliente-selecionado-no-autocomplete');
+
+            return true;
+        }
+    }
+
+    await Debugger.step(page, 'C010-cliente-nao-encontrado-no-autocomplete');
+    return false;
 }
 
 function converterDataParaBR(dataISO) {
@@ -248,7 +267,11 @@ async function criarCliente(page, dados) {
 
     await Debugger.step(page, 'C010-cliente-salvo-no-modal-atendimento');
 
-    const clienteMantidoNoAtendimento = await garantirClienteNoAtendimento(page, cliente);
+    const clienteMantidoNoAtendimento = await garantirClienteNoAtendimento(
+    page,
+    cliente,
+    telefone
+);
 
     await Debugger.step(page, `C010-cliente-mantido-no-atendimento-${clienteMantidoNoAtendimento}`);
 
