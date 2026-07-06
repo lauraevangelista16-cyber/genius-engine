@@ -22,6 +22,9 @@ class AgendaEngine {
 
             case 'consultar':
                 return await this.consultar(dados);
+                
+             case 'consultar_com_data':
+    return await this.consultar(dados);
 
             case 'cancelar':
                 return await this.cancelar(dados);

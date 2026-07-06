@@ -17,6 +17,7 @@ class AgendaOrchestrator {
         const acoesValidas = [
             'criar',
             'consultar',
+            'consultar_com_data',
             'cancelar',
             'alterar',
             'reagendar',
