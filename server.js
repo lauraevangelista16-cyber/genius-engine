@@ -32,9 +32,6 @@ app.post('/agenda', async (req, res) => {
         console.log(JSON.stringify(resposta, null, 2));
         console.log('==============================\n');
 
-        if (resposta?.ok === false || resposta?.success === false) {
-            return res.status(400).json(resposta);
-        }
 
         return res.json(resposta);
 
