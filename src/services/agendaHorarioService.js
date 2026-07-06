@@ -126,7 +126,7 @@ const abrirHorario = async (page, horario) => {
             return 'ERRO_CELULA_HORARIO_NAO_ENCONTRADA';
         }
 
-        let clicou = false;
+        let encontrouCelulaOcupada = false;
 
         for (let i = totalCelulas - 1; i >= 0; i--) {
             const celula = celulas.nth(i);
@@ -137,41 +137,64 @@ const abrirHorario = async (page, horario) => {
                 continue;
             }
 
-            await Debugger.step(page, `004-tentando-celula-${i}`);
+            const textoCelula = (await celula.innerText().catch(() => '')).trim();
 
-            await celula.click({
-                force: true,
-                timeout: 5000
-            }).catch(async () => {
+            await Debugger.step(
+                page,
+                `004-tentando-celula-${i}-texto-${textoCelula || 'vazio'}`
+            );
+
+            if (textoCelula && textoCelula.toLowerCase().includes('unha')) {
+                encontrouCelulaOcupada = true;
+                await Debugger.step(page, `004B-celula-ocupada-${i}`);
+                continue;
+            }
+
+            await celula.click({ force: true, timeout: 5000 }).catch(async () => {
                 await page.mouse.click(
                     box.x + box.width / 2,
                     box.y + box.height / 2
                 );
             });
 
-            await page.waitForTimeout(1800);
+            await page.waitForTimeout(1000);
 
-            const abriu = await modalAtendimentoAberto(page);
+            let abriu = await modalAtendimentoAberto(page);
+
+            if (!abriu) {
+                await celula.dblclick({ force: true, timeout: 5000 }).catch(() => {});
+                await page.waitForTimeout(1000);
+                abriu = await modalAtendimentoAberto(page);
+            }
+
+            if (!abriu) {
+                await page.mouse.click(
+                    box.x + box.width / 2,
+                    box.y + box.height / 2
+                );
+                await page.waitForTimeout(1000);
+                abriu = await modalAtendimentoAberto(page);
+            }
 
             await Debugger.step(page, `005-modal-abriu-celula-${i}-${abriu}`);
 
             if (abriu) {
-                clicou = true;
-                break;
+                const validacao = await validarDataHoraModal(page, horarioNormalizado);
+
+                if (!validacao.ok) {
+                    return validacao.status;
+                }
+
+                return 'HORARIO_LIVRE';
             }
         }
 
-        if (!clicou) {
-            return 'ERRO_MODAL_NAO_ABRIU';
+        if (encontrouCelulaOcupada) {
+            await Debugger.step(page, '006-horario-ocupado-detectado-sem-modal');
+            return 'HORARIO_OCUPADO';
         }
 
-        const validacao = await validarDataHoraModal(page, horarioNormalizado);
-
-        if (!validacao.ok) {
-            return validacao.status;
-        }
-
-        return 'HORARIO_LIVRE';
+        return 'ERRO_MODAL_NAO_ABRIU';
 
     } catch (erro) {
         console.log('[ERRO abrirHorario]', erro.message);
@@ -184,3 +207,4 @@ const abrirHorario = async (page, horario) => {
 module.exports = {
     abrirHorario
 };
+
