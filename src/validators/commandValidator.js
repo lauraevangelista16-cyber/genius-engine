@@ -13,6 +13,9 @@ class CommandValidator {
             case 'consultar':
                 return this.buscar(dados);
 
+                case 'consultar_com_data':
+    return await this.consultar(dados);
+
             case 'cancelar':
                 return this.buscar(dados);
 
