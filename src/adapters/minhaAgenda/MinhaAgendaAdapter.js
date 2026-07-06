@@ -2,6 +2,7 @@ const { snapshotFormulario } = require('../../services/formInspectorService');
 const { irParaData } = require('../../services/agendaNavigationService');
 const { abrirBrowser } = require('../../utils/browser');
 const Debugger = require('../../core/Debugger');
+const Logger = require('../../core/Logger');
 
 const {
     abrirHorario,
@@ -21,22 +22,18 @@ const {
 } = require('../../services/clienteService');
 
 async function step(page, nome) {
-    console.log(`[MinhaAgendaAdapter] ${nome}`);
+    Logger.info(`[MinhaAgendaAdapter] ${nome}`);
     await Debugger.step(page, nome).catch(() => {});
 }
 
-async function obterPage(pageRecebida) {
-    if (pageRecebida && typeof pageRecebida.goto === 'function') {
-        return { page: pageRecebida, browser: null, deveFechar: false };
+async function obterPage() {
+    const { page } = await abrirBrowser();
+
+    if (!page) {
+        throw new Error('Não foi possível abrir a sessão do navegador.');
     }
 
-    const resultado = await abrirBrowser();
-
-    return {
-        page: resultado.page,
-        browser: resultado.browser,
-        deveFechar: true
-    };
+    return page;
 }
 
 function normalizarDados(dados) {
@@ -46,9 +43,10 @@ function normalizarDados(dados) {
 }
 
 class MinhaAgendaAdapter {
-    async listarAtendimentos(dados = {}, pageRecebida) {
+
+    async listarAtendimentos(dados = {}) {
         const dadosNormalizados = normalizarDados(dados);
-        const { page, browser, deveFechar } = await obterPage(pageRecebida);
+        const page = await obterPage();
 
         try {
             await step(page, 'A001-listar-inicio');
@@ -64,22 +62,18 @@ class MinhaAgendaAdapter {
                 atendimentos
             };
         } catch (erro) {
-            console.error('[MinhaAgendaAdapter] erro listarAtendimentos:', erro);
+            Logger.error(`[MinhaAgendaAdapter] erro listarAtendimentos: ${erro.message}`);
 
             return {
                 status: 'ERRO',
                 mensagem: erro.message || 'Erro ao listar atendimentos.'
             };
-        } finally {
-            if (deveFechar && browser) {
-                await browser.close().catch(() => {});
-            }
         }
     }
 
-    async cadastrarCliente(dados = {}, pageRecebida) {
+    async cadastrarCliente(dados = {}) {
         const dadosNormalizados = normalizarDados(dados);
-        const { page, browser, deveFechar } = await obterPage(pageRecebida);
+        const page = await obterPage();
 
         try {
             await step(page, 'A000-cadastrar-cliente-inicio');
@@ -88,7 +82,10 @@ class MinhaAgendaAdapter {
 
             await step(page, 'A000-cadastrar-cliente-data');
 
-            const statusHorario = await abrirHorario(page, dadosNormalizados.horario);
+            const statusHorario = await abrirHorario(
+                page,
+                dadosNormalizados.horario
+            );
 
             await step(page, `A000-status-horario-cadastro-${statusHorario}`);
 
@@ -141,22 +138,17 @@ class MinhaAgendaAdapter {
                 mensagem: 'Cliente cadastrado com sucesso.'
             };
         } catch (erro) {
-            console.error('[MinhaAgendaAdapter] erro cadastrarCliente:', erro);
+            Logger.error(`[MinhaAgendaAdapter] erro cadastrarCliente: ${erro.message}`);
 
             return {
                 status: 'ERRO',
                 mensagem: erro.message || 'Erro ao cadastrar cliente.'
             };
-        } finally {
-            if (deveFechar && browser) {
-                await browser.close().catch(() => {});
-            }
         }
     }
-
-    async criarAgendamento(dados = {}, pageRecebida) {
+    async criarAgendamento(dados = {}) {
         const dadosNormalizados = normalizarDados(dados);
-        const { page, browser, deveFechar } = await obterPage(pageRecebida);
+        const page = await obterPage();
 
         try {
             await step(page, 'A003-criar-inicio');
@@ -165,7 +157,10 @@ class MinhaAgendaAdapter {
 
             await step(page, 'A004-criar-data');
 
-            const statusHorario = await abrirHorario(page, dadosNormalizados.horario);
+            const statusHorario = await abrirHorario(
+                page,
+                dadosNormalizados.horario
+            );
 
             await snapshotFormulario(page, 'depois-abrir-horario');
 
@@ -223,7 +218,10 @@ class MinhaAgendaAdapter {
 
             await snapshotFormulario(page, 'depois-cliente');
 
-            const resultadoServico = await selecionarServico(page, dadosNormalizados.servico);
+            const resultadoServico = await selecionarServico(
+                page,
+                dadosNormalizados.servico
+            );
 
             await step(page, 'A007-servico-selecionado');
 
@@ -274,22 +272,17 @@ class MinhaAgendaAdapter {
                 atendimento: confirmacao
             };
         } catch (erro) {
-            console.error('[MinhaAgendaAdapter] erro criarAgendamento:', erro);
+            Logger.error(`[MinhaAgendaAdapter] erro criarAgendamento: ${erro.message}`);
 
             return {
                 status: 'ERRO',
                 mensagem: erro.message || 'Erro ao criar agendamento.'
             };
-        } finally {
-            if (deveFechar && browser) {
-                await browser.close().catch(() => {});
-            }
         }
     }
-
-    async consultarAgendamento(dados = {}, pageRecebida) {
+    async consultarAgendamento(dados = {}) {
         const dadosNormalizados = normalizarDados(dados);
-        const { page, browser, deveFechar } = await obterPage(pageRecebida);
+        const page = await obterPage();
 
         try {
             await step(page, 'A011-consultar-inicio');
@@ -325,22 +318,18 @@ class MinhaAgendaAdapter {
                 atendimento: resultado
             };
         } catch (erro) {
-            console.error('[MinhaAgendaAdapter] erro consultarAgendamento:', erro);
+            Logger.error(`[MinhaAgendaAdapter] erro consultarAgendamento: ${erro.message}`);
 
             return {
                 status: 'ERRO',
                 mensagem: erro.message || 'Erro ao consultar agendamento.'
             };
-        } finally {
-            if (deveFechar && browser) {
-                await browser.close().catch(() => {});
-            }
         }
     }
 
-    async cancelarAgendamento(dados = {}, pageRecebida) {
+    async cancelarAgendamento(dados = {}) {
         const dadosNormalizados = normalizarDados(dados);
-        const { page, browser, deveFechar } = await obterPage(pageRecebida);
+        const page = await obterPage();
 
         try {
             await step(page, 'A014-cancelar-inicio');
@@ -380,22 +369,18 @@ class MinhaAgendaAdapter {
                 mensagem: 'Agendamento cancelado com sucesso.'
             };
         } catch (erro) {
-            console.error('[MinhaAgendaAdapter] erro cancelarAgendamento:', erro);
+            Logger.error(`[MinhaAgendaAdapter] erro cancelarAgendamento: ${erro.message}`);
 
             return {
                 status: 'ERRO',
                 mensagem: erro.message || 'Erro ao cancelar agendamento.'
             };
-        } finally {
-            if (deveFechar && browser) {
-                await browser.close().catch(() => {});
-            }
         }
     }
 
-    async alterarAgendamento(dados = {}, pageRecebida) {
+    async alterarAgendamento(dados = {}) {
         const dadosNormalizados = normalizarDados(dados);
-        const { page, browser, deveFechar } = await obterPage(pageRecebida);
+        const page = await obterPage();
 
         try {
             await step(page, 'A018-alterar-inicio');
@@ -426,61 +411,91 @@ class MinhaAgendaAdapter {
                 };
             }
 
-            const horarioParaAlterar = dadosNormalizados.novo_horario || dadosNormalizados.horario;
+            const horarioParaAlterar =
+                dadosNormalizados.novo_horario ||
+                dadosNormalizados.novoHorario ||
+                dadosNormalizados.horario;
 
-if (horarioParaAlterar) {
-    await alterarHorarioAgendamento(page, horarioParaAlterar);
-    await step(page, 'A021-horario-alterado');
+            let houveAlteracao = false;
 
-    return {
-        status: 'AGENDAMENTO_ALTERADO',
-        mensagem: 'Agendamento alterado com sucesso.'
-    };
-}
+            if (horarioParaAlterar) {
+                await alterarHorarioAgendamento(page, horarioParaAlterar);
+                await step(page, 'A021-horario-alterado');
+                houveAlteracao = true;
+            }
 
-if (dadosNormalizados.clienteNovo) {
-    const clienteAlterado = await selecionarOuCriarCliente(page, {
-        cliente: dadosNormalizados.clienteNovo,
-        telefone: dadosNormalizados.telefoneNovo,
-        data: dadosNormalizados.data,
-        horario: dadosNormalizados.horario
-    });
+            if (dadosNormalizados.clienteNovo) {
+                const clienteAlterado = await selecionarOuCriarCliente(page, {
+                    cliente: dadosNormalizados.clienteNovo,
+                    telefone: dadosNormalizados.telefoneNovo || dadosNormalizados.telefone,
+                    data: dadosNormalizados.data,
+                    horario: horarioParaAlterar || dadosNormalizados.horario
+                });
 
-    await step(page, `A022-cliente-alterado-${clienteAlterado.status}`);
-}
+                await step(page, `A022-cliente-alterado-${clienteAlterado.status}`);
 
-if (dadosNormalizados.servico) {
-    await selecionarServico(page, dadosNormalizados.servico);
-    await step(page, 'A023-servico-alterado');
-}
+                if (
+                    clienteAlterado.status !== 'CLIENTE_SELECIONADO' &&
+                    clienteAlterado.status !== 'CLIENTE_CRIADO'
+                ) {
+                    return {
+                        status: 'ERRO_CLIENTE',
+                        mensagem: 'Não foi possível alterar o cliente do agendamento.',
+                        detalhe: clienteAlterado
+                    };
+                }
 
-        
+                houveAlteracao = true;
+            }
 
-const resultadoSalvar = await salvarAgendamento(page);
+            if (dadosNormalizados.servico) {
+                const resultadoServico = await selecionarServico(
+                    page,
+                    dadosNormalizados.servico
+                );
 
-await step(page, `A024-alteracao-salvar-${resultadoSalvar.status}`);
+                await step(page, 'A023-servico-alterado');
 
-if (resultadoSalvar.status !== 'SALVO') {
-    return resultadoSalvar;
-}
+                if (
+                    resultadoServico &&
+                    resultadoServico.status &&
+                    resultadoServico.status !== 'SERVICO_SELECIONADO'
+                ) {
+                    return resultadoServico;
+                }
 
-return {
-    status: 'AGENDAMENTO_ALTERADO',
-    mensagem: 'Agendamento alterado com sucesso.'
-};
+                houveAlteracao = true;
+            }
+
+            if (!houveAlteracao) {
+                return {
+                    status: 'DADOS_INCOMPLETOS',
+                    mensagem: 'Nenhuma alteração informada.'
+                };
+            }
+
+            const resultadoSalvar = await salvarAgendamento(page);
+
+            await step(page, `A024-alteracao-salvar-${resultadoSalvar.status}`);
+
+            if (resultadoSalvar.status !== 'SALVO') {
+                return resultadoSalvar;
+            }
+
+            return {
+                status: 'AGENDAMENTO_ALTERADO',
+                mensagem: 'Agendamento alterado com sucesso.'
+            };
         } catch (erro) {
-            console.error('[MinhaAgendaAdapter] erro alterarAgendamento:', erro);
+            Logger.error(`[MinhaAgendaAdapter] erro alterarAgendamento: ${erro.message}`);
 
             return {
                 status: 'ERRO',
                 mensagem: erro.message || 'Erro ao alterar agendamento.'
             };
-        } finally {
-            if (deveFechar && browser) {
-                await browser.close().catch(() => {});
-            }
         }
     }
+
 }
 
 module.exports = new MinhaAgendaAdapter();

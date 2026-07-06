@@ -1,9 +1,5 @@
 const MinhaAgendaAdapter = require('../../adapters/minhaAgenda/MinhaAgendaAdapter');
 
-const {
-    abrirBrowser
-} = require('../../utils/browser');
-
 const CommandValidator = require('../../validators/commandValidator');
 
 const {
@@ -13,9 +9,11 @@ const {
 class AgendaEngine {
 
     async execute(action, dados = {}) {
+
         CommandValidator.agenda(action, dados);
 
         switch (action) {
+
             case 'criar':
                 return await this.criar(dados);
 
@@ -40,60 +38,50 @@ class AgendaEngine {
             default:
                 throw new Error(`Ação "${action}" não existe.`);
         }
+
     }
 
     async criar(dados) {
-        const { page } = await abrirBrowser();
-
-        return await MinhaAgendaAdapter.criarAgendamento(dados, page);
+        return await MinhaAgendaAdapter.criarAgendamento(dados);
     }
 
     async cadastrarCliente(dados) {
-        const { page } = await abrirBrowser();
-
-        return await MinhaAgendaAdapter.cadastrarCliente(dados, page);
+        return await MinhaAgendaAdapter.cadastrarCliente(dados);
     }
 
     async consultar(dados) {
-        const { page } = await abrirBrowser();
-
-        return await MinhaAgendaAdapter.consultarAgendamento(dados, page);
+        return await MinhaAgendaAdapter.consultarAgendamento(dados);
     }
 
     async cancelar(dados) {
-        const { page } = await abrirBrowser();
-
-        return await MinhaAgendaAdapter.cancelarAgendamento(dados, page);
+        return await MinhaAgendaAdapter.cancelarAgendamento(dados);
     }
 
     async consultarHorarios(dados) {
-        const { page } = await abrirBrowser();
 
         const atendimentos = await MinhaAgendaAdapter.listarAtendimentos(
-            dados,
-            page
+            dados
         );
 
-       return consultarHorariosDisponiveis({
-    servico: dados.servico,
-    limite: dados.limite,
-    atendimentos: atendimentos.atendimentos || []
-});
+        return consultarHorariosDisponiveis({
+            servico: dados.servico,
+            limite: dados.limite,
+            atendimentos: atendimentos.atendimentos || []
+        });
+
     }
 
     async alterar(dados) {
-        const { page } = await abrirBrowser();
-
-        return await MinhaAgendaAdapter.alterarAgendamento(dados, page);
+        return await MinhaAgendaAdapter.alterarAgendamento(dados);
     }
 
     async reagendar(dados) {
+
         return await this.alterar({
-            cliente: dados.cliente,
-            telefone: dados.telefone,
-            data: dados.data,
-            horario: dados.novoHorario || dados.horario
+            ...dados,
+            horario: dados.novoHorario || dados.novo_horario || dados.horario
         });
+
     }
 
 }
