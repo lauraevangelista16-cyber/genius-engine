@@ -66,6 +66,7 @@ async function garantirClienteNoAtendimento(page, cliente, telefone) {
     }
 
     const telefoneNormalizado = String(telefone || '').replace(/\D/g, '');
+    const nomeNormalizado = String(cliente || '').toLowerCase().trim();
 
     await campoCliente.click({ force: true, timeout: 10000 });
     await campoCliente.fill('');
@@ -78,9 +79,12 @@ async function garantirClienteNoAtendimento(page, cliente, telefone) {
 
     await Debugger.step(page, `C010-opcoes-cliente-apos-criacao-${totalOpcoes}`);
 
+    let opcaoPorNome = null;
+
     for (let i = 0; i < totalOpcoes; i++) {
         const opcao = opcoes.nth(i);
-        const texto = (await opcao.innerText()).toLowerCase();
+        const textoOriginal = await opcao.innerText();
+        const texto = textoOriginal.toLowerCase();
         const numerosOpcao = texto.replace(/\D/g, '');
 
         await Debugger.step(page, `C010-opcao-cliente-${i}-${texto}`);
@@ -89,19 +93,32 @@ async function garantirClienteNoAtendimento(page, cliente, telefone) {
             telefoneNormalizado &&
             numerosOpcao.includes(telefoneNormalizado.slice(-8));
 
-        const bateNome = texto.includes(String(cliente).toLowerCase());
+        const bateNome = texto.includes(nomeNormalizado);
 
-        if (bateTelefone || bateNome) {
+        if (bateTelefone && bateNome) {
             await opcao.click({ force: true, timeout: 10000 });
             await page.waitForTimeout(800);
 
-            await Debugger.step(page, 'C010-cliente-selecionado-no-autocomplete');
+            await Debugger.step(page, 'C010-cliente-selecionado-por-nome-e-telefone');
 
             return true;
         }
+
+        if (!telefoneNormalizado && bateNome && !opcaoPorNome) {
+            opcaoPorNome = opcao;
+        }
     }
 
-    await Debugger.step(page, 'C010-cliente-nao-encontrado-no-autocomplete');
+    if (opcaoPorNome) {
+        await opcaoPorNome.click({ force: true, timeout: 10000 });
+        await page.waitForTimeout(800);
+
+        await Debugger.step(page, 'C010-cliente-selecionado-apenas-por-nome-sem-telefone');
+
+        return true;
+    }
+
+    await Debugger.step(page, 'C010-cliente-nao-encontrado-com-nome-e-telefone');
     return false;
 }
 
