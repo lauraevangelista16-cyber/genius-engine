@@ -1,4 +1,4 @@
-const Debugger = require('../utils/Debugger');
+const Debugger = require('../core/Debugger');
 
 function normalizarTexto(valor = '') {
     return String(valor)
