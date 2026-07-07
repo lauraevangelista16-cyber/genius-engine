@@ -317,12 +317,21 @@ async function criarCliente(page, dados) {
     await Debugger.step(page, 'C008-nome-cliente-preenchido');
 
     if (telefone) {
-        await campos.nth(1).click({ force: true, timeout: 10000 });
-        await campos.nth(1).fill('');
-        await campos.nth(1).fill(telefone);
+    const campoTelefone =
+        modalCliente.getByRole('textbox', { name: /telefone1|telefone/i }).first();
+
+    const existeTelefone = await campoTelefone.count().catch(() => 0);
+
+    if (existeTelefone) {
+        await campoTelefone.click({ force: true, timeout: 10000 });
+        await campoTelefone.fill('');
+        await campoTelefone.fill(telefone);
 
         await Debugger.step(page, 'C009-telefone-cliente-preenchido');
+    } else {
+        await Debugger.step(page, 'C009-campo-telefone-nao-encontrado');
     }
+}
 
     await page.waitForTimeout(800);
 
