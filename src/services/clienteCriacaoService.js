@@ -126,10 +126,14 @@ async function garantirClienteNoAtendimento(page, cliente, telefone) {
 
         for (let i = 0; i < totalOpcoes; i++) {
             const opcao = opcoes.nth(i);
-            const visivel = await opcao.isVisible().catch(() => false);
-            if (!visivel) continue;
+           const textoOriginal = await opcao.innerText().catch(() => '');
 
-            const textoOriginal = await opcao.innerText().catch(() => '');
+await Debugger.step(
+    page,
+    `C010-opcao-cliente-${i}-${String(textoOriginal).replace(/\s+/g, ' ').slice(0, 120)}`
+);
+
+if (!textoOriginal || !textoOriginal.trim()) continue;
             const texto = textoOriginal.toLowerCase();
             const numeros = texto.replace(/\D/g, '');
 
