@@ -1,35 +1,3 @@
-const Debugger = require('../core/Debugger');
-
-const {
-    nomeExato,
-    nomeContem,
-    telefoneExiste,
-    telefoneCombina
-} = require('./clienteUtils');
-
-async function encontrarCampoCliente(page) {
-    const candidatos = [
-        page.getByRole('textbox', { name: /cliente/i }),
-        page.locator('input[placeholder*="Cliente" i]'),
-        page.locator('input[name*="cliente" i]')
-    ];
-
-    for (const candidato of candidatos) {
-        const total = await candidato.count().catch(() => 0);
-
-        if (!total) continue;
-
-        for (let i = 0; i < total; i++) {
-            const campo = candidato.nth(i);
-            const visivel = await campo.isVisible().catch(() => false);
-
-            if (visivel) return campo;
-        }
-    }
-
-    return null;
-}
-
 async function buscarCliente(page, cliente, telefone = '') {
     await Debugger.step(page, 'C001-selecionar-cliente-inicio');
 
@@ -73,7 +41,10 @@ async function buscarCliente(page, cliente, telefone = '') {
         const opcao = opcoes.nth(i);
         const texto = await opcao.innerText().catch(() => '');
 
-        await Debugger.step(page, `C003-texto-opcao-${i}-${String(texto).replace(/\s+/g, ' ').slice(0, 120)}`);
+        await Debugger.step(
+            page,
+            `C003-texto-opcao-${i}-${String(texto).replace(/\s+/g, ' ').slice(0, 120)}`
+        );
 
         clientes.push({
             opcao,
@@ -102,9 +73,7 @@ async function buscarCliente(page, cliente, telefone = '') {
 
     const nomeSeguro = clientes.filter(c => {
         if (!c.nomeExato) return false;
-
         if (telefone && c.telefoneExiste) return false;
-
         return true;
     });
 
@@ -123,9 +92,7 @@ async function buscarCliente(page, cliente, telefone = '') {
 
     const nomeContemSemTelefone = clientes.filter(c => {
         if (!c.nomeContem) return false;
-
         if (c.telefoneExiste && telefone) return false;
-
         return true;
     });
 
@@ -142,10 +109,21 @@ async function buscarCliente(page, cliente, telefone = '') {
         };
     }
 
-    const parecidos = clientes.filter(c => c.nomeContem);
+    const parecidos = clientes.filter(c => c.nomeContem || c.nomeExato);
 
     if (parecidos.length) {
         await Debugger.step(page, 'C005-clientes-parecidos-ignorados');
+
+        await campo.click({ force: true });
+        await campo.press('End');
+        await campo.type(' ');
+        await page.waitForTimeout(800);
+
+        await Debugger.step(page, 'C005B-espaco-adicionado-para-forcar-adicionar-cliente');
+
+        return {
+            status: 'CLIENTE_NAO_ENCONTRADO_COM_PARECIDOS'
+        };
     }
 
     return {
