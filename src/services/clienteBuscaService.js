@@ -132,6 +132,5 @@ async function buscarCliente(page, cliente, telefone = '') {
 }
 
 module.exports = {
-    buscarCliente,
-    encontrarCampoCliente
+    buscarCliente
 };
