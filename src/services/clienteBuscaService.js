@@ -1,3 +1,64 @@
+const Debugger = require('../utils/debugger');
+
+function normalizarTexto(valor = '') {
+    return String(valor)
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+}
+
+function somenteNumeros(valor = '') {
+    return String(valor).replace(/\D/g, '');
+}
+
+function nomeExato(texto, cliente) {
+    const textoNormalizado = normalizarTexto(texto);
+    const clienteNormalizado = normalizarTexto(cliente);
+
+    return textoNormalizado.startsWith(clienteNormalizado);
+}
+
+function nomeContem(texto, cliente) {
+    return normalizarTexto(texto).includes(normalizarTexto(cliente));
+}
+
+function telefoneExiste(texto) {
+    return somenteNumeros(texto).length >= 8;
+}
+
+function telefoneCombina(texto, telefone = '') {
+    const telBusca = somenteNumeros(telefone);
+    const telTexto = somenteNumeros(texto);
+
+    if (!telBusca || !telTexto) return false;
+
+    return telTexto.endsWith(telBusca) || telBusca.endsWith(telTexto);
+}
+
+async function encontrarCampoCliente(page) {
+    const seletores = [
+        'input[placeholder*="Cliente" i]',
+        'input[name*="cliente" i]',
+        'label:has-text("Cliente") + div input',
+        'text=Cliente >> xpath=.. >> input',
+        'input'
+    ];
+
+    for (const seletor of seletores) {
+        const campo = page.locator(seletor).first();
+
+        if (await campo.count().catch(() => 0)) {
+            if (await campo.isVisible().catch(() => false)) {
+                return campo;
+            }
+        }
+    }
+
+    return null;
+}
+
 async function buscarCliente(page, cliente, telefone = '') {
     await Debugger.step(page, 'C001-selecionar-cliente-inicio');
 
@@ -5,10 +66,7 @@ async function buscarCliente(page, cliente, telefone = '') {
 
     if (!campo) {
         await Debugger.step(page, 'C001-campo-cliente-nao-encontrado');
-
-        return {
-            status: 'ERRO_CAMPO_CLIENTE_NAO_ENCONTRADO'
-        };
+        return { status: 'ERRO_CAMPO_CLIENTE_NAO_ENCONTRADO' };
     }
 
     await campo.click({ force: true });
@@ -16,7 +74,6 @@ async function buscarCliente(page, cliente, telefone = '') {
     await campo.fill(cliente);
 
     await Debugger.step(page, 'C002-cliente-digitado');
-
     await page.waitForTimeout(1500);
 
     const opcoes = page
@@ -29,10 +86,7 @@ async function buscarCliente(page, cliente, telefone = '') {
 
     if (total === 0) {
         await Debugger.step(page, 'C005-cliente-nao-encontrado');
-
-        return {
-            status: 'CLIENTE_NAO_ENCONTRADO'
-        };
+        return { status: 'CLIENTE_NAO_ENCONTRADO' };
     }
 
     const clientes = [];
@@ -63,12 +117,8 @@ async function buscarCliente(page, cliente, telefone = '') {
     if (porTelefone.length === 1) {
         await porTelefone[0].opcao.click({ force: true });
         await page.waitForTimeout(1000);
-
         await Debugger.step(page, 'C004-cliente-selecionado-por-telefone');
-
-        return {
-            status: 'CLIENTE_SELECIONADO'
-        };
+        return { status: 'CLIENTE_SELECIONADO' };
     }
 
     const nomeSeguro = clientes.filter(c => {
@@ -82,12 +132,8 @@ async function buscarCliente(page, cliente, telefone = '') {
     if (nomeSeguro.length === 1) {
         await nomeSeguro[0].opcao.click({ force: true });
         await page.waitForTimeout(1000);
-
         await Debugger.step(page, 'C004-cliente-selecionado-por-nome');
-
-        return {
-            status: 'CLIENTE_SELECIONADO'
-        };
+        return { status: 'CLIENTE_SELECIONADO' };
     }
 
     const nomeContemSemTelefone = clientes.filter(c => {
@@ -101,12 +147,8 @@ async function buscarCliente(page, cliente, telefone = '') {
     if (nomeContemSemTelefone.length === 1) {
         await nomeContemSemTelefone[0].opcao.click({ force: true });
         await page.waitForTimeout(1000);
-
         await Debugger.step(page, 'C004-cliente-selecionado-por-unica-opcao-sem-telefone');
-
-        return {
-            status: 'CLIENTE_SELECIONADO'
-        };
+        return { status: 'CLIENTE_SELECIONADO' };
     }
 
     const parecidos = clientes.filter(c => c.nomeContem || c.nomeExato);
@@ -121,16 +163,13 @@ async function buscarCliente(page, cliente, telefone = '') {
 
         await Debugger.step(page, 'C005B-espaco-adicionado-para-forcar-adicionar-cliente');
 
-        return {
-            status: 'CLIENTE_NAO_ENCONTRADO_COM_PARECIDOS'
-        };
+        return { status: 'CLIENTE_NAO_ENCONTRADO_COM_PARECIDOS' };
     }
 
-    return {
-        status: 'CLIENTE_NAO_ENCONTRADO'
-    };
+    return { status: 'CLIENTE_NAO_ENCONTRADO' };
 }
 
 module.exports = {
-    buscarCliente
+    buscarCliente,
+    encontrarCampoCliente
 };
