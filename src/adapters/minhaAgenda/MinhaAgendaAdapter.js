@@ -202,7 +202,12 @@ class MinhaAgendaAdapter {
         console.log('[criarAgendamento] Status cliente:', cliente);
         await step(page, `A006-status-cliente-${cliente.status}`);
 
-        if (cliente.status === 'CLIENTE_NAO_ENCONTRADO') {
+        const deveCriarCliente = [
+    'CLIENTE_NAO_ENCONTRADO',
+    'CLIENTE_NAO_ENCONTRADO_COM_PARECIDOS'
+].includes(cliente.status);
+
+if (deveCriarCliente) {
             console.log('[criarAgendamento] Cliente não encontrado. Criando cliente no mesmo atendimento.');
 
             await step(page, 'A006-cliente-nao-encontrado-criando-no-mesmo-atendimento');
