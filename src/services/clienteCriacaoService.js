@@ -317,19 +317,53 @@ async function criarCliente(page, dados) {
     await Debugger.step(page, 'C008-nome-cliente-preenchido');
 
     if (telefone) {
-    const campoTelefone =
-        modalCliente.getByRole('textbox', { name: /telefone1|telefone/i }).first();
 
-    const existeTelefone = await campoTelefone.count().catch(() => 0);
+    let campoTelefone = null;
 
-    if (existeTelefone) {
+    // Tenta localizar pelo label
+    try {
+        const candidato = modalCliente
+            .getByRole('textbox', { name: /telefone/i })
+            .first();
+
+        const existe = await candidato.count().catch(() => 0);
+
+        if (existe) {
+            campoTelefone = candidato;
+        }
+
+    } catch {}
+
+    // Fallback: segundo campo do modal (Telefone1)
+    if (!campoTelefone && totalCampos >= 2) {
+
+        campoTelefone = campos.nth(1);
+
+        await Debugger.step(
+            page,
+            'C009-usando-fallback-campo-telefone'
+        );
+    }
+
+    if (campoTelefone) {
+
         await campoTelefone.click({ force: true, timeout: 10000 });
         await campoTelefone.fill('');
         await campoTelefone.fill(telefone);
 
-        await Debugger.step(page, 'C009-telefone-cliente-preenchido');
+        const valor = await campoTelefone.inputValue().catch(() => '');
+
+        await Debugger.step(
+            page,
+            `C009-telefone-preenchido-${valor || 'vazio'}`
+        );
+
     } else {
-        await Debugger.step(page, 'C009-campo-telefone-nao-encontrado');
+
+        await Debugger.step(
+            page,
+            'C009-campo-telefone-nao-encontrado'
+        );
     }
 }
 
