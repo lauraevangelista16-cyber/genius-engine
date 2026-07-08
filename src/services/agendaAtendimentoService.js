@@ -1,3 +1,4 @@
+const Logger = require('../core/Logger');
 const Debugger = require('../core/Debugger');
 
 const {
