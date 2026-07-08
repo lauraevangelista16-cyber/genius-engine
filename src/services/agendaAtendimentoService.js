@@ -164,9 +164,7 @@ const abrirAtendimentoPorCliente = async (page, cliente, telefone, horario = '')
         Logger.info(`[agendaAtendimentoService] Evento ${i}: ${texto}`);
 
         const combinaCliente = atendimentoCombina(texto, cliente, telefone);
-        const combinaHorario = horario
-            ? texto.includes(horario)
-            : true;
+        const combinaHorario = horario ? texto.includes(horario) : true;
 
         Logger.info(
             `[agendaAtendimentoService] Evento ${i} | combinaCliente=${combinaCliente} | combinaHorario=${combinaHorario}`
@@ -292,7 +290,7 @@ const deletarAgendamento = async (page) => {
     await step(page, '026-deletado');
 };
 
-const alterarHorarioAgendamento = async (page, novoHorario) => {
+const alterarHorarioAgendamento = async (page, novoHorario, novaData = '') => {
     await step(page, '027-inicio-alterar-horario');
 
     await page.waitForTimeout(1000);
@@ -306,20 +304,56 @@ const alterarHorarioAgendamento = async (page, novoHorario) => {
 
     await step(page, '028-tela-editar-aberta');
 
-    const campoHora = page.locator('input[name="startTime"]');
+    if (novaData) {
+        Logger.info(`[agendaAtendimentoService] Nova data recebida: ${novaData}`);
 
-    await campoHora.waitFor({
-        state: 'visible',
-        timeout: 10000
-    });
+        const campoData = page.locator(
+            'input[name="startDate"], input[type="date"], input[placeholder*="data" i], input[placeholder*="Data" i]'
+        ).first();
 
-    await campoHora.click({ force: true });
-    await campoHora.fill('');
-    await campoHora.fill(novoHorario);
+        const totalCamposData = await campoData.count().catch(() => 0);
 
-    await page.waitForTimeout(800);
+        await step(page, `028A-total-campos-data-${totalCamposData}`);
 
-    await step(page, '029-horario-alterado');
+        if (totalCamposData === 0) {
+            await step(page, '028B-campo-data-nao-encontrado');
+
+            return {
+                status: 'ERRO_INTERNO',
+                mensagem: 'Campo de data do atendimento não encontrado.'
+            };
+        }
+
+        await campoData.waitFor({
+            state: 'visible',
+            timeout: 10000
+        });
+
+        await campoData.click({ force: true });
+        await campoData.fill('');
+        await campoData.fill(novaData);
+
+        await page.waitForTimeout(800);
+
+        await step(page, '028B-data-alterada');
+    }
+
+    if (novoHorario) {
+        const campoHora = page.locator('input[name="startTime"]');
+
+        await campoHora.waitFor({
+            state: 'visible',
+            timeout: 10000
+        });
+
+        await campoHora.click({ force: true });
+        await campoHora.fill('');
+        await campoHora.fill(novoHorario);
+
+        await page.waitForTimeout(800);
+
+        await step(page, '029-horario-alterado');
+    }
 
     await page.getByRole('button', { name: /^salvar$/i }).click({
         force: true,
@@ -329,6 +363,10 @@ const alterarHorarioAgendamento = async (page, novoHorario) => {
     await page.waitForTimeout(4000);
 
     await step(page, '030-alteracao-salva');
+
+    return {
+        status: 'SALVO'
+    };
 };
 
 module.exports = {
