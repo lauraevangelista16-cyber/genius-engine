@@ -567,5 +567,5 @@ async alterarAgendamento(dados = {}) {
         };
     }
 }
-
+}
 module.exports = new MinhaAgendaAdapter();
