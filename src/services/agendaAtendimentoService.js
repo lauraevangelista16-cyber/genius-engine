@@ -138,7 +138,7 @@ const listarAtendimentosDoDia = async (page) => {
     return atendimentos;
 };
 
-const abrirAtendimentoPorCliente = async (page, cliente, telefone) => {
+const abrirAtendimentoPorCliente = async (page, cliente, telefone, horario = '') => {
     await step(page, '017-inicio-abrir-atendimento');
 
     await page.waitForTimeout(4000);
@@ -158,7 +158,12 @@ const abrirAtendimentoPorCliente = async (page, cliente, telefone) => {
 
         const texto = await evento.innerText().catch(() => '');
 
-        if (atendimentoCombina(texto, cliente, telefone)) {
+        const combinaCliente = atendimentoCombina(texto, cliente, telefone);
+        const combinaHorario = horario
+            ? texto.includes(horario)
+            : true;
+
+        if (combinaCliente && combinaHorario) {
             encontrados.push({
                 indice: i,
                 evento,
