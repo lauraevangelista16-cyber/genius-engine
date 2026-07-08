@@ -141,6 +141,8 @@ const listarAtendimentosDoDia = async (page) => {
 const abrirAtendimentoPorCliente = async (page, cliente, telefone, horario = '') => {
     await step(page, '017-inicio-abrir-atendimento');
 
+    Logger.info(`[agendaAtendimentoService] Horário recebido: ${horario}`);
+
     await page.waitForTimeout(4000);
 
     const eventos = page.locator('.fc-time-grid-event, .fc-event, .fc-timegrid-event');
@@ -158,10 +160,16 @@ const abrirAtendimentoPorCliente = async (page, cliente, telefone, horario = '')
 
         const texto = await evento.innerText().catch(() => '');
 
+        Logger.info(`[agendaAtendimentoService] Evento ${i}: ${texto}`);
+
         const combinaCliente = atendimentoCombina(texto, cliente, telefone);
         const combinaHorario = horario
             ? texto.includes(horario)
             : true;
+
+        Logger.info(
+            `[agendaAtendimentoService] Evento ${i} | combinaCliente=${combinaCliente} | combinaHorario=${combinaHorario}`
+        );
 
         if (combinaCliente && combinaHorario) {
             encontrados.push({
