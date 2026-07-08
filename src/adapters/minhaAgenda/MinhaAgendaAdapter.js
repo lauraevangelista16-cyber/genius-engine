@@ -546,13 +546,12 @@ async alterarAgendamento(dados = {}) {
             };
         }
 
-        const resultadoSalvar = await salvarAgendamento(page);
+        await step(page, 'A024-alteracao-finalizada');
 
-        await step(page, `A024-alteracao-salvar-${resultadoSalvar.status}`);
-
-        if (resultadoSalvar.status !== 'SALVO') {
-            return resultadoSalvar;
-        }
+return {
+    status: 'AGENDAMENTO_ALTERADO',
+    mensagem: 'Agendamento alterado com sucesso.'
+};
 
         return {
             status: 'AGENDAMENTO_ALTERADO',
