@@ -468,25 +468,23 @@ class MinhaAgendaAdapter {
 
             let houveAlteracao = false;
 
-            if (horarioParaAlterar || dataParaAlterar) {
-                const resultadoAlteracao = await alterarHorarioAgendamento(
-                    page,
-                    horarioParaAlterar,
-                    dataParaAlterar
-                );
+            if (horarioParaAlterar) {
+    const resultadoAlteracao = await alterarHorarioAgendamento(
+        page,
+        horarioParaAlterar
+    );
 
-                if (
-                    resultadoAlteracao &&
-                    resultadoAlteracao.status &&
-                    resultadoAlteracao.status !== 'SALVO'
-                ) {
-                    return resultadoAlteracao;
-                }
+    if (
+        resultadoAlteracao &&
+        resultadoAlteracao.status &&
+        resultadoAlteracao.status !== 'SALVO'
+    ) {
+        return resultadoAlteracao;
+    }
 
-                await step(page, 'A021-data-horario-alterado');
-                houveAlteracao = true;
-            }
-
+    await step(page, 'A021-horario-alterado');
+    houveAlteracao = true;
+}
             if (dadosNormalizados.clienteNovo) {
                 const clienteAlterado = await selecionarOuCriarCliente(page, {
                     cliente: dadosNormalizados.clienteNovo,
