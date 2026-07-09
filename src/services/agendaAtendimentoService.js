@@ -139,10 +139,11 @@ const listarAtendimentosDoDia = async (page) => {
     return atendimentos;
 };
 
-const abrirAtendimentoPorCliente = async (page, cliente, telefone, horario = '') => {
+const abrirAtendimentoPorCliente = async (page, cliente, telefone, horario = '', servico = '') => {
     await step(page, '017-inicio-abrir-atendimento');
 
     Logger.info(`[agendaAtendimentoService] Horário recebido: ${horario}`);
+    Logger.info(`[agendaAtendimentoService] Serviço recebido: ${servico}`);
 
     await page.waitForTimeout(4000);
 
@@ -165,12 +166,15 @@ const abrirAtendimentoPorCliente = async (page, cliente, telefone, horario = '')
 
         const combinaCliente = atendimentoCombina(texto, cliente, telefone);
         const combinaHorario = horario ? texto.includes(horario) : true;
+        const combinaServico = servico
+            ? texto.toLowerCase().includes(servico.toLowerCase())
+            : true;
 
         Logger.info(
-            `[agendaAtendimentoService] Evento ${i} | combinaCliente=${combinaCliente} | combinaHorario=${combinaHorario}`
+            `[agendaAtendimentoService] Evento ${i} | combinaCliente=${combinaCliente} | combinaHorario=${combinaHorario} | combinaServico=${combinaServico}`
         );
 
-        if (combinaCliente && combinaHorario) {
+        if (combinaCliente && combinaHorario && combinaServico) {
             encontrados.push({
                 indice: i,
                 evento,
@@ -216,8 +220,11 @@ const abrirAtendimentoPorCliente = async (page, cliente, telefone, horario = '')
     };
 };
 
-const consultarAtendimentoPorCliente = async (page, cliente, telefone) => {
+const consultarAtendimentoPorCliente = async (page, cliente, telefone, horario = '', servico = '') => {
     await step(page, '021-inicio-consultar-atendimento');
+
+    Logger.info(`[agendaAtendimentoService] Horário recebido na consulta: ${horario}`);
+    Logger.info(`[agendaAtendimentoService] Serviço recebido na consulta: ${servico}`);
 
     await page.waitForTimeout(4000);
 
@@ -236,7 +243,17 @@ const consultarAtendimentoPorCliente = async (page, cliente, telefone) => {
 
         const texto = await evento.innerText().catch(() => '');
 
-        if (atendimentoCombina(texto, cliente, telefone)) {
+        const combinaCliente = atendimentoCombina(texto, cliente, telefone);
+        const combinaHorario = horario ? texto.includes(horario) : true;
+        const combinaServico = servico
+            ? texto.toLowerCase().includes(servico.toLowerCase())
+            : true;
+
+        Logger.info(
+            `[agendaAtendimentoService] Consulta evento ${i} | combinaCliente=${combinaCliente} | combinaHorario=${combinaHorario} | combinaServico=${combinaServico}`
+        );
+
+        if (combinaCliente && combinaHorario && combinaServico) {
             encontrados.push(extrairDadosDoTextoAtendimento(texto));
         }
     }
