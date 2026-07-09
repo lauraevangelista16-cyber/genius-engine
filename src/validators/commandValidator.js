@@ -89,16 +89,31 @@ class CommandValidator {
     }
 
     alterar(dados) {
-        this.buscar(dados);
+    this.buscar(dados);
 
-        if (!dados.horario && !dados.servico && !dados.clienteNovo) {
-            throw new Error('Nenhuma alteração informada.');
-        }
-
-        if (dados.horario) {
-            this.validarHorario(dados.horario);
-        }
+    if (
+        !dados.novo_horario &&
+        !dados.novoHorario &&
+        !dados.nova_data &&
+        !dados.novaData &&
+        !dados.servico &&
+        !dados.clienteNovo
+    ) {
+        throw new Error('Nenhuma alteração informada.');
     }
+
+    if (dados.horario) {
+        this.validarHorario(dados.horario);
+    }
+
+    if (dados.novo_horario) {
+        this.validarHorario(dados.novo_horario, 'Novo horário inválido.');
+    }
+
+    if (dados.novoHorario) {
+        this.validarHorario(dados.novoHorario, 'Novo horário inválido.');
+    }
+}
 
     reagendar(dados) {
         this.buscar(dados);

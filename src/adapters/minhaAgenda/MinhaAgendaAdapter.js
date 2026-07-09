@@ -293,7 +293,9 @@ class MinhaAgendaAdapter {
             const confirmacao = await consultarAtendimentoPorCliente(
                 page,
                 dadosNormalizados.cliente,
-                dadosNormalizados.telefone
+                dadosNormalizados.telefone,
+                dadosNormalizados.horario,
+                dadosNormalizados.servico
             );
 
             console.log('[criarAgendamento] Confirmação:', confirmacao);
@@ -333,6 +335,9 @@ class MinhaAgendaAdapter {
 
     async consultarAgendamento(dados = {}) {
         const dadosNormalizados = normalizarDados(dados);
+        Logger.info(`[MinhaAgendaAdapter] consultar dados: ${JSON.stringify(dados)}`);
+Logger.info(`[MinhaAgendaAdapter] consultar dadosNormalizados: ${JSON.stringify(dadosNormalizados)}`);
+Logger.info(`[MinhaAgendaAdapter] consultar servico: ${dadosNormalizados.servico}`);
         const page = await obterPage();
 
         try {
@@ -343,7 +348,9 @@ class MinhaAgendaAdapter {
             const resultado = await consultarAtendimentoPorCliente(
                 page,
                 dadosNormalizados.cliente,
-                dadosNormalizados.telefone
+                dadosNormalizados.telefone,
+                dadosNormalizados.horario,
+                dadosNormalizados.servico
             );
 
             await step(page, `A013-consultar-encontrado-${resultado.encontrado}`);
@@ -389,7 +396,8 @@ class MinhaAgendaAdapter {
                 page,
                 dadosNormalizados.cliente,
                 dadosNormalizados.telefone,
-                dadosNormalizados.horario
+                dadosNormalizados.horario,
+                dadosNormalizados.servico
             );
 
             await step(page, `A016-cancelar-encontrado-${atendimento.encontrado}`);
@@ -438,7 +446,8 @@ class MinhaAgendaAdapter {
                 page,
                 dadosNormalizados.cliente,
                 dadosNormalizados.telefone,
-                dadosNormalizados.horario
+                dadosNormalizados.horario,
+                dadosNormalizados.servico
             );
 
             await step(page, `A020-alterar-encontrado-${atendimento.encontrado}`);
