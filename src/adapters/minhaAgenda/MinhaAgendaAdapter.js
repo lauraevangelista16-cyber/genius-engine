@@ -335,9 +335,6 @@ class MinhaAgendaAdapter {
 
     async consultarAgendamento(dados = {}) {
         const dadosNormalizados = normalizarDados(dados);
-        Logger.info(`[MinhaAgendaAdapter] consultar dados: ${JSON.stringify(dados)}`);
-Logger.info(`[MinhaAgendaAdapter] consultar dadosNormalizados: ${JSON.stringify(dadosNormalizados)}`);
-Logger.info(`[MinhaAgendaAdapter] consultar servico: ${dadosNormalizados.servico}`);
         const page = await obterPage();
 
         try {
