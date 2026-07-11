@@ -6,6 +6,10 @@ const {
     consultarHorariosDisponiveis
 } = require('./agendaValidator');
 
+const {
+    validarHorarioExpediente
+} = require('./horarioExpediente');
+
 class AgendaEngine {
 
     async execute(action, dados = {}) {
@@ -45,8 +49,25 @@ class AgendaEngine {
     }
 
     async criar(dados) {
-        return await MinhaAgendaAdapter.criarAgendamento(dados);
+
+    const validacaoHorario = validarHorarioExpediente(
+        dados.horario
+    );
+
+    if (!validacaoHorario.valido) {
+        return {
+            ok: false,
+            success: false,
+            mensagem: validacaoHorario.mensagem,
+            dados: {
+                status: validacaoHorario.status,
+                horario: dados.horario
+            }
+        };
     }
+
+    return await MinhaAgendaAdapter.criarAgendamento(dados);
+}
 
     async cadastrarCliente(dados) {
         return await MinhaAgendaAdapter.cadastrarCliente(dados);

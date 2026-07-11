@@ -515,21 +515,13 @@ class MinhaAgendaAdapter {
                 houveAlteracao = true;
             }
 
-            if (dadosNormalizados.servico) {
-                const resultadoServico = await selecionarServico(page, dadosNormalizados.servico);
-
-                await step(page, 'A023-servico-alterado');
-
-                if (
-                    resultadoServico &&
-                    resultadoServico.status &&
-                    resultadoServico.status !== 'SERVICO_SELECIONADO'
-                ) {
-                    return resultadoServico;
-                }
-
-                houveAlteracao = true;
-            }
+            // O campo "servico" é utilizado apenas para localizar o agendamento
+// quando existem múltiplos atendimentos.
+//
+// Futuramente, a alteração de serviço deverá utilizar um campo
+// específico (ex.: novo_servico), evitando conflito entre
+// identificação e alteração.
+        
 
             if (!houveAlteracao) {
                 return {
