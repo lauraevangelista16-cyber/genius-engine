@@ -320,54 +320,49 @@ const alterarHorarioAgendamento = async (page, novoHorario, novaData = '') => {
     await page.waitForTimeout(2000);
 
     await step(page, '028-tela-editar-aberta');
-const inputsEdicao = await page
-    .locator('[role="dialog"] input')
-    .evaluateAll((elementos) =>
-        elementos.map((elemento, indice) => ({
-            indice,
-            type: elemento.type,
-            value: elemento.value,
-            name: elemento.name,
-            id: elemento.id,
-            placeholder: elemento.placeholder,
-            ariaLabel: elemento.getAttribute('aria-label')
-        }))
-    );
 
-console.log('[DEBUG] Inputs do modal de edição:', inputsEdicao);
-    if (novaData) {
-        Logger.info(`[agendaAtendimentoService] Nova data recebida: ${novaData}`);
+    const [ano, mes, dia] = novaData.split('-');
+const novaDataFormatada = `${dia}/${mes}/${ano}`;
 
-        const campoData = page.locator(
-            'input[name="startDate"], input[type="date"], input[placeholder*="data" i], input[placeholder*="Data" i]'
-        ).first();
+const modalAtendimento = page.locator('[role="dialog"]').last();
 
-        const totalCamposData = await campoData.count().catch(() => 0);
+const campoData = modalAtendimento.locator('input[name="date"]');
 
-        await step(page, `028A-total-campos-data-${totalCamposData}`);
+const totalCamposData = await campoData.count().catch(() => 0);
 
-        if (totalCamposData === 0) {
-            await step(page, '028B-campo-data-nao-encontrado');
+await step(page, `028A-total-campos-data-${totalCamposData}`);
 
-            return {
-                status: 'ERRO_INTERNO',
-                mensagem: 'Campo de data do atendimento não encontrado.'
-            };
-        }
+if (totalCamposData === 0) {
+    await step(page, '028B-campo-data-nao-encontrado');
 
-        await campoData.waitFor({
-            state: 'visible',
-            timeout: 10000
-        });
+    return {
+        status: 'ERRO_INTERNO',
+        mensagem: 'Campo de data do atendimento não encontrado.'
+    };
+}
 
-        await campoData.click({ force: true });
-        await campoData.fill('');
-        await campoData.fill(novaData);
+await campoData.waitFor({
+    state: 'visible',
+    timeout: 10000
+});
 
-        await page.waitForTimeout(800);
+await campoData.click({ force: true });
+await campoData.fill('');
+await campoData.fill(novaDataFormatada);
+await page.keyboard.press('Tab');
 
-        await step(page, '028B-data-alterada');
-    }
+await page.waitForTimeout(800);
+
+const dataPreenchida = await campoData.inputValue().catch(() => '');
+
+await step(page, `028B-data-alterada-${dataPreenchida.replace(/\//g, '-')}`);
+
+if (dataPreenchida !== novaDataFormatada) {
+    return {
+        status: 'ERRO_ALTERAR_DATA',
+        mensagem: `A data deveria ficar em ${novaDataFormatada}, mas ficou em ${dataPreenchida}.`
+    };
+}
 
     if (novoHorario) {
         const campoHora = page.locator('input[name="startTime"]');
