@@ -541,6 +541,48 @@ if (statusHorario !== 'HORARIO_LIVRE') {
 
     async alterarAgendamento(dados = {}) {
         const dadosNormalizados = normalizarDados(dados);
+        const horarioFinalParaValidar =
+    dadosNormalizados.novo_horario ||
+    dadosNormalizados.horario;
+
+const duracaoServico = obterDuracaoDoServico(
+    dadosNormalizados.servico
+);
+
+if (duracaoServico === null) {
+    return {
+        status: 'SERVICO_NAO_ENCONTRADO',
+        mensagem: `O serviço "${dadosNormalizados.servico}" não foi encontrado.`
+    };
+}
+
+const inicioEmMinutos = horarioParaMinutos(
+    horarioFinalParaValidar
+);
+
+if (inicioEmMinutos === null) {
+    return {
+        status: 'HORARIO_INVALIDO',
+        mensagem: 'O novo horário informado é inválido.'
+    };
+}
+
+const fimEmMinutos =
+    inicioEmMinutos + duracaoServico;
+
+if (
+    !estaDentroDoHorarioFuncionamento(
+        inicioEmMinutos,
+        fimEmMinutos
+    )
+) {
+    return {
+        status: 'FORA_DO_EXPEDIENTE',
+        mensagem:
+            `O atendimento iniciaria às ${horarioFinalParaValidar} ` +
+            `e terminaria fora do horário de funcionamento.`
+    };
+}
         const page = await obterPage();
 
         try {
