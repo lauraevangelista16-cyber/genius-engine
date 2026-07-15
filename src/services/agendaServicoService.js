@@ -178,7 +178,7 @@ const selecionarServico = async (page, servico) => {
         await Debugger.step(page, '010-servico-sem-opcao-disponivel');
 
         return {
-            status: 'SERVICO_INEXISTENTE',
+            status: 'SERVICO_NAO_ENCONTRADO',
             mensagem: `Não encontrei o serviço "${servico}".`
         };
     }
@@ -201,7 +201,7 @@ const selecionarServico = async (page, servico) => {
         await Debugger.step(page, '011-servico-nao-confirmado');
 
         return {
-            status: 'SERVICO_INEXISTENTE',
+            status: 'SERVICO_NAO_ENCONTRADO',
             mensagem: `Não encontrei o serviço "${servico}".`
         };
     }
