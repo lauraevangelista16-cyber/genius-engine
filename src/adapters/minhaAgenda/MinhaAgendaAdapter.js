@@ -585,7 +585,39 @@ if (statusHorario !== 'HORARIO_LIVRE') {
 
                 houveAlteracao = true;
             }
+const dataFinal =
+    dataParaAlterar ||
+    dadosNormalizados.data;
 
+const horarioFinal =
+    horarioParaAlterar ||
+    dadosNormalizados.horario;
+
+await step(page, 'A022-confirmacao-alteracao-inicio');
+
+await irParaData(page, dataFinal);
+
+await step(page, 'A023-confirmacao-alteracao-data');
+
+const confirmacao = await consultarAtendimentoPorCliente(
+    page,
+    dadosNormalizados.cliente,
+    dadosNormalizados.telefone,
+    horarioFinal,
+    dadosNormalizados.servico
+);
+
+Logger.info(
+    `[MinhaAgendaAdapter] Confirmação pós-alteração: ${JSON.stringify(confirmacao)}`
+);
+
+if (!confirmacao.encontrado) {
+    return {
+        status: 'ALTERACAO_NAO_CONFIRMADA',
+        mensagem:
+            'A alteração foi realizada, mas não foi confirmada na agenda.'
+    };
+}
             // O campo "servico" é utilizado apenas para localizar o agendamento
 // quando existem múltiplos atendimentos.
 //
@@ -605,7 +637,8 @@ if (statusHorario !== 'HORARIO_LIVRE') {
 
             return {
                 status: 'AGENDAMENTO_ALTERADO',
-                mensagem: 'Agendamento alterado com sucesso.'
+                mensagem: 'Agendamento alterado com sucesso.',
+                atendimento: confirmacao
             };
         } catch (erro) {
             Logger.error(`[MinhaAgendaAdapter] erro alterarAgendamento: ${erro.message}`);
