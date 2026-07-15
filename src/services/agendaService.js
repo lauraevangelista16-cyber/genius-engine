@@ -12,7 +12,8 @@ const {
     abrirAtendimentoPorCliente,
     consultarAtendimentoPorCliente,
     deletarAgendamento,
-    alterarHorarioAgendamento
+    alterarHorarioAgendamento,
+    ajustarHorarioNoModal
 } = require('./agendaAtendimentoService');
 
 module.exports = {
@@ -23,5 +24,6 @@ module.exports = {
     abrirAtendimentoPorCliente,
     consultarAtendimentoPorCliente,
     deletarAgendamento,
-    alterarHorarioAgendamento
+    alterarHorarioAgendamento,
+    ajustarHorarioNoModal
 };

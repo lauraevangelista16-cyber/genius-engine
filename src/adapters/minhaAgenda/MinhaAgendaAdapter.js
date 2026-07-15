@@ -12,7 +12,8 @@ const {
     abrirAtendimentoPorCliente,
     consultarAtendimentoPorCliente,
     deletarAgendamento,
-    alterarHorarioAgendamento
+    alterarHorarioAgendamento,
+    ajustarHorarioNoModal
 } = require('../../services/agendaService');
 
 const {
@@ -161,22 +162,91 @@ class MinhaAgendaAdapter {
             console.log('[criarAgendamento] A004-criar-data');
             await step(page, 'A004-criar-data');
 
-            console.log('[criarAgendamento] Abrindo horário:', dadosNormalizados.horario);
-            const statusHorario = await abrirHorario(page, dadosNormalizados.horario);
+           console.log(
+    '[criarAgendamento] Abrindo horário:',
+    dadosNormalizados.horario
+);
 
-            console.log('[criarAgendamento] Status horário:', statusHorario);
+let statusHorario = await abrirHorario(
+    page,
+    dadosNormalizados.horario
+);
 
-            await snapshotFormulario(page, 'depois-abrir-horario');
-            await step(page, `A005-status-horario-${statusHorario}`);
+console.log(
+    '[criarAgendamento] Status horário inicial:',
+    statusHorario
+);
 
-            if (statusHorario !== 'HORARIO_LIVRE') {
-                console.log('[criarAgendamento] Horário ocupado');
+if (statusHorario === 'ERRO_LINHA_HORARIO_NAO_ENCONTRADA') {
+    const [hora, minuto] = dadosNormalizados.horario
+        .split(':')
+        .map(Number);
 
-                return {
-                    status: 'HORARIO_OCUPADO',
-                    mensagem: `O horário ${dadosNormalizados.horario} já está ocupado.`
-                };
-            }
+    const minutoBase = minuto < 30 ? 0 : 30;
+
+    const horarioBase =
+        `${String(hora).padStart(2, '0')}:` +
+        `${String(minutoBase).padStart(2, '0')}`;
+
+    console.log(
+        '[criarAgendamento] Horário sem linha própria. Abrindo base:',
+        horarioBase
+    );
+
+    statusHorario = await abrirHorario(page, horarioBase);
+
+    console.log(
+        '[criarAgendamento] Status horário-base:',
+        statusHorario
+    );
+
+    if (statusHorario === 'HORARIO_LIVRE') {
+        const ajusteHorario = await ajustarHorarioNoModal(
+            page,
+            dadosNormalizados.horario
+        );
+
+        console.log(
+            '[criarAgendamento] Resultado ajuste horário:',
+            ajusteHorario
+        );
+
+        await step(
+            page,
+            `A005A-ajuste-horario-${ajusteHorario.status}`
+        );
+
+        if (ajusteHorario.status !== 'HORARIO_MODAL_AJUSTADO') {
+            await page.keyboard.press('Escape').catch(() => {});
+
+            return ajusteHorario;
+        }
+    }
+}
+
+await snapshotFormulario(page, 'depois-abrir-horario');
+await step(page, `A005-status-horario-${statusHorario}`);
+
+if (statusHorario === 'HORARIO_OCUPADO') {
+    console.log('[criarAgendamento] Horário ocupado');
+
+    return {
+        status: 'HORARIO_OCUPADO',
+        mensagem: `O horário ${dadosNormalizados.horario} já está ocupado.`
+    };
+}
+
+if (statusHorario !== 'HORARIO_LIVRE') {
+    console.log(
+        '[criarAgendamento] Não foi possível abrir o horário:',
+        statusHorario
+    );
+
+    return {
+        status: statusHorario || 'ERRO_ABRIR_HORARIO',
+        mensagem: `Não foi possível abrir o horário ${dadosNormalizados.horario}.`
+    };
+}
 
             console.log('[criarAgendamento] Modal aberto antes de selecionar cliente');
             await step(page, 'A005B-modal-aberto-antes-cliente');

@@ -386,11 +386,63 @@ const alterarHorarioAgendamento = async (page, novoHorario, novaData = '') => {
     };
 };
 
+const ajustarHorarioNoModal = async (page, horarioDesejado) => {
+    await step(page, '031-inicio-ajustar-horario-modal');
+
+    const modalAtendimento = page.locator('[role="dialog"]').last();
+
+    const campoHora = modalAtendimento.locator('input[name="startTime"]');
+
+    const totalCampos = await campoHora.count().catch(() => 0);
+
+    await step(page, `031A-total-campos-hora-${totalCampos}`);
+
+    if (totalCampos === 0) {
+        return {
+            status: 'ERRO_CAMPO_HORARIO_NAO_ENCONTRADO',
+            mensagem: 'O campo de horário não foi encontrado no modal.'
+        };
+    }
+
+    await campoHora.waitFor({
+        state: 'visible',
+        timeout: 10000
+    });
+
+    await campoHora.click({ force: true });
+    await campoHora.fill('');
+    await campoHora.fill(horarioDesejado);
+
+    await page.waitForTimeout(800);
+
+    const horarioPreenchido = await campoHora.inputValue().catch(() => '');
+
+    await step(
+        page,
+        `031B-horario-modal-${horarioPreenchido.replace(':', '-')}`
+    );
+
+    if (horarioPreenchido !== horarioDesejado) {
+        return {
+            status: 'ERRO_AJUSTAR_HORARIO',
+            mensagem: `O campo deveria ficar em ${horarioDesejado}, mas ficou em ${horarioPreenchido}.`
+        };
+    }
+
+    await step(page, '032-horario-modal-ajustado');
+
+    return {
+        status: 'HORARIO_MODAL_AJUSTADO',
+        horario: horarioPreenchido
+    };
+};
+
 module.exports = {
     salvarAgendamento,
     listarAtendimentosDoDia,
     abrirAtendimentoPorCliente,
     consultarAtendimentoPorCliente,
     deletarAgendamento,
-    alterarHorarioAgendamento
+    alterarHorarioAgendamento,
+    ajustarHorarioNoModal
 };
