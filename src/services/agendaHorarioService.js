@@ -93,8 +93,70 @@ async function validarDataHoraModal(page, horarioEsperado) {
         status: 'HORARIO_LIVRE'
     };
 }
+async function verificarHorarioOcupadoNaGrade(page, horario) {
+    const horarioNormalizado = normalizarHorario(horario);
+    const [hora, minuto] = horarioNormalizado.split(':').map(Number);
 
-const abrirHorario = async (page, horario) => {
+    if (
+        Number.isNaN(hora) ||
+        Number.isNaN(minuto)
+    ) {
+        return false;
+    }
+
+    const horarioEmMinutos = (hora * 60) + minuto;
+
+    const eventos = page.locator(
+        '.fc-time-grid-event, .fc-event, .fc-timegrid-event'
+    );
+
+    const totalEventos = await eventos.count().catch(() => 0);
+
+    for (let i = 0; i < totalEventos; i++) {
+        const evento = eventos.nth(i);
+
+        const visivel = await evento.isVisible().catch(() => false);
+        if (!visivel) continue;
+
+        const texto = await evento.innerText().catch(() => '');
+
+        const intervalo = texto.match(
+            /(\d{1,2}:\d{2})\s*-\s*(\d{1,2}:\d{2})/
+        );
+
+        if (!intervalo) continue;
+
+        const [horaInicio, minutoInicio] = intervalo[1]
+            .split(':')
+            .map(Number);
+
+        const [horaFim, minutoFim] = intervalo[2]
+            .split(':')
+            .map(Number);
+
+        const inicioEmMinutos = (horaInicio * 60) + minutoInicio;
+        const fimEmMinutos = (horaFim * 60) + minutoFim;
+
+        if (
+            horarioEmMinutos >= inicioEmMinutos &&
+            horarioEmMinutos < fimEmMinutos
+        ) {
+            await Debugger.step(
+                page,
+                `002B-horario-ocupado-grade-${horarioNormalizado}`
+            );
+
+            return true;
+        }
+    }
+
+    return false;
+}
+const abrirHorario = async (
+    page,
+    horario,
+    horarioDesejado = horario
+) => {
     await Debugger.step(page, '001-inicio-abrir-horario');
 
     try {

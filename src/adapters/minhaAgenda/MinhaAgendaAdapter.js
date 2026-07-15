@@ -196,7 +196,7 @@ if (statusHorario === 'ERRO_LINHA_HORARIO_NAO_ENCONTRADA') {
         horarioBase
     );
 
-    statusHorario = await abrirHorario(page, horarioBase);
+    statusHorario = await abrirHorario(page, horarioBase, dadosNormalizados.horario);
 
     console.log(
         '[criarAgendamento] Status horário-base:',
