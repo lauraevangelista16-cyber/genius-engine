@@ -81,35 +81,12 @@ class MinhaAgendaAdapter {
 
             await step(page, `A000-status-horario-cadastro-${statusHorario}`);
 
-            if (statusHorario === 'HORARIO_OCUPADO') {
-    console.log('[criarAgendamento] Horário ocupado');
-
-    return {
-        status: 'HORARIO_OCUPADO',
-        mensagem: `O horário ${dadosNormalizados.horario} já está ocupado.`
-    };
-}
-
-if (statusHorario === 'ERRO_LINHA_HORARIO_NAO_ENCONTRADA') {
-    console.log('[criarAgendamento] Horário não encontrado na grade');
-
-    return {
-        status: 'HORARIO_INVALIDO',
-        mensagem: `O horário ${dadosNormalizados.horario} não existe na grade da agenda.`
-    };
-}
-
-if (statusHorario !== 'HORARIO_LIVRE') {
-    console.log(
-        '[criarAgendamento] Erro inesperado ao verificar horário:',
-        statusHorario
-    );
-
-    return {
-        status: statusHorario || 'ERRO_ABRIR_HORARIO',
-        mensagem: `Não foi possível verificar o horário ${dadosNormalizados.horario}.`
-    };
-}
+            if (statusHorario !== 'HORARIO_LIVRE') {
+                return {
+                    status: 'HORARIO_OCUPADO',
+                    mensagem: `O horário ${dadosNormalizados.horario} está ocupado.`
+                };
+            }
 
             const clienteJaExiste = await selecionarCliente(
                 page,
