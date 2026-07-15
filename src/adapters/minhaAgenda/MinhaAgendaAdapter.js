@@ -544,10 +544,11 @@ if (statusHorario !== 'HORARIO_LIVRE') {
 
             let houveAlteracao = false;
 
-            if (horarioParaAlterar) {
+            if (horarioParaAlterar || dataParaAlterar) {
     const resultadoAlteracao = await alterarHorarioAgendamento(
         page,
-        horarioParaAlterar
+        horarioParaAlterar,
+        dataParaAlterar
     );
 
     if (
