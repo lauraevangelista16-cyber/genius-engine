@@ -320,7 +320,21 @@ const alterarHorarioAgendamento = async (page, novoHorario, novaData = '') => {
     await page.waitForTimeout(2000);
 
     await step(page, '028-tela-editar-aberta');
+const inputsEdicao = await page
+    .locator('[role="dialog"] input')
+    .evaluateAll((elementos) =>
+        elementos.map((elemento, indice) => ({
+            indice,
+            type: elemento.type,
+            value: elemento.value,
+            name: elemento.name,
+            id: elemento.id,
+            placeholder: elemento.placeholder,
+            ariaLabel: elemento.getAttribute('aria-label')
+        }))
+    );
 
+console.log('[DEBUG] Inputs do modal de edição:', inputsEdicao);
     if (novaData) {
         Logger.info(`[agendaAtendimentoService] Nova data recebida: ${novaData}`);
 
