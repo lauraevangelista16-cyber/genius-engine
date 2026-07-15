@@ -631,10 +631,33 @@ Logger.info(
 );
 
 if (!confirmacao.encontrado) {
+    await irParaData(page, dadosNormalizados.data);
+
+    await step(page, 'A023B-verificar-origem-apos-falha-destino');
+
+    const atendimentoOriginal = await consultarAtendimentoPorCliente(
+        page,
+        dadosNormalizados.cliente,
+        dadosNormalizados.telefone,
+        dadosNormalizados.horario,
+        dadosNormalizados.servico
+    );
+
+    Logger.info(
+        `[MinhaAgendaAdapter] Origem após falha no destino: ${JSON.stringify(atendimentoOriginal)}`
+    );
+
+    if (atendimentoOriginal.encontrado) {
+        return {
+            status: 'HORARIO_OCUPADO',
+            mensagem: `O horário ${horarioFinal} já está ocupado.`
+        };
+    }
+
     return {
         status: 'ALTERACAO_NAO_CONFIRMADA',
         mensagem:
-            'A alteração foi realizada, mas não foi confirmada na agenda.'
+            'A alteração foi enviada, mas não foi possível confirmar o atendimento nem no horário novo nem no horário original.'
     };
 }
 const mudouData =
