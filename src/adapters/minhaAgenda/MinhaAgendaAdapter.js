@@ -519,12 +519,14 @@ if (horarioParaValidar) {
     const validacaoExpediente =
         validarHorarioExpediente(horarioParaValidar);
 
-    if (validacaoExpediente.status !== 'OK') {
-        return {
-            status: validacaoExpediente.status,
-            mensagem: validacaoExpediente.mensagem
-        };
-    }
+    if (
+    validacaoExpediente.status !== 'HORARIO_DENTRO_DO_EXPEDIENTE'
+) {
+    return {
+        status: validacaoExpediente.status,
+        mensagem: validacaoExpediente.mensagem
+    };
+}
 }
             const atendimento = await abrirAtendimentoPorCliente(
                 page,
