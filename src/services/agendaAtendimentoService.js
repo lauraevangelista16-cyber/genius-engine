@@ -321,8 +321,22 @@ const alterarHorarioAgendamento = async (page, novoHorario, novaData = '') => {
 
     await step(page, '028-tela-editar-aberta');
 
-    const [ano, mes, dia] = novaData.split('-');
-const novaDataFormatada = `${dia}/${mes}/${ano}`;
+if (
+    typeof novaData === 'string' &&
+    novaData.trim() !== ''
+) {
+    const dataLimpa = novaData.trim();
+    const partesData = dataLimpa.split('-');
+
+    if (partesData.length !== 3) {
+        return {
+            status: 'ERRO_ALTERAR_DATA',
+            mensagem: `Formato de nova data inválido: ${novaData}`
+        };
+    }
+
+    const [ano, mes, dia] = partesData;
+    const novaDataFormatada = `${dia}/${mes}/${ano}`;
 
 const modalAtendimento = page.locator('[role="dialog"]').last();
 
@@ -364,6 +378,7 @@ if (dataPreenchida !== novaDataFormatada) {
     };
 }
 
+}
     if (novoHorario) {
         const campoHora = page.locator('input[name="startTime"]');
 
