@@ -47,7 +47,9 @@ async function modalAtendimentoAberto(page) {
 }
 
 async function validarDataHoraModal(page, horarioEsperado) {
-    const horarioNormalizado = normalizarHorario(horarioEsperado);
+    const horarioNormalizado = horarioEsperado
+    ? normalizarHorario(horarioEsperado)
+    : '';
 
     const valorHora = await obterValorCampo(page, [
         'input[name="startTime"]',
@@ -65,7 +67,10 @@ async function validarDataHoraModal(page, horarioEsperado) {
         };
     }
 
-    if (valorHora !== horarioNormalizado) {
+    if (
+    horarioNormalizado &&
+    valorHora !== horarioNormalizado
+) {
         return {
             ok: false,
             status: `ERRO_HORARIO_MODAL_DIFERENTE-${valorHora}`
@@ -257,11 +262,19 @@ if (horarioOcupado) {
             await Debugger.step(page, `005-modal-abriu-celula-${i}-${abriu}`);
 
             if (abriu) {
-                const validacao = await validarDataHoraModal(page, horarioNormalizado);
+                const abriuPorFallback =
+    normalizarHorario(horarioDesejado) !== horarioNormalizado;
 
-                if (!validacao.ok) {
-                    return validacao.status;
-                }
+const validacao = await validarDataHoraModal(
+    page,
+    abriuPorFallback
+        ? null
+        : horarioNormalizado
+);
+
+if (!validacao.ok) {
+    return validacao.status;
+}
 
                 return 'HORARIO_LIVRE';
             }
