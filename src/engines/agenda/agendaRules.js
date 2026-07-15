@@ -2,7 +2,7 @@ const SERVICOS = require('../../config/servicos');
 
 const HORARIOS_FUNCIONAMENTO = [
     { inicio: 8 * 60, fim: 12 * 60 },
-    { inicio: 13 * 60, fim: 18 * 60 }
+    { inicio: 14 * 60, fim: 18 * 60 }
 ];
 
 function normalizarTexto(texto) {
