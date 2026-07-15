@@ -1,6 +1,6 @@
 const SERVICOS = {
-    unha: 60,
-    sobrancelha: 30,
+    unha: 30,
+    sobrancelha: 40,
     escova: 45,
     progressiva: 180
 };

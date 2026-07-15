@@ -84,11 +84,18 @@ if (duracao === null) {
         mensagem: `O serviço "${servico}" não foi encontrado.`
     };
 }
-    const horarios = gerarHorariosLivres(
-        duracao,
-        atendimentos,
-        Number(limite || 6)
-    );
+   const limiteNormalizado =
+    limite !== undefined &&
+    limite !== null &&
+    limite !== ''
+        ? Number(limite)
+        : null;
+
+const horarios = gerarHorariosLivres(
+    duracao,
+    atendimentos,
+    limiteNormalizado
+);
 
     return {
         status: horarios.length

@@ -99,7 +99,7 @@ function buscarProximoHorarioLivre(inicioSolicitado, duracao, atendimentos = [])
     return null;
 }
 
-function gerarHorariosLivres(duracao, atendimentos = [], limite = 6) {
+function gerarHorariosLivres(duracao, atendimentos = [], limite = null) {
     const horariosLivres = [];
 
     for (const periodo of HORARIOS_FUNCIONAMENTO) {
@@ -112,9 +112,13 @@ function gerarHorariosLivres(duracao, atendimentos = [], limite = 6) {
             if (!conflito) {
                 horariosLivres.push(minutosParaHorario(horarioAtual));
 
-                if (horariosLivres.length >= limite) {
-                    return horariosLivres;
-                }
+                if (
+    Number.isFinite(limite) &&
+    limite > 0 &&
+    horariosLivres.length >= limite
+) {
+    return horariosLivres;
+}
 
                 horarioAtual += 30;
                 continue;
