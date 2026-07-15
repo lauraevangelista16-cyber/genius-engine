@@ -618,6 +618,37 @@ if (!confirmacao.encontrado) {
             'A alteração foi realizada, mas não foi confirmada na agenda.'
     };
 }
+const mudouData =
+    dataFinal !== dadosNormalizados.data;
+
+const mudouHorario =
+    horarioFinal !== dadosNormalizados.horario;
+
+if (mudouData || mudouHorario) {
+    await irParaData(page, dadosNormalizados.data);
+
+    await step(page, 'A023B-verificar-origem-removida');
+
+    const atendimentoOriginal = await consultarAtendimentoPorCliente(
+        page,
+        dadosNormalizados.cliente,
+        dadosNormalizados.telefone,
+        dadosNormalizados.horario,
+        dadosNormalizados.servico
+    );
+
+    Logger.info(
+        `[MinhaAgendaAdapter] Verificação do atendimento original: ${JSON.stringify(atendimentoOriginal)}`
+    );
+
+    if (atendimentoOriginal.encontrado) {
+        return {
+            status: 'ALTERACAO_NAO_CONFIRMADA',
+            mensagem:
+                'O novo horário já possuía um atendimento e o agendamento original não foi alterado.'
+        };
+    }
+}
             // O campo "servico" é utilizado apenas para localizar o agendamento
 // quando existem múltiplos atendimentos.
 //
