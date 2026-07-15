@@ -643,10 +643,9 @@ if (mudouData || mudouHorario) {
 
     if (atendimentoOriginal.encontrado) {
         return {
-            status: 'ALTERACAO_NAO_CONFIRMADA',
-            mensagem:
-                'O novo horário já possuía um atendimento e o agendamento original não foi alterado.'
-        };
+    status: 'HORARIO_OCUPADO',
+    mensagem: `O horário ${horarioFinal} já está ocupado.`
+};
     }
 }
             // O campo "servico" é utilizado apenas para localizar o agendamento
