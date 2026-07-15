@@ -111,7 +111,15 @@ async function verificarHorarioOcupadoNaGrade(page, horario) {
     );
 
     const totalEventos = await eventos.count().catch(() => 0);
+await Debugger.step(
+    page,
+    `002A-total-eventos-grade-${totalEventos}`
+);
 
+console.log(
+    '[verificarHorarioOcupadoNaGrade] Total eventos:',
+    totalEventos
+);
     for (let i = 0; i < totalEventos; i++) {
         const evento = eventos.nth(i);
 
@@ -119,7 +127,19 @@ async function verificarHorarioOcupadoNaGrade(page, horario) {
         if (!visivel) continue;
 
         const texto = await evento.innerText().catch(() => '');
+const dataStart = await evento.getAttribute('data-start').catch(() => null);
+const dataEnd = await evento.getAttribute('data-end').catch(() => null);
+const title = await evento.getAttribute('title').catch(() => null);
 
+console.log(
+    `[verificarHorarioOcupadoNaGrade] Evento ${i}`,
+    {
+        texto,
+        dataStart,
+        dataEnd,
+        title
+    }
+);
         const intervalo = texto.match(
             /(\d{1,2}:\d{2})\s*-\s*(\d{1,2}:\d{2})/
         );
@@ -168,7 +188,14 @@ const abrirHorario = async (
         if (!horarioNormalizado) {
             return 'ERRO_HORARIO_NAO_INFORMADO';
         }
+const horarioOcupado = await verificarHorarioOcupadoNaGrade(
+    page,
+    horarioDesejado
+);
 
+if (horarioOcupado) {
+    return 'HORARIO_OCUPADO';
+}
         const linhaHorario = page.locator(`tr[data-time="${horarioDataTime}"]`);
         const totalLinhas = await linhaHorario.count();
 
