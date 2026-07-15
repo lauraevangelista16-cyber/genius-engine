@@ -643,7 +643,10 @@ const mudouData =
 const mudouHorario =
     horarioFinal !== dadosNormalizados.horario;
 
-if (mudouData || mudouHorario) {
+if (
+    (mudouData || mudouHorario) &&
+    dadosNormalizados.horario
+) {
     await irParaData(page, dadosNormalizados.data);
 
     await step(page, 'A023B-verificar-origem-removida');
