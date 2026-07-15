@@ -11,6 +11,13 @@ function validarCriacaoAgendamento(dados) {
     const { horario, servico, atendimentos = [] } = dados;
 
     const duracao = obterDuracaoDoServico(servico);
+    if (duracao === null) {
+    return {
+        valido: false,
+        status: 'SERVICO_NAO_ENCONTRADO',
+        mensagem: `O serviço "${servico}" não foi encontrado.`
+    };
+}
     const inicio = horarioParaMinutos(horario);
     const fim = inicio + duracao;
 
@@ -70,7 +77,13 @@ function consultarHorariosDisponiveis(dados) {
     } = dados;
 
     const duracao = obterDuracaoDoServico(servico);
-
+if (duracao === null) {
+    return {
+        valido: false,
+        status: 'SERVICO_NAO_ENCONTRADO',
+        mensagem: `O serviço "${servico}" não foi encontrado.`
+    };
+}
     const horarios = gerarHorariosLivres(
         duracao,
         atendimentos,

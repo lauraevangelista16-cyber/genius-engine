@@ -32,7 +32,8 @@ function minutosParaHorario(minutos) {
 
 function obterDuracaoDoServico(servico) {
     const servicoNormalizado = normalizarTexto(servico);
-    return SERVICOS[servicoNormalizado] || 60;
+
+    return SERVICOS[servicoNormalizado] ?? null;
 }
 
 function extrairIntervaloDoAtendimento(texto) {
