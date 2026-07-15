@@ -3,9 +3,16 @@ const { irParaData } = require('../../services/agendaNavigationService');
 const { abrirBrowser } = require('../../utils/browser');
 const Debugger = require('../../core/Debugger');
 const Logger = require('../../core/Logger');
+
 const {
     validarHorarioExpediente
 } = require('../../engines/agenda/horarioExpediente');
+
+const {
+    horarioParaMinutos,
+    obterDuracaoDoServico,
+    estaDentroDoHorarioFuncionamento
+} = require('../../engines/agenda/agendaRules');
 
 const {
     abrirHorario,
@@ -152,7 +159,36 @@ class MinhaAgendaAdapter {
 
         console.log('[criarAgendamento] Dados normalizados:');
         console.log(JSON.stringify(dadosNormalizados, null, 2));
+const duracaoServico = obterDuracaoDoServico(
+    dadosNormalizados.servico
+);
 
+if (duracaoServico === null) {
+    return {
+        status: 'SERVICO_NAO_ENCONTRADO',
+        mensagem: `O serviço "${dadosNormalizados.servico}" não foi encontrado.`
+    };
+}
+
+const inicioEmMinutos = horarioParaMinutos(
+    dadosNormalizados.horario
+);
+
+const fimEmMinutos =
+    inicioEmMinutos + duracaoServico;
+
+if (
+    !estaDentroDoHorarioFuncionamento(
+        inicioEmMinutos,
+        fimEmMinutos
+    )
+) {
+    return {
+        status: 'FORA_DO_EXPEDIENTE',
+        mensagem:
+            `O atendimento iniciaria às ${dadosNormalizados.horario} e terminaria fora do horário de funcionamento.`
+    };
+}
         const page = await obterPage();
 
         try {
