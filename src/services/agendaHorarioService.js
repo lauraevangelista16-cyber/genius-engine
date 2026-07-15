@@ -116,10 +116,7 @@ await Debugger.step(
     `002A-total-eventos-grade-${totalEventos}`
 );
 
-console.log(
-    '[verificarHorarioOcupadoNaGrade] Total eventos:',
-    totalEventos
-);
+
     for (let i = 0; i < totalEventos; i++) {
         const evento = eventos.nth(i);
 
@@ -131,15 +128,7 @@ const dataStart = await evento.getAttribute('data-start').catch(() => null);
 const dataEnd = await evento.getAttribute('data-end').catch(() => null);
 const title = await evento.getAttribute('title').catch(() => null);
 
-console.log(
-    `[verificarHorarioOcupadoNaGrade] Evento ${i}`,
-    {
-        texto,
-        dataStart,
-        dataEnd,
-        title
-    }
-);
+
         const intervalo = texto.match(
             /(\d{1,2}:\d{2})\s*-\s*(\d{1,2}:\d{2})/
         );
