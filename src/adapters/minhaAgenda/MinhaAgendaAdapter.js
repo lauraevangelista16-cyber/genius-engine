@@ -3,6 +3,9 @@ const { irParaData } = require('../../services/agendaNavigationService');
 const { abrirBrowser } = require('../../utils/browser');
 const Debugger = require('../../core/Debugger');
 const Logger = require('../../core/Logger');
+const {
+    validarHorarioExpediente
+} = require('../../engines/agenda/horarioExpediente');
 
 const {
     abrirHorario,
@@ -508,7 +511,21 @@ if (statusHorario !== 'HORARIO_LIVRE') {
             await step(page, 'A018-alterar-inicio');
             await irParaData(page, dadosNormalizados.data);
             await step(page, 'A019-alterar-data');
+const horarioParaValidar =
+    dadosNormalizados.novo_horario ||
+    dadosNormalizados.novoHorario;
 
+if (horarioParaValidar) {
+    const validacaoExpediente =
+        validarHorarioExpediente(horarioParaValidar);
+
+    if (validacaoExpediente.status !== 'OK') {
+        return {
+            status: validacaoExpediente.status,
+            mensagem: validacaoExpediente.mensagem
+        };
+    }
+}
             const atendimento = await abrirAtendimentoPorCliente(
                 page,
                 dadosNormalizados.cliente,
