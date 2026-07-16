@@ -102,10 +102,25 @@ async consultarAgendamentoGlobal(dados = {}) {
     try {
         const resultado = await abrirBuscaGlobal(page,dadosNormalizados.cliente);
 
-        return {
-            status: 'BUSCA_GLOBAL',
-            total: resultado.total
-        };
+       if (resultado.total === 0) {
+    return {
+        status: 'AGENDAMENTO_NAO_ENCONTRADO',
+        mensagem: 'Nenhum agendamento encontrado.'
+    };
+}
+
+if (resultado.total === 1) {
+    return {
+        status: 'AGENDAMENTO_ENCONTRADO',
+        atendimento: resultado.atendimentos?.[0] || null
+    };
+}
+
+return {
+    status: 'MULTIPLOS_AGENDAMENTOS',
+    atendimentos: resultado.atendimentos || [],
+    total: resultado.total
+};
     } catch (erro) {
         Logger.error(
             `[MinhaAgendaAdapter] erro consultarAgendamentoGlobal: ${erro.message}`

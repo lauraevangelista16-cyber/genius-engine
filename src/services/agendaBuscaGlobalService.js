@@ -101,25 +101,49 @@ const abrirBuscaGlobal = async (page, cliente) => {
 
     await page.waitForTimeout(3000);
 
-    const linhas = page.locator('tbody tr');
-    const total = await linhas.count().catch(() => 0);
+   const linhas = page.locator('tbody tr');
+const total = await linhas.count().catch(() => 0);
+
+Logger.info(
+    `[agendaBuscaGlobalService] Total de resultados: ${total}`
+);
+
+const resultados = [];
+
+for (let i = 0; i < total; i++) {
+    const texto = await linhas.nth(i).innerText().catch(() => '');
 
     Logger.info(
-        `[agendaBuscaGlobalService] Total de resultados: ${total}`
+        `[agendaBuscaGlobalService] Resultado ${i}: ${texto}`
     );
 
-    for (let i = 0; i < total; i++) {
-        const texto = await linhas.nth(i).innerText().catch(() => '');
+    const colunas = texto
+        .split(/\s{2,}/)
+        .map(item => item.trim())
+        .filter(Boolean);
 
-        Logger.info(
-            `[agendaBuscaGlobalService] Resultado ${i}: ${texto}`
-        );
-    }
+    resultados.push({
+        profissional: colunas[0] || '',
+        data: colunas[1] || '',
+        horario: colunas[2] || '',
+        cliente: colunas[3] || '',
+        servico: colunas[4] || '',
+        situacao: colunas[colunas.length - 1] || ''
+    });
+}
+
+await step(page, '005-resultados-lidos');
+
+return {
+    total,
+    resultados
+};
 
     await step(page, '005-resultados-lidos');
 
     return {
-        total
+        total,
+        resultados
     };
 };
 
