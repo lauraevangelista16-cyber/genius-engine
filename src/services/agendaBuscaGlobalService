@@ -1,0 +1,42 @@
+const Logger = require('../core/Logger');
+const Debugger = require('../core/Debugger');
+
+async function step(page, nome) {
+    console.log(`[agendaBuscaGlobalService] ${nome}`);
+    await Debugger.step(page, nome).catch(() => {});
+}
+const Logger = require('../core/Logger');
+const Debugger = require('../core/Debugger');
+
+async function step(page, nome) {
+    console.log(`[agendaBuscaGlobalService] ${nome}`);
+    await Debugger.step(page, nome).catch(() => {});
+}
+
+const abrirBuscaGlobal = async (page) => {
+    await step(page, '001-inicio-busca-global');
+
+    const botaoBusca = page.locator('svg[data-icon="search"], svg.fa-search').locator('..');
+
+    await botaoBusca.first().click({
+        force: true,
+        timeout: 10000
+    });
+
+    await step(page, '002-clique-lupa');
+
+    const campoBusca = page.locator('input[placeholder*="cliente"]');
+
+    await campoBusca.waitFor({
+        state: 'visible',
+        timeout: 10000
+    });
+
+    await step(page, '003-campo-busca-aberto');
+
+    return campoBusca;
+};
+
+module.exports = {
+    abrirBuscaGlobal
+};
