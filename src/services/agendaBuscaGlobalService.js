@@ -101,7 +101,23 @@ await step(page, '004-cliente-digitado');
 await page.waitForTimeout(3000);
     return campoBusca;
 };
+const linhas = page.locator('tbody tr');
 
+const total = await linhas.count().catch(() => 0);
+
+Logger.info(
+    `[agendaBuscaGlobalService] Total de resultados: ${total}`
+);
+
+for (let i = 0; i < total; i++) {
+    const texto = await linhas.nth(i).innerText().catch(() => '');
+
+    Logger.info(
+        `[agendaBuscaGlobalService] Resultado ${i}: ${texto}`
+    );
+}
+
+await step(page, '005-resultados-lidos');
 module.exports = {
     abrirBuscaGlobal
 };

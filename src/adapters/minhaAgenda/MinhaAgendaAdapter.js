@@ -100,11 +100,11 @@ async consultarAgendamentoGlobal(dados = {}) {
     const page = await obterPage();
 
     try {
-        await abrirBuscaGlobal(page,dadosNormalizados.cliente);
+        const resultado = await abrirBuscaGlobal(page,dadosNormalizados.cliente);
 
         return {
-            status: 'BUSCA_GLOBAL_ABERTA',
-            mensagem: 'Tela de busca global aberta com sucesso.'
+            status: 'BUSCA_GLOBAL',
+            total: resultado.total
         };
     } catch (erro) {
         Logger.error(
