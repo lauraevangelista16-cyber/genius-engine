@@ -25,7 +25,7 @@ class AgendaEngine {
                 return await this.cadastrarCliente(dados);
 
             case 'consultar':
-                return await this.consultar(dados);
+                return await this.consultarGlobal(dados);
                 
              case 'consultar_com_data':
     return await this.consultar(dados);
@@ -76,7 +76,10 @@ class AgendaEngine {
     async consultar(dados) {
         return await MinhaAgendaAdapter.consultarAgendamento(dados);
     }
-
+    
+async consultarGlobal(dados) {
+    return await MinhaAgendaAdapter.consultarAgendamentoGlobal(dados);
+}
     async cancelar(dados) {
         return await MinhaAgendaAdapter.cancelarAgendamento(dados);
     }
