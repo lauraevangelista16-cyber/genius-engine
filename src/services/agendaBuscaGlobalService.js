@@ -6,7 +6,7 @@ async function step(page, nome) {
     await Debugger.step(page, nome).catch(() => {});
 }
 
-const abrirBuscaGlobal = async (page) => {
+const abrirBuscaGlobal = async (page, cliente) => {
     await step(page, '001-inicio-busca-global');
 
     const botoes = page.locator('button, [role="button"]');
