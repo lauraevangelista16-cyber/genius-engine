@@ -6,8 +6,71 @@ async function step(page, nome) {
     await Debugger.step(page, nome).catch(() => {});
 }
 
+const lerResultadosBuscaGlobal = async (page) => {
+    const linhas = page.locator('tbody tr');
+    const total = await linhas.count().catch(() => 0);
+
+    Logger.info(
+        `[agendaBuscaGlobalService] Total de resultados: ${total}`
+    );
+
+    const resultados = [];
+
+    for (let i = 0; i < total; i++) {
+        const texto = await linhas.nth(i).innerText().catch(() => '');
+
+        Logger.info(
+            `[agendaBuscaGlobalService] Resultado ${i}: ${texto}`
+        );
+
+        const colunas = texto
+            .split('\t')
+            .map(item => item.trim())
+            .filter(Boolean);
+
+        resultados.push({
+            profissional: colunas[0] || '',
+            data: colunas[1] || '',
+            horario: colunas[2] || '',
+            cliente: colunas[3] || '',
+            servico: colunas[4] || '',
+            situacao: colunas[5] || ''
+        });
+    }
+
+    await step(page, '005-resultados-lidos');
+
+    return {
+        total: resultados.length,
+        resultados
+    };
+};
+
 const abrirBuscaGlobal = async (page, cliente) => {
     await step(page, '001-inicio-busca-global');
+
+    const campoBusca = page.locator(
+        'input[placeholder*="cliente" i][placeholder*="buscar" i]'
+    );
+
+    const buscaJaAberta = await campoBusca
+        .isVisible()
+        .catch(() => false);
+
+    if (buscaJaAberta) {
+        Logger.info(
+            '[agendaBuscaGlobalService] Busca global já estava aberta.'
+        );
+
+        await campoBusca.fill('');
+        await campoBusca.fill(cliente);
+
+        await step(page, '004-cliente-digitado');
+
+        await page.waitForTimeout(3000);
+
+        return await lerResultadosBuscaGlobal(page);
+    }
 
     const botoes = page.locator('button, [role="button"]');
     const totalBotoes = await botoes.count().catch(() => 0);
@@ -23,22 +86,12 @@ const abrirBuscaGlobal = async (page, cliente) => {
 
         const visivel = await botao.isVisible().catch(() => false);
 
-        if (!visivel) {
-            continue;
-        }
+        if (!visivel) continue;
 
         const texto = await botao.innerText().catch(() => '');
-        const ariaLabel = await botao
-            .getAttribute('aria-label')
-            .catch(() => '');
-
-        const title = await botao
-            .getAttribute('title')
-            .catch(() => '');
-
-        const html = await botao
-            .evaluate(elemento => elemento.outerHTML)
-            .catch(() => '');
+        const ariaLabel = await botao.getAttribute('aria-label').catch(() => '');
+        const title = await botao.getAttribute('title').catch(() => '');
+        const html = await botao.evaluate(el => el.outerHTML).catch(() => '');
 
         const descricao = [
             texto,
@@ -54,14 +107,12 @@ const abrirBuscaGlobal = async (page, cliente) => {
             `[agendaBuscaGlobalService] Botão ${i} | texto="${texto}" | aria-label="${ariaLabel || ''}" | title="${title || ''}"`
         );
 
-        const pareceBusca =
+        if (
             descricao.includes('buscar') ||
             descricao.includes('pesquisar') ||
             descricao.includes('search') ||
-            descricao.includes('magnify') ||
-            descricao.includes('magnifying');
-
-        if (pareceBusca) {
+            descricao.includes('magnify')
+        ) {
             botaoBusca = botao;
 
             Logger.info(
@@ -83,10 +134,6 @@ const abrirBuscaGlobal = async (page, cliente) => {
 
     await step(page, '002-clique-lupa');
 
-    const campoBusca = page.locator(
-        'input[placeholder*="cliente" i][placeholder*="buscar" i]'
-    );
-
     await campoBusca.waitFor({
         state: 'visible',
         timeout: 10000
@@ -101,50 +148,7 @@ const abrirBuscaGlobal = async (page, cliente) => {
 
     await page.waitForTimeout(3000);
 
-   const linhas = page.locator('tbody tr');
-const total = await linhas.count().catch(() => 0);
-
-Logger.info(
-    `[agendaBuscaGlobalService] Total de resultados: ${total}`
-);
-
-const resultados = [];
-
-for (let i = 0; i < total; i++) {
-    const texto = await linhas.nth(i).innerText().catch(() => '');
-
-    Logger.info(
-        `[agendaBuscaGlobalService] Resultado ${i}: ${texto}`
-    );
-
-    const colunas = texto
-        .split('\t')
-        .map(item => item.trim())
-        .filter(Boolean);
-
-    resultados.push({
-        profissional: colunas[0] || '',
-        data: colunas[1] || '',
-        horario: colunas[2] || '',
-        cliente: colunas[3] || '',
-        servico: colunas[4] || '',
-        situacao: colunas[5] || ''
-    });
-}
-
-await step(page, '005-resultados-lidos');
-
-return {
-    total,
-    resultados
-};
-
-    await step(page, '005-resultados-lidos');
-
-    return {
-        total,
-        resultados
-    };
+    return await lerResultadosBuscaGlobal(page);
 };
 
 module.exports = {
