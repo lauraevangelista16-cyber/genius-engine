@@ -3,7 +3,9 @@ const { irParaData } = require('../../services/agendaNavigationService');
 const { abrirBrowser } = require('../../utils/browser');
 const Debugger = require('../../core/Debugger');
 const Logger = require('../../core/Logger');
-
+const {
+    abrirBuscaGlobal
+} = require('../../services/agendaBuscaGlobalService');
 const {
     validarHorarioExpediente
 } = require('../../engines/agenda/horarioExpediente');
@@ -53,6 +55,20 @@ function normalizarDados(dados) {
     return dados;
 }
 
+function adicionarDias(data, quantidade) {
+    const novaData = new Date(data);
+    novaData.setDate(novaData.getDate() + quantidade);
+    return novaData;
+}
+
+function formatarDataISO(data) {
+    const ano = data.getFullYear();
+    const mes = String(data.getMonth() + 1).padStart(2, '0');
+    const dia = String(data.getDate()).padStart(2, '0');
+
+    return `${ano}-${mes}-${dia}`;
+}
+
 class MinhaAgendaAdapter {
     async listarAtendimentos(dados = {}) {
         const dadosNormalizados = normalizarDados(dados);
@@ -79,6 +95,28 @@ class MinhaAgendaAdapter {
         }
     }
 
+async consultarAgendamentoGlobal(dados = {}) {
+    const page = await obterPage();
+
+    try {
+        await abrirBuscaGlobal(page);
+
+        return {
+            status: 'BUSCA_GLOBAL_ABERTA',
+            mensagem: 'Tela de busca global aberta com sucesso.'
+        };
+    } catch (erro) {
+        Logger.error(
+            `[MinhaAgendaAdapter] erro consultarAgendamentoGlobal: ${erro.message}`
+        );
+
+        return {
+            status: 'ERRO',
+            mensagem: erro.message || 'Erro ao abrir busca global.'
+        };
+    }
+
+}
     async cadastrarCliente(dados = {}) {
         const dadosNormalizados = normalizarDados(dados);
         const page = await obterPage();
