@@ -5,13 +5,6 @@ async function step(page, nome) {
     console.log(`[agendaBuscaGlobalService] ${nome}`);
     await Debugger.step(page, nome).catch(() => {});
 }
-const Logger = require('../core/Logger');
-const Debugger = require('../core/Debugger');
-
-async function step(page, nome) {
-    console.log(`[agendaBuscaGlobalService] ${nome}`);
-    await Debugger.step(page, nome).catch(() => {});
-}
 
 const abrirBuscaGlobal = async (page) => {
     await step(page, '001-inicio-busca-global');
