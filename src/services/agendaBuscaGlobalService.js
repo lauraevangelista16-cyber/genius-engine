@@ -31,6 +31,7 @@ const abrirBuscaGlobal = async (page, cliente) => {
         const ariaLabel = await botao
             .getAttribute('aria-label')
             .catch(() => '');
+
         const title = await botao
             .getAttribute('title')
             .catch(() => '');
@@ -92,32 +93,36 @@ const abrirBuscaGlobal = async (page, cliente) => {
     });
 
     await step(page, '003-campo-busca-aberto');
-await campoBusca.fill('');
 
-await campoBusca.fill(cliente);
+    await campoBusca.fill('');
+    await campoBusca.fill(cliente);
 
-await step(page, '004-cliente-digitado');
+    await step(page, '004-cliente-digitado');
 
-await page.waitForTimeout(3000);
-    return campoBusca;
-};
-const linhas = page.locator('tbody tr');
+    await page.waitForTimeout(3000);
 
-const total = await linhas.count().catch(() => 0);
-
-Logger.info(
-    `[agendaBuscaGlobalService] Total de resultados: ${total}`
-);
-
-for (let i = 0; i < total; i++) {
-    const texto = await linhas.nth(i).innerText().catch(() => '');
+    const linhas = page.locator('tbody tr');
+    const total = await linhas.count().catch(() => 0);
 
     Logger.info(
-        `[agendaBuscaGlobalService] Resultado ${i}: ${texto}`
+        `[agendaBuscaGlobalService] Total de resultados: ${total}`
     );
-}
 
-await step(page, '005-resultados-lidos');
+    for (let i = 0; i < total; i++) {
+        const texto = await linhas.nth(i).innerText().catch(() => '');
+
+        Logger.info(
+            `[agendaBuscaGlobalService] Resultado ${i}: ${texto}`
+        );
+    }
+
+    await step(page, '005-resultados-lidos');
+
+    return {
+        total
+    };
+};
+
 module.exports = {
     abrirBuscaGlobal
 };
