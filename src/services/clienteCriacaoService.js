@@ -482,19 +482,26 @@ async function garantirClienteNoAtendimento(
         await opcaoEscolhida.scrollIntoViewIfNeeded()
             .catch(() => {});
 
-        await opcaoEscolhida.click({
-            force: true,
-            timeout: 10000
-        });
+  await opcaoEscolhida.click({
+    force: true,
+    timeout: 10000
+});
 
-        await page.waitForTimeout(1200);
+/*
+ * Alguns componentes (Downshift/MUI)
+ * só confirmam a seleção quando o
+ * campo perde o foco.
+ */
+await campoCliente.press('Tab').catch(() => {});
 
-        await Debugger.step(
-            page,
-            'C010-cliente-selecionado-no-autocomplete'
-        );
+await page.waitForTimeout(800);
 
-        return true;
+await Debugger.step(
+    page,
+    'C010-cliente-selecionado-no-autocomplete'
+);
+
+return true;
     }
 
     for (
