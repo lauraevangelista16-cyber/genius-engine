@@ -96,10 +96,11 @@ class MinhaAgendaAdapter {
     }
 
 async consultarAgendamentoGlobal(dados = {}) {
+    const dadosNormalizados = normalizarDados(dados);
     const page = await obterPage();
 
     try {
-        await abrirBuscaGlobal(page);
+        await abrirBuscaGlobal(page,dadosNormalizados.cliente);
 
         return {
             status: 'BUSCA_GLOBAL_ABERTA',

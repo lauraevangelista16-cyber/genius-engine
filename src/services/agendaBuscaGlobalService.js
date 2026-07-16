@@ -92,7 +92,13 @@ const abrirBuscaGlobal = async (page) => {
     });
 
     await step(page, '003-campo-busca-aberto');
+await campoBusca.fill('');
 
+await campoBusca.fill(cliente);
+
+await step(page, '004-cliente-digitado');
+
+await page.waitForTimeout(3000);
     return campoBusca;
 };
 
