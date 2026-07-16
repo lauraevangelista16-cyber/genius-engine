@@ -118,7 +118,7 @@ for (let i = 0; i < total; i++) {
     );
 
     const colunas = texto
-        .split(/\s{2,}/)
+        .split('\t')
         .map(item => item.trim())
         .filter(Boolean);
 
@@ -128,7 +128,7 @@ for (let i = 0; i < total; i++) {
         horario: colunas[2] || '',
         cliente: colunas[3] || '',
         servico: colunas[4] || '',
-        situacao: colunas[colunas.length - 1] || ''
+        situacao: colunas[5] || ''
     });
 }
 
