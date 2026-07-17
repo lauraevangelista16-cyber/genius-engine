@@ -86,7 +86,9 @@ class MinhaAgendaAdapter {
                 atendimentos
             };
         } catch (erro) {
-            Logger.error(`[MinhaAgendaAdapter] erro listarAtendimentos: ${erro.message}`);
+            Logger.error(
+                `[MinhaAgendaAdapter] erro listarAtendimentos: ${erro.message}`
+            );
 
             return {
                 status: 'ERRO',
@@ -95,49 +97,50 @@ class MinhaAgendaAdapter {
         }
     }
 
-async consultarAgendamentoGlobal(dados = {}) {
-    const dadosNormalizados = normalizarDados(dados);
-    const page = await obterPage();
+    async consultarAgendamentoGlobal(dados = {}) {
+        const dadosNormalizados = normalizarDados(dados);
+        const page = await obterPage();
 
-    try {
-        const resultado = await abrirBuscaGlobal(
-            page,
-            dadosNormalizados.cliente
-        );
+        try {
+            const resultado = await abrirBuscaGlobal(
+                page,
+                dadosNormalizados.cliente
+            );
 
-        const atendimentos = resultado.resultados || [];
+            const atendimentos = resultado.resultados || [];
 
-        if (atendimentos.length === 0) {
+            if (atendimentos.length === 0) {
+                return {
+                    status: 'AGENDAMENTO_NAO_ENCONTRADO',
+                    mensagem: 'Nenhum agendamento encontrado.',
+                    atendimentos: []
+                };
+            }
+
+            if (atendimentos.length === 1) {
+                return {
+                    status: 'AGENDAMENTO_ENCONTRADO',
+                    atendimento: atendimentos[0]
+                };
+            }
+
             return {
-                status: 'AGENDAMENTO_NAO_ENCONTRADO',
-                mensagem: 'Nenhum agendamento encontrado.',
-                atendimentos: []
+                status: 'MULTIPLOS_AGENDAMENTOS',
+                atendimentos,
+                total: atendimentos.length
+            };
+        } catch (erro) {
+            Logger.error(
+                `[MinhaAgendaAdapter] erro consultarAgendamentoGlobal: ${erro.message}`
+            );
+
+            return {
+                status: 'ERRO',
+                mensagem: erro.message || 'Erro ao consultar agendamentos.'
             };
         }
-
-        if (atendimentos.length === 1) {
-            return {
-                status: 'AGENDAMENTO_ENCONTRADO',
-                atendimento: atendimentos[0]
-            };
-        }
-
-        return {
-            status: 'MULTIPLOS_AGENDAMENTOS',
-            atendimentos,
-            total: atendimentos.length
-        };
-    } catch (erro) {
-        Logger.error(
-            `[MinhaAgendaAdapter] erro consultarAgendamentoGlobal: ${erro.message}`
-        );
-
-        return {
-            status: 'ERRO',
-            mensagem: erro.message || 'Erro ao consultar agendamentos.'
-        };
     }
-}
+
     async cadastrarCliente(dados = {}) {
         const dadosNormalizados = normalizarDados(dados);
         const page = await obterPage();
@@ -147,9 +150,15 @@ async consultarAgendamentoGlobal(dados = {}) {
             await irParaData(page, dadosNormalizados.data);
             await step(page, 'A000-cadastrar-cliente-data');
 
-            const statusHorario = await abrirHorario(page, dadosNormalizados.horario);
+            const statusHorario = await abrirHorario(
+                page,
+                dadosNormalizados.horario
+            );
 
-            await step(page, `A000-status-horario-cadastro-${statusHorario}`);
+            await step(
+                page,
+                `A000-status-horario-cadastro-${statusHorario}`
+            );
 
             if (statusHorario !== 'HORARIO_LIVRE') {
                 return {
@@ -164,7 +173,10 @@ async consultarAgendamentoGlobal(dados = {}) {
                 dadosNormalizados.telefone
             );
 
-            await step(page, `A000-status-cliente-ja-existe-${clienteJaExiste.status}`);
+            await step(
+                page,
+                `A000-status-cliente-ja-existe-${clienteJaExiste.status}`
+            );
 
             if (clienteJaExiste.status === 'CLIENTE_SELECIONADO') {
                 await page.keyboard.press('Escape').catch(() => {});
@@ -182,7 +194,10 @@ async consultarAgendamentoGlobal(dados = {}) {
                 horario: dadosNormalizados.horario
             });
 
-            await step(page, `A000-status-cadastro-cliente-${criacao.status}`);
+            await step(
+                page,
+                `A000-status-cadastro-cliente-${criacao.status}`
+            );
 
             await page.keyboard.press('Escape').catch(() => {});
             await page.waitForTimeout(1000);
@@ -200,7 +215,9 @@ async consultarAgendamentoGlobal(dados = {}) {
                 mensagem: 'Cliente cadastrado com sucesso.'
             };
         } catch (erro) {
-            Logger.error(`[MinhaAgendaAdapter] erro cadastrarCliente: ${erro.message}`);
+            Logger.error(
+                `[MinhaAgendaAdapter] erro cadastrarCliente: ${erro.message}`
+            );
 
             return {
                 status: 'ERRO',
@@ -210,154 +227,146 @@ async consultarAgendamentoGlobal(dados = {}) {
     }
 
     async criarAgendamento(dados = {}) {
-        console.log('\n===== INÍCIO criarAgendamento =====');
-        console.log('[criarAgendamento] Dados recebidos:');
-        console.log(JSON.stringify(dados, null, 2));
-
         const dadosNormalizados = normalizarDados(dados);
 
-        console.log('[criarAgendamento] Dados normalizados:');
-        console.log(JSON.stringify(dadosNormalizados, null, 2));
-const duracaoServico = obterDuracaoDoServico(
-    dadosNormalizados.servico
-);
+        const duracaoServico = obterDuracaoDoServico(
+            dadosNormalizados.servico
+        );
 
-if (duracaoServico === null) {
-    return {
-        status: 'SERVICO_NAO_ENCONTRADO',
-        mensagem: `O serviço "${dadosNormalizados.servico}" não foi encontrado.`
-    };
-}
-
-const inicioEmMinutos = horarioParaMinutos(
-    dadosNormalizados.horario
-);
-
-const fimEmMinutos =
-    inicioEmMinutos + duracaoServico;
-
-if (
-    !estaDentroDoHorarioFuncionamento(
-        inicioEmMinutos,
-        fimEmMinutos
-    )
-) {
-    return {
-        status: 'FORA_DO_EXPEDIENTE',
-        mensagem:
-            `O atendimento iniciaria às ${dadosNormalizados.horario} e terminaria fora do horário de funcionamento.`
-    };
-}
-        const page = await obterPage();
-
-        try {
-            console.log('[criarAgendamento] A003-criar-inicio');
-            await step(page, 'A003-criar-inicio');
-
-            console.log('[criarAgendamento] Indo para data:', dadosNormalizados.data);
-            await irParaData(page, dadosNormalizados.data);
-
-            console.log('[criarAgendamento] A004-criar-data');
-            await step(page, 'A004-criar-data');
-
-           console.log(
-    '[criarAgendamento] Abrindo horário:',
-    dadosNormalizados.horario
-);
-
-let statusHorario = await abrirHorario(
-    page,
-    dadosNormalizados.horario
-);
-
-console.log(
-    '[criarAgendamento] Status horário inicial:',
-    statusHorario
-);
-
-if (statusHorario === 'ERRO_LINHA_HORARIO_NAO_ENCONTRADA') {
-    const [hora, minuto] = dadosNormalizados.horario
-        .split(':')
-        .map(Number);
-
-    const minutoBase = minuto < 30 ? 0 : 30;
-
-    const horarioBase =
-        `${String(hora).padStart(2, '0')}:` +
-        `${String(minutoBase).padStart(2, '0')}`;
-
-    console.log(
-        '[criarAgendamento] Horário sem linha própria. Abrindo base:',
-        horarioBase
-    );
-
-    statusHorario = await abrirHorario(page, horarioBase, dadosNormalizados.horario);
-
-    console.log(
-        '[criarAgendamento] Status horário-base:',
-        statusHorario
-    );
-
-    if (statusHorario === 'HORARIO_LIVRE') {
-        const ajusteHorario = await ajustarHorarioNoModal(
-            page,
+        if (duracaoServico === null) {
+            return {
+                status: 'SERVICO_NAO_ENCONTRADO',
+                mensagem: `O serviço "${dadosNormalizados.servico}" não foi encontrado.`
+            };
+        }
+        const inicioEmMinutos = horarioParaMinutos(
             dadosNormalizados.horario
         );
 
-        console.log(
-            '[criarAgendamento] Resultado ajuste horário:',
-            ajusteHorario
-        );
+        const fimEmMinutos =
+            inicioEmMinutos + duracaoServico;
 
-        await step(
-            page,
-            `A005A-ajuste-horario-${ajusteHorario.status}`
-        );
-
-        if (ajusteHorario.status !== 'HORARIO_MODAL_AJUSTADO') {
-            await page.keyboard.press('Escape').catch(() => {});
-
-            return ajusteHorario;
+        if (
+            !estaDentroDoHorarioFuncionamento(
+                inicioEmMinutos,
+                fimEmMinutos
+            )
+        ) {
+            return {
+                status: 'FORA_DO_EXPEDIENTE',
+                mensagem:
+                    `O atendimento iniciaria às ${dadosNormalizados.horario} e terminaria fora do ` +
+                    'horário de funcionamento.'
+            };
         }
-    }
-}
 
-await snapshotFormulario(page, 'depois-abrir-horario');
-await step(page, `A005-status-horario-${statusHorario}`);
+        const page = await obterPage();
 
-if (statusHorario === 'HORARIO_OCUPADO') {
-    console.log('[criarAgendamento] Horário ocupado');
+        try {
+            await step(page, 'A003-criar-inicio');
 
-    return {
-        status: 'HORARIO_OCUPADO',
-        mensagem: `O horário ${dadosNormalizados.horario} já está ocupado.`
-    };
-}
+            await irParaData(
+                page,
+                dadosNormalizados.data
+            );
 
-if (statusHorario !== 'HORARIO_LIVRE') {
-    console.log(
-        '[criarAgendamento] Não foi possível abrir o horário:',
-        statusHorario
-    );
+            await step(page, 'A004-criar-data');
 
-    return {
-        status: statusHorario || 'ERRO_ABRIR_HORARIO',
-        mensagem: `Não foi possível abrir o horário ${dadosNormalizados.horario}.`
-    };
-}
+            let statusHorario = await abrirHorario(
+                page,
+                dadosNormalizados.horario
+            );
 
-            console.log('[criarAgendamento] Modal aberto antes de selecionar cliente');
-            await step(page, 'A005B-modal-aberto-antes-cliente');
+            if (
+                statusHorario ===
+                'ERRO_LINHA_HORARIO_NAO_ENCONTRADA'
+            ) {
+                const [hora, minuto] =
+                    dadosNormalizados.horario
+                        .split(':')
+                        .map(Number);
 
-            console.log('[criarAgendamento] Selecionando cliente:', dadosNormalizados.cliente, dadosNormalizados.telefone);
+                const minutoBase =
+                    minuto < 30 ? 0 : 30;
+
+                const horarioBase =
+                    `${String(hora).padStart(2, '0')}:` +
+                    `${String(minutoBase).padStart(2, '0')}`;
+
+                statusHorario = await abrirHorario(
+                    page,
+                    horarioBase,
+                    dadosNormalizados.horario
+                );
+
+                if (statusHorario === 'HORARIO_LIVRE') {
+                    const ajusteHorario =
+                        await ajustarHorarioNoModal(
+                            page,
+                            dadosNormalizados.horario
+                        );
+
+                    await step(
+                        page,
+                        `A005A-ajuste-horario-${ajusteHorario.status}`
+                    );
+
+                    if (
+                        ajusteHorario.status !==
+                        'HORARIO_MODAL_AJUSTADO'
+                    ) {
+                        await page.keyboard
+                            .press('Escape')
+                            .catch(() => {});
+
+                        return ajusteHorario;
+                    }
+                }
+            }
+
+            await snapshotFormulario(
+                page,
+                'depois-abrir-horario'
+            );
+
+            await step(
+                page,
+                `A005-status-horario-${statusHorario}`
+            );
+
+            if (statusHorario === 'HORARIO_OCUPADO') {
+                return {
+                    status: 'HORARIO_OCUPADO',
+                    mensagem:
+                        `O horário ${dadosNormalizados.horario} já está ocupado.`
+                };
+            }
+
+            if (statusHorario !== 'HORARIO_LIVRE') {
+                return {
+                    status:
+                        statusHorario ||
+                        'ERRO_ABRIR_HORARIO',
+                    mensagem:
+                        `Não foi possível abrir o horário ${dadosNormalizados.horario}.`
+                };
+            }
+
+            await step(
+                page,
+                'A005B-modal-aberto-antes-cliente'
+            );
+
             const cliente = await selecionarCliente(
                 page,
                 dadosNormalizados.cliente,
                 dadosNormalizados.telefone
             );
 
-            console.log('[criarAgendamento] Status cliente:', cliente);
-            await step(page, `A006-status-cliente-${cliente.status}`);
+            await step(
+                page,
+                `A006-status-cliente-${cliente.status}`
+            );
 
             const deveCriarCliente = [
                 'CLIENTE_NAO_ENCONTRADO',
@@ -365,142 +374,198 @@ if (statusHorario !== 'HORARIO_LIVRE') {
             ].includes(cliente.status);
 
             if (deveCriarCliente) {
-                console.log('[criarAgendamento] Cliente não encontrado. Criando cliente no mesmo atendimento.');
-                await step(page, 'A006-cliente-nao-encontrado-criando-no-mesmo-atendimento');
+                await step(
+                    page,
+                    'A006-cliente-nao-encontrado-criando-no-mesmo-atendimento'
+                );
 
-                const criacao = await criarCliente(page, {
-                    cliente: dadosNormalizados.cliente,
-                    telefone: dadosNormalizados.telefone,
-                    data: dadosNormalizados.data,
-                    horario: dadosNormalizados.horario
-                });
+                const criacao = await criarCliente(
+                    page,
+                    {
+                        cliente:
+                            dadosNormalizados.cliente,
+                        telefone:
+                            dadosNormalizados.telefone,
+                        data:
+                            dadosNormalizados.data,
+                        horario:
+                            dadosNormalizados.horario
+                    }
+                );
 
-                console.log('[criarAgendamento] Resultado criação cliente:', criacao);
-                await step(page, `A006-status-cliente-criado-no-modal-${criacao.status}`);
+                await step(
+                    page,
+                    `A006-status-cliente-criado-no-modal-${criacao.status}`
+                );
 
-                if (criacao.status !== 'CLIENTE_CRIADO') {
-                    console.log('[criarAgendamento] Falha ao criar cliente.');
-                    await page.keyboard.press('Escape').catch(() => {});
+                if (
+                    criacao.status !==
+                    'CLIENTE_CRIADO'
+                ) {
+                    await page.keyboard
+                        .press('Escape')
+                        .catch(() => {});
 
                     return {
                         status: 'ERRO_CLIENTE',
-                        mensagem: 'Não foi possível criar o cliente no atendimento.',
+                        mensagem:
+                            'Não foi possível criar o cliente no atendimento.',
                         detalhe: criacao
                     };
                 }
-            } else if (cliente.status !== 'CLIENTE_SELECIONADO') {
-                console.log('[criarAgendamento] Cliente não selecionado:', cliente);
-                await page.keyboard.press('Escape').catch(() => {});
+            } else if (
+                cliente.status !==
+                'CLIENTE_SELECIONADO'
+            ) {
+                await page.keyboard
+                    .press('Escape')
+                    .catch(() => {});
 
                 return {
                     status: 'ERRO_CLIENTE',
-                    mensagem: 'Não foi possível selecionar o cliente.',
+                    mensagem:
+                        'Não foi possível selecionar o cliente.',
                     detalhe: cliente
                 };
             }
+            await step(
+                page,
+                'A006B-cliente-pronto-antes-servico'
+            );
 
-            console.log('[criarAgendamento] Cliente pronto antes do serviço');
-            await step(page, 'A006B-cliente-pronto-antes-servico');
+            await snapshotFormulario(
+                page,
+                'depois-cliente'
+            );
 
-            await snapshotFormulario(page, 'depois-cliente');
+            const resultadoServico =
+                await selecionarServico(
+                    page,
+                    dadosNormalizados.servico
+                );
 
-            console.log('[criarAgendamento] Selecionando serviço:', dadosNormalizados.servico);
-            const resultadoServico = await selecionarServico(page, dadosNormalizados.servico);
+            await step(
+                page,
+                'A007-servico-selecionado'
+            );
 
-            console.log('[criarAgendamento] Resultado serviço:', resultadoServico);
-            await step(page, 'A007-servico-selecionado');
-
-            await snapshotFormulario(page, 'depois-servico');
+            await snapshotFormulario(
+                page,
+                'depois-servico'
+            );
 
             if (
                 resultadoServico &&
                 resultadoServico.status &&
-                resultadoServico.status !== 'SERVICO_SELECIONADO'
+                resultadoServico.status !==
+                    'SERVICO_SELECIONADO'
             ) {
-                console.log('[criarAgendamento] Serviço não selecionado:', resultadoServico);
                 return resultadoServico;
             }
 
-            await snapshotFormulario(page, 'antes-salvar');
+            await snapshotFormulario(
+                page,
+                'antes-salvar'
+            );
 
-            console.log('[criarAgendamento] Verificando texto da tela antes de salvar');
-            const textoTelaAntesSalvar = await page.locator('body').innerText();
+            const textoTelaAntesSalvar =
+                await page
+                    .locator('body')
+                    .innerText();
 
             if (
-                textoTelaAntesSalvar.includes('Cliente') &&
-                textoTelaAntesSalvar.includes('Preencha esse campo para continuar')
+                textoTelaAntesSalvar.includes(
+                    'Cliente'
+                ) &&
+                textoTelaAntesSalvar.includes(
+                    'Preencha esse campo para continuar'
+                )
             ) {
-                console.log('[criarAgendamento] Cliente vazio antes de salvar');
-                await step(page, 'A007B-cliente-vazio-antes-salvar');
+                await step(
+                    page,
+                    'A007B-cliente-vazio-antes-salvar'
+                );
 
                 return {
-                    status: 'ERRO_CLIENTE_NAO_SELECIONADO',
-                    mensagem: 'O cliente foi criado, mas não ficou selecionado no atendimento.'
+                    status:
+                        'ERRO_CLIENTE_NAO_SELECIONADO',
+                    mensagem:
+                        'O cliente foi criado, mas não ficou selecionado no atendimento.'
                 };
             }
 
-            console.log('[criarAgendamento] Salvando agendamento');
-            const resultadoSalvar = await salvarAgendamento(page);
+            const resultadoSalvar =
+                await salvarAgendamento(page);
 
-            console.log('[criarAgendamento] Resultado salvar:', resultadoSalvar);
-            await step(page, `A008-status-salvar-${resultadoSalvar.status}`);
+            await step(
+                page,
+                `A008-status-salvar-${resultadoSalvar.status}`
+            );
 
-            if (resultadoSalvar.status !== 'SALVO') {
-                console.log('[criarAgendamento] Agendamento não salvo:', resultadoSalvar);
+            if (
+                resultadoSalvar.status !==
+                'SALVO'
+            ) {
                 return resultadoSalvar;
             }
 
-            await step(page, 'A008-agendamento-salvo');
-
-            console.log('[criarAgendamento] Voltando para data para confirmar:', dadosNormalizados.data);
-            await irParaData(page, dadosNormalizados.data);
-
-            await step(page, 'A009-data-confirmacao');
-
-            console.log('[criarAgendamento] Consultando confirmação por cliente');
-            const confirmacao = await consultarAtendimentoPorCliente(
+            await step(
                 page,
-                dadosNormalizados.cliente,
-                dadosNormalizados.telefone,
-                dadosNormalizados.horario,
-                dadosNormalizados.servico
+                'A008-agendamento-salvo'
             );
 
-            console.log('[criarAgendamento] Confirmação:', confirmacao);
-            await step(page, `A010-confirmacao-${confirmacao.encontrado}`);
+            await irParaData(
+                page,
+                dadosNormalizados.data
+            );
+
+            await step(
+                page,
+                'A009-data-confirmacao'
+            );
+
+            const confirmacao =
+                await consultarAtendimentoPorCliente(
+                    page,
+                    dadosNormalizados.cliente,
+                    dadosNormalizados.telefone,
+                    dadosNormalizados.horario,
+                    dadosNormalizados.servico
+                );
+
+            await step(
+                page,
+                `A010-confirmacao-${confirmacao.encontrado}`
+            );
 
             if (!confirmacao.encontrado) {
-                console.log('[criarAgendamento] Agendamento não confirmado na agenda');
-
                 return {
-                    status: 'AGENDAMENTO_NAO_CONFIRMADO',
-                    mensagem: 'O sistema tentou criar o agendamento, mas ele não apareceu na agenda. Não vou confirmar como criado.'
+                    status:
+                        'AGENDAMENTO_NAO_CONFIRMADO',
+                    mensagem:
+                        'O sistema tentou criar o agendamento, mas ele não apareceu na agenda. Não vou confirmar como criado.'
                 };
             }
 
-            console.log('[criarAgendamento] Agendamento criado com sucesso');
-            console.log('===== FIM criarAgendamento =====\n');
-
             return {
                 status: 'AGENDAMENTO_CRIADO',
-                mensagem: 'Agendamento criado com sucesso.',
+                mensagem:
+                    'Agendamento criado com sucesso.',
                 atendimento: confirmacao
             };
-
         } catch (erro) {
-            console.error('\n💥 ERRO criarAgendamento');
-            console.error(erro);
-            console.error('===== FIM criarAgendamento COM ERRO =====\n');
-
-            Logger.error(`[MinhaAgendaAdapter] erro criarAgendamento: ${erro.message}`);
+            Logger.error(
+                `[MinhaAgendaAdapter] erro criarAgendamento: ${erro.message}`
+            );
 
             return {
                 status: 'ERRO',
-                mensagem: erro.message || 'Erro ao criar agendamento.'
+                mensagem:
+                    erro.message ||
+                    'Erro ao criar agendamento.'
             };
         }
     }
-
     async consultarAgendamento(dados = {}) {
         const dadosNormalizados = normalizarDados(dados);
         const page = await obterPage();
@@ -510,27 +575,33 @@ if (statusHorario !== 'HORARIO_LIVRE') {
             await irParaData(page, dadosNormalizados.data);
             await step(page, 'A012-consultar-data');
 
-            const resultado = await consultarAtendimentoPorCliente(
-                page,
-                dadosNormalizados.cliente,
-                dadosNormalizados.telefone,
-                dadosNormalizados.horario,
-                dadosNormalizados.servico
-            );
+            const resultado =
+                await consultarAtendimentoPorCliente(
+                    page,
+                    dadosNormalizados.cliente,
+                    dadosNormalizados.telefone,
+                    dadosNormalizados.horario,
+                    dadosNormalizados.servico
+                );
 
-            await step(page, `A013-consultar-encontrado-${resultado.encontrado}`);
+            await step(
+                page,
+                `A013-consultar-encontrado-${resultado.encontrado}`
+            );
 
             if (!resultado.encontrado) {
                 return {
                     status: 'AGENDAMENTO_NAO_ENCONTRADO',
-                    mensagem: 'Nenhum agendamento encontrado.'
+                    mensagem:
+                        'Nenhum agendamento encontrado.'
                 };
             }
 
             if (resultado.multiplos) {
                 return {
                     status: 'MULTIPLOS_AGENDAMENTOS',
-                    atendimentos: resultado.atendimentos
+                    atendimentos:
+                        resultado.atendimentos
                 };
             }
 
@@ -539,11 +610,15 @@ if (statusHorario !== 'HORARIO_LIVRE') {
                 atendimento: resultado
             };
         } catch (erro) {
-            Logger.error(`[MinhaAgendaAdapter] erro consultarAgendamento: ${erro.message}`);
+            Logger.error(
+                `[MinhaAgendaAdapter] erro consultarAgendamento: ${erro.message}`
+            );
 
             return {
                 status: 'ERRO',
-                mensagem: erro.message || 'Erro ao consultar agendamento.'
+                mensagem:
+                    erro.message ||
+                    'Erro ao consultar agendamento.'
             };
         }
     }
@@ -557,15 +632,125 @@ if (statusHorario !== 'HORARIO_LIVRE') {
             await irParaData(page, dadosNormalizados.data);
             await step(page, 'A015-cancelar-data');
 
-            const atendimento = await abrirAtendimentoPorCliente(
+            const atendimento =
+                await abrirAtendimentoPorCliente(
+                    page,
+                    dadosNormalizados.cliente,
+                    dadosNormalizados.telefone,
+                    dadosNormalizados.horario,
+                    dadosNormalizados.servico
+                );
+
+            await step(
                 page,
-                dadosNormalizados.cliente,
-                dadosNormalizados.telefone,
-                dadosNormalizados.horario,
-                dadosNormalizados.servico
+                `A016-cancelar-encontrado-${atendimento.encontrado}`
             );
 
-            await step(page, `A016-cancelar-encontrado-${atendimento.encontrado}`);
+            if (!atendimento.encontrado) {
+                return {
+                    status: 'AGENDAMENTO_NAO_ENCONTRADO',
+                    mensagem:
+                        'Nenhum agendamento encontrado.'
+                };
+            }
+
+            if (atendimento.multiplos) {
+                return {
+                    status: 'MULTIPLOS_AGENDAMENTOS',
+                    atendimentos:
+                        atendimento.texto ||
+                        atendimento.atendimentos
+                };
+            }
+
+            await deletarAgendamento(page);
+
+            await step(page, 'A017-cancelado');
+
+            await step(
+                page,
+                'A017B-confirmacao-cancelamento-inicio'
+            );
+
+            await irParaData(
+                page,
+                dadosNormalizados.data
+            );
+
+            const confirmacaoCancelamento =
+                await consultarAtendimentoPorCliente(
+                    page,
+                    dadosNormalizados.cliente,
+                    dadosNormalizados.telefone,
+                    dadosNormalizados.horario,
+                    dadosNormalizados.servico
+                );
+
+            Logger.info(
+                `[MinhaAgendaAdapter] Confirmação pós-cancelamento: ${JSON.stringify(confirmacaoCancelamento)}`
+            );
+
+            if (
+                confirmacaoCancelamento.encontrado
+            ) {
+                await step(
+                    page,
+                    'A017C-cancelamento-nao-confirmado'
+                );
+
+                return {
+                    status:
+                        'ERRO_CANCELAMENTO_NAO_CONFIRMADO',
+                    mensagem:
+                        'O cancelamento foi executado, mas o agendamento ainda aparece na agenda.'
+                };
+            }
+
+            await step(
+                page,
+                'A017D-cancelamento-confirmado'
+            );
+
+            return {
+                status: 'AGENDAMENTO_CANCELADO',
+                mensagem:
+                    'Agendamento cancelado com sucesso.'
+            };
+        } catch (erro) {
+            Logger.error(
+                `[MinhaAgendaAdapter] erro cancelarAgendamento: ${erro.message}`
+            );
+
+            return {
+                status: 'ERRO',
+                mensagem:
+                    erro.message ||
+                    'Erro ao cancelar agendamento.'
+            };
+        }
+    }
+    async alterarAgendamento(dados = {}) {
+        const dadosNormalizados = normalizarDados(dados);
+        const page = await obterPage();
+
+        try {
+            await step(page, 'A018-alterar-inicio');
+            await irParaData(page, dadosNormalizados.data);
+            await step(page, 'A019-alterar-data');
+
+            const atendimento =
+                await abrirAtendimentoPorCliente(
+                    page,
+                    dadosNormalizados.cliente,
+                    dadosNormalizados.telefone,
+                    dadosNormalizados.horario,
+                    dadosNormalizados.servico
+                );
+
+            await step(
+                page,
+                `A020-alterar-encontrado-${atendimento.encontrado}`
+            );
 
             if (!atendimento.encontrado) {
                 return {
@@ -577,394 +762,332 @@ if (statusHorario !== 'HORARIO_LIVRE') {
             if (atendimento.multiplos) {
                 return {
                     status: 'MULTIPLOS_AGENDAMENTOS',
-                    atendimentos: atendimento.texto || atendimento.atendimentos
+                    mensagem: 'Encontrei mais de um agendamento.',
+                    atendimentos:
+                        atendimento.texto ||
+                        atendimento.atendimentos ||
+                        []
                 };
             }
 
-            await deletarAgendamento(page);
-await step(page, 'A017-cancelado');
+            const horarioParaAlterar =
+                dadosNormalizados.novo_horario ||
+                dadosNormalizados.novoHorario ||
+                '';
 
-await step(page, 'A017B-confirmacao-cancelamento-inicio');
+            const dataParaAlterar =
+                dadosNormalizados.nova_data ||
+                dadosNormalizados.novaData ||
+                '';
 
-await irParaData(page, dadosNormalizados.data);
+            const horarioFinalParaValidar =
+                horarioParaAlterar ||
+                dadosNormalizados.horario;
 
-const confirmacaoCancelamento = await consultarAtendimentoPorCliente(
-    page,
-    dadosNormalizados.cliente,
-    dadosNormalizados.telefone,
-    dadosNormalizados.horario,
-    dadosNormalizados.servico
-);
+            let servicoEfetivo = String(
+                dadosNormalizados.servico || ''
+            ).trim();
 
-Logger.info(
-    `[MinhaAgendaAdapter] Confirmação pós-cancelamento: ${JSON.stringify(confirmacaoCancelamento)}`
-);
+            if (!servicoEfetivo && atendimento.texto) {
+                const linhasAtendimento = String(
+                    atendimento.texto
+                )
+                    .split('\n')
+                    .map(item => item.trim())
+                    .filter(Boolean);
 
-if (confirmacaoCancelamento.encontrado) {
-    await step(page, 'A017C-cancelamento-nao-confirmado');
+                const linhaServico = linhasAtendimento.find(
+                    item =>
+                        item.startsWith('-') ||
+                        (
+                            !item.includes(':') &&
+                            item.toLowerCase() !==
+                                String(
+                                    dadosNormalizados.cliente
+                                )
+                                    .trim()
+                                    .toLowerCase()
+                        )
+                );
 
-    return {
-        status: 'ERRO_CANCELAMENTO_NAO_CONFIRMADO',
-        mensagem:
-            'O cancelamento foi executado, mas o agendamento ainda aparece na agenda.'
-    };
-}
+                if (linhaServico) {
+                    servicoEfetivo = linhaServico
+                        .replace(/^-+\s*/, '')
+                        .trim();
+                }
+            }
 
-await step(page, 'A017D-cancelamento-confirmado');
+            Logger.info(
+                `[MinhaAgendaAdapter] Serviço efetivo da alteração: ${servicoEfetivo}`
+            );
 
-return {
-    status: 'AGENDAMENTO_CANCELADO',
-    mensagem: 'Agendamento cancelado com sucesso.'
-};
+            const duracaoServico =
+                obterDuracaoDoServico(servicoEfetivo);
+
+            if (duracaoServico === null) {
+                await page.keyboard
+                    .press('Escape')
+                    .catch(() => {});
+
+                return {
+                    status: 'SERVICO_NAO_ENCONTRADO',
+                    mensagem: servicoEfetivo
+                        ? `O serviço "${servicoEfetivo}" não foi encontrado.`
+                        : 'Não foi possível identificar o serviço do agendamento.'
+                };
+            }
+
+            const inicioEmMinutos =
+                horarioParaMinutos(
+                    horarioFinalParaValidar
+                );
+
+            if (inicioEmMinutos === null) {
+                await page.keyboard
+                    .press('Escape')
+                    .catch(() => {});
+
+                return {
+                    status: 'HORARIO_INVALIDO',
+                    mensagem:
+                        'O novo horário informado é inválido.'
+                };
+            }
+
+            const fimEmMinutos =
+                inicioEmMinutos + duracaoServico;
+
+            if (
+                !estaDentroDoHorarioFuncionamento(
+                    inicioEmMinutos,
+                    fimEmMinutos
+                )
+            ) {
+                await page.keyboard
+                    .press('Escape')
+                    .catch(() => {});
+
+                return {
+                    status: 'FORA_DO_EXPEDIENTE',
+                    mensagem:
+                        `O atendimento iniciaria às ${horarioFinalParaValidar} ` +
+                        'e terminaria fora do horário de funcionamento.'
+                };
+            }
+
+            let houveAlteracao = false;
+
+            if (horarioParaAlterar || dataParaAlterar) {
+                const resultadoAlteracao =
+                    await alterarHorarioAgendamento(
+                        page,
+                        horarioParaAlterar,
+                        dataParaAlterar
+                    );
+
+                if (
+                    resultadoAlteracao &&
+                    resultadoAlteracao.status &&
+                    resultadoAlteracao.status !== 'SALVO'
+                ) {
+                    return resultadoAlteracao;
+                }
+
+                await step(
+                    page,
+                    'A021-horario-alterado'
+                );
+
+                houveAlteracao = true;
+            }
+
+            if (dadosNormalizados.clienteNovo) {
+                const clienteAlterado =
+                    await selecionarOuCriarCliente(
+                        page,
+                        {
+                            cliente:
+                                dadosNormalizados.clienteNovo,
+                            telefone:
+                                dadosNormalizados.telefoneNovo ||
+                                dadosNormalizados.telefone,
+                            data:
+                                dataParaAlterar ||
+                                dadosNormalizados.data,
+                            horario:
+                                horarioParaAlterar ||
+                                dadosNormalizados.horario
+                        }
+                    );
+
+                await step(
+                    page,
+                    `A022-cliente-alterado-${clienteAlterado.status}`
+                );
+
+                if (
+                    clienteAlterado.status !==
+                        'CLIENTE_SELECIONADO' &&
+                    clienteAlterado.status !==
+                        'CLIENTE_CRIADO'
+                ) {
+                    return {
+                        status: 'ERRO_CLIENTE',
+                        mensagem:
+                            'Não foi possível alterar o cliente do agendamento.',
+                        detalhe: clienteAlterado
+                    };
+                }
+
+                houveAlteracao = true;
+            }
+
+            if (!houveAlteracao) {
+                return {
+                    status: 'DADOS_INCOMPLETOS',
+                    mensagem:
+                        'Nenhuma alteração informada.'
+                };
+            }
+
+            const dataFinal =
+                dataParaAlterar ||
+                dadosNormalizados.data;
+
+            const horarioFinal =
+                horarioParaAlterar ||
+                dadosNormalizados.horario;
+
+            await step(
+                page,
+                'A022-confirmacao-alteracao-inicio'
+            );
+
+            await irParaData(page, dataFinal);
+
+            await step(
+                page,
+                'A023-confirmacao-alteracao-data'
+            );
+
+            const confirmacao =
+                await consultarAtendimentoPorCliente(
+                    page,
+                    dadosNormalizados.cliente,
+                    dadosNormalizados.telefone,
+                    horarioFinal,
+                    servicoEfetivo
+                );
+
+            Logger.info(
+                `[MinhaAgendaAdapter] Confirmação pós-alteração: ${JSON.stringify(confirmacao)}`
+            );
+
+            if (!confirmacao.encontrado) {
+                await irParaData(
+                    page,
+                    dadosNormalizados.data
+                );
+
+                await step(
+                    page,
+                    'A023B-verificar-origem-apos-falha-destino'
+                );
+
+                const atendimentoOriginal =
+                    await consultarAtendimentoPorCliente(
+                        page,
+                        dadosNormalizados.cliente,
+                        dadosNormalizados.telefone,
+                        dadosNormalizados.horario,
+                        servicoEfetivo
+                    );
+
+                Logger.info(
+                    `[MinhaAgendaAdapter] Origem após falha no destino: ${JSON.stringify(atendimentoOriginal)}`
+                );
+
+                if (atendimentoOriginal.encontrado) {
+                    return {
+                        status: 'HORARIO_OCUPADO',
+                        mensagem:
+                            `O horário ${horarioFinal} já está ocupado.`
+                    };
+                }
+
+                return {
+                    status: 'ALTERACAO_NAO_CONFIRMADA',
+                    mensagem:
+                        'A alteração foi enviada, mas não foi possível confirmar o atendimento nem no horário novo nem no horário original.'
+                };
+            }
+
+            const mudouData =
+                dataFinal !== dadosNormalizados.data;
+
+            const mudouHorario =
+                horarioFinal !==
+                dadosNormalizados.horario;
+
+            if (
+                (mudouData || mudouHorario) &&
+                dadosNormalizados.horario
+            ) {
+                await irParaData(
+                    page,
+                    dadosNormalizados.data
+                );
+
+                await step(
+                    page,
+                    'A023B-verificar-origem-removida'
+                );
+
+                const atendimentoOriginal =
+                    await consultarAtendimentoPorCliente(
+                        page,
+                        dadosNormalizados.cliente,
+                        dadosNormalizados.telefone,
+                        dadosNormalizados.horario,
+                        servicoEfetivo
+                    );
+
+                Logger.info(
+                    `[MinhaAgendaAdapter] Verificação do atendimento original: ${JSON.stringify(atendimentoOriginal)}`
+                );
+
+                if (atendimentoOriginal.encontrado) {
+                    return {
+                        status: 'HORARIO_OCUPADO',
+                        mensagem:
+                            `O horário ${horarioFinal} já está ocupado.`
+                    };
+                }
+            }
+
+            await step(
+                page,
+                'A024-alteracao-finalizada'
+            );
+
+            return {
+                status: 'AGENDAMENTO_ALTERADO',
+                mensagem: 'Agendamento alterado com sucesso.',
+                atendimento: confirmacao
+            };
         } catch (erro) {
-            Logger.error(`[MinhaAgendaAdapter] erro cancelarAgendamento: ${erro.message}`);
+            Logger.error(
+                `[MinhaAgendaAdapter] erro alterarAgendamento: ${erro.message}`
+            );
 
             return {
                 status: 'ERRO',
-                mensagem: erro.message || 'Erro ao cancelar agendamento.'
+                mensagem:
+                    erro.message ||
+                    'Erro ao alterar agendamento.'
             };
         }
     }
-
-  async alterarAgendamento(dados = {}) {
-    const dadosNormalizados = normalizarDados(dados);
-    const page = await obterPage();
-
-    try {
-        await step(page, 'A018-alterar-inicio');
-
-        await irParaData(page, dadosNormalizados.data);
-
-        await step(page, 'A019-alterar-data');
-
-        const atendimento = await abrirAtendimentoPorCliente(
-            page,
-            dadosNormalizados.cliente,
-            dadosNormalizados.telefone,
-            dadosNormalizados.horario,
-            dadosNormalizados.servico
-        );
-
-        await step(
-            page,
-            `A020-alterar-encontrado-${atendimento.encontrado}`
-        );
-
-        if (!atendimento.encontrado) {
-            return {
-                status: 'AGENDAMENTO_NAO_ENCONTRADO',
-                mensagem: 'Nenhum agendamento encontrado.'
-            };
-        }
-
-        if (atendimento.multiplos) {
-            return {
-                status: 'MULTIPLOS_AGENDAMENTOS',
-                mensagem: 'Encontrei mais de um agendamento.',
-                atendimentos:
-                    atendimento.texto ||
-                    atendimento.atendimentos ||
-                    []
-            };
-        }
-
-        const horarioParaAlterar =
-            dadosNormalizados.novo_horario ||
-            dadosNormalizados.novoHorario ||
-            '';
-
-        const dataParaAlterar =
-            dadosNormalizados.nova_data ||
-            dadosNormalizados.novaData ||
-            '';
-
-        const horarioFinalParaValidar =
-            horarioParaAlterar ||
-            dadosNormalizados.horario;
-
-        /*
-         * O serviço pode não vir na requisição de alteração.
-         * Nesse caso, extraímos do atendimento localizado.
-         */
-        let servicoEfetivo = String(
-            dadosNormalizados.servico || ''
-        ).trim();
-
-        if (!servicoEfetivo && atendimento.texto) {
-            const linhasAtendimento = String(atendimento.texto)
-                .split('\n')
-                .map(item => item.trim())
-                .filter(Boolean);
-
-            const linhaServico = linhasAtendimento.find(
-                item =>
-                    item.startsWith('-') ||
-                    (
-                        !item.includes(':') &&
-                        item.toLowerCase() !==
-                            String(dadosNormalizados.cliente)
-                                .trim()
-                                .toLowerCase()
-                    )
-            );
-
-            if (linhaServico) {
-                servicoEfetivo = linhaServico
-                    .replace(/^-+\s*/, '')
-                    .trim();
-            }
-        }
-
-        Logger.info(
-            `[MinhaAgendaAdapter] Serviço efetivo da alteração: ${servicoEfetivo}`
-        );
-
-        const duracaoServico =
-            obterDuracaoDoServico(servicoEfetivo);
-
-        if (duracaoServico === null) {
-            await page.keyboard.press('Escape').catch(() => {});
-
-            return {
-                status: 'SERVICO_NAO_ENCONTRADO',
-                mensagem:
-                    servicoEfetivo
-                        ? `O serviço "${servicoEfetivo}" não foi encontrado.`
-                        : 'Não foi possível identificar o serviço do agendamento.'
-            };
-        }
-
-        const inicioEmMinutos = horarioParaMinutos(
-            horarioFinalParaValidar
-        );
-
-        if (inicioEmMinutos === null) {
-            await page.keyboard.press('Escape').catch(() => {});
-
-            return {
-                status: 'HORARIO_INVALIDO',
-                mensagem: 'O novo horário informado é inválido.'
-            };
-        }
-
-        const fimEmMinutos =
-            inicioEmMinutos + duracaoServico;
-
-        if (
-            !estaDentroDoHorarioFuncionamento(
-                inicioEmMinutos,
-                fimEmMinutos
-            )
-        ) {
-            await page.keyboard.press('Escape').catch(() => {});
-
-            return {
-                status: 'FORA_DO_EXPEDIENTE',
-                mensagem:
-                    `O atendimento iniciaria às ${horarioFinalParaValidar} ` +
-                    'e terminaria fora do horário de funcionamento.'
-            };
-        }
-
-        let houveAlteracao = false;
-
-        if (horarioParaAlterar || dataParaAlterar) {
-            const resultadoAlteracao =
-                await alterarHorarioAgendamento(
-                    page,
-                    horarioParaAlterar,
-                    dataParaAlterar
-                );
-
-            if (
-                resultadoAlteracao &&
-                resultadoAlteracao.status &&
-                resultadoAlteracao.status !== 'SALVO'
-            ) {
-                return resultadoAlteracao;
-            }
-
-            await step(page, 'A021-horario-alterado');
-
-            houveAlteracao = true;
-        }
-
-        if (dadosNormalizados.clienteNovo) {
-            const clienteAlterado =
-                await selecionarOuCriarCliente(page, {
-                    cliente: dadosNormalizados.clienteNovo,
-                    telefone:
-                        dadosNormalizados.telefoneNovo ||
-                        dadosNormalizados.telefone,
-                    data:
-                        dataParaAlterar ||
-                        dadosNormalizados.data,
-                    horario:
-                        horarioParaAlterar ||
-                        dadosNormalizados.horario
-                });
-
-            await step(
-                page,
-                `A022-cliente-alterado-${clienteAlterado.status}`
-            );
-
-            if (
-                clienteAlterado.status !== 'CLIENTE_SELECIONADO' &&
-                clienteAlterado.status !== 'CLIENTE_CRIADO'
-            ) {
-                return {
-                    status: 'ERRO_CLIENTE',
-                    mensagem:
-                        'Não foi possível alterar o cliente do agendamento.',
-                    detalhe: clienteAlterado
-                };
-            }
-
-            houveAlteracao = true;
-        }
-
-        if (!houveAlteracao) {
-            return {
-                status: 'DADOS_INCOMPLETOS',
-                mensagem: 'Nenhuma alteração informada.'
-            };
-        }
-
-        const dataFinal =
-            dataParaAlterar ||
-            dadosNormalizados.data;
-
-        const horarioFinal =
-            horarioParaAlterar ||
-            dadosNormalizados.horario;
-
-        await step(
-            page,
-            'A022-confirmacao-alteracao-inicio'
-        );
-
-        await irParaData(page, dataFinal);
-
-        await step(
-            page,
-            'A023-confirmacao-alteracao-data'
-        );
-
-        const confirmacao =
-            await consultarAtendimentoPorCliente(
-                page,
-                dadosNormalizados.cliente,
-                dadosNormalizados.telefone,
-                horarioFinal,
-                servicoEfetivo
-            );
-
-        Logger.info(
-            `[MinhaAgendaAdapter] Confirmação pós-alteração: ${JSON.stringify(confirmacao)}`
-        );
-
-        if (!confirmacao.encontrado) {
-            await irParaData(
-                page,
-                dadosNormalizados.data
-            );
-
-            await step(
-                page,
-                'A023B-verificar-origem-apos-falha-destino'
-            );
-
-            const atendimentoOriginal =
-                await consultarAtendimentoPorCliente(
-                    page,
-                    dadosNormalizados.cliente,
-                    dadosNormalizados.telefone,
-                    dadosNormalizados.horario,
-                    servicoEfetivo
-                );
-
-            Logger.info(
-                `[MinhaAgendaAdapter] Origem após falha no destino: ${JSON.stringify(atendimentoOriginal)}`
-            );
-
-            if (atendimentoOriginal.encontrado) {
-                return {
-                    status: 'HORARIO_OCUPADO',
-                    mensagem:
-                        `O horário ${horarioFinal} já está ocupado.`
-                };
-            }
-
-            return {
-                status: 'ALTERACAO_NAO_CONFIRMADA',
-                mensagem:
-                    'A alteração foi enviada, mas não foi possível confirmar o atendimento nem no horário novo nem no horário original.'
-            };
-        }
-
-        const mudouData =
-            dataFinal !== dadosNormalizados.data;
-
-        const mudouHorario =
-            horarioFinal !== dadosNormalizados.horario;
-
-        if (
-            (mudouData || mudouHorario) &&
-            dadosNormalizados.horario
-        ) {
-            await irParaData(
-                page,
-                dadosNormalizados.data
-            );
-
-            await step(
-                page,
-                'A023B-verificar-origem-removida'
-            );
-
-            const atendimentoOriginal =
-                await consultarAtendimentoPorCliente(
-                    page,
-                    dadosNormalizados.cliente,
-                    dadosNormalizados.telefone,
-                    dadosNormalizados.horario,
-                    servicoEfetivo
-                );
-
-            Logger.info(
-                `[MinhaAgendaAdapter] Verificação do atendimento original: ${JSON.stringify(atendimentoOriginal)}`
-            );
-
-            if (atendimentoOriginal.encontrado) {
-                return {
-                    status: 'HORARIO_OCUPADO',
-                    mensagem:
-                        `O horário ${horarioFinal} já está ocupado.`
-                };
-            }
-        }
-
-        await step(page, 'A024-alteracao-finalizada');
-
-        return {
-            status: 'AGENDAMENTO_ALTERADO',
-            mensagem: 'Agendamento alterado com sucesso.',
-            atendimento: confirmacao
-        };
-    } catch (erro) {
-        Logger.error(
-            `[MinhaAgendaAdapter] erro alterarAgendamento: ${erro.message}`
-        );
-
-        return {
-            status: 'ERRO',
-            mensagem:
-                erro.message ||
-                'Erro ao alterar agendamento.'
-        };
-    }
-}
 }
 
 module.exports = new MinhaAgendaAdapter();
