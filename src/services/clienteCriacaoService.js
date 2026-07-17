@@ -320,7 +320,46 @@ async function garantirClienteNoAtendimento(
     cliente,
     telefone
 ) {
-    await page.waitForTimeout(1500);
+    await page.waitForTimeout(1800);
+
+    const clienteNormalizado = normalizarTexto(cliente);
+    const telefoneNormalizado = normalizarTelefone(telefone);
+
+    /*
+     * Primeiro confirma o comportamento normal da tela:
+     * depois de salvar o cadastro, o cliente pode já estar
+     * vinculado ao atendimento, sem aparecer novamente
+     * no autocomplete.
+     */
+    const dialogsVisiveis = page
+        .locator('[role="dialog"]:visible');
+
+    const totalDialogs = await dialogsVisiveis
+        .count()
+        .catch(() => 0);
+
+    for (let i = 0; i < totalDialogs; i++) {
+        const dialog = dialogsVisiveis.nth(i);
+
+        const textoDialog = await dialog
+            .textContent()
+            .catch(() => '');
+
+        const textoNormalizado =
+            normalizarTexto(textoDialog);
+
+        if (
+            clienteNormalizado &&
+            textoNormalizado.includes(clienteNormalizado)
+        ) {
+            await Debugger.step(
+                page,
+                'C010-cliente-ja-vinculado-apos-criacao'
+            );
+
+            return true;
+        }
+    }
 
     const campoCliente =
         await obterCampoClienteAtendimento(page);
@@ -334,27 +373,38 @@ async function garantirClienteNoAtendimento(
         return false;
     }
 
-    const clienteNormalizado = normalizarTexto(cliente);
-    const telefoneNormalizado =
-        normalizarTelefone(telefone);
+    /*
+     * Também verifica diretamente o valor do campo.
+     * Nesta confirmação inicial não exigimos que o telefone
+     * esteja visível, pois a interface normalmente mostra
+     * somente o nome do cliente.
+     */
+    const valorAtualCampo = await campoCliente
+        .inputValue()
+        .catch(() => '');
 
     if (
-        await clienteEstaSelecionado(
-            campoCliente,
-            cliente,
-            telefone
-        )
+        clienteNormalizado &&
+        normalizarTexto(valorAtualCampo)
+            .includes(clienteNormalizado)
     ) {
         await Debugger.step(
             page,
-            'C010-cliente-ja-estava-selecionado'
+            'C010-cliente-mantido-no-campo-apos-criacao'
         );
 
         return true;
     }
 
-    async function digitarClienteEForcarAutocomplete(
-        tentativa
+    /*
+     * Fallback:
+     * somente quando o cliente não ficou automaticamente
+     * vinculado, tentamos localizá-lo novamente.
+     */
+    for (
+        let tentativa = 1;
+        tentativa <= 3;
+        tentativa++
     ) {
         await campoCliente.click({
             force: true,
@@ -371,55 +421,43 @@ async function garantirClienteNoAtendimento(
 
         await Debugger.step(
             page,
-            `C010-cliente-digitado-apos-criacao-tentativa-${tentativa}`
+            `C010-cliente-digitado-fallback-tentativa-${tentativa}`
         );
 
         await page.waitForTimeout(1200);
 
         /*
-         * Força o Downshift/MUI a recalcular a busca.
+         * Força o autocomplete a atualizar.
          */
-        await campoCliente.press('End').catch(() => {});
+        await campoCliente.press('End')
+            .catch(() => {});
+
         await campoCliente.type(' ', {
             delay: 50
         }).catch(() => {});
 
         await page.waitForTimeout(300);
 
-        await campoCliente
-            .press('Backspace')
+        await campoCliente.press('Backspace')
             .catch(() => {});
 
-        await page.waitForTimeout(1500);
+        await page.waitForTimeout(1200);
+
+        const opcoes =
+            await obterOpcoesAutocomplete(page);
 
         await Debugger.step(
             page,
-            `C010-autocomplete-forcado-tentativa-${tentativa}`
-        );
-    }
-
-    async function selecionarOpcaoCliente(tentativa) {
-        await page.waitForSelector(
-            '[role="option"], ' +
-            '.MuiAutocomplete-option, ' +
-            '[id^="downshift-"][id*="-item-"]',
-            {
-                timeout: 5000
-            }
-        ).catch(() => {});
-
-        const opcoes = await obterOpcoesAutocomplete(page);
-
-        await Debugger.step(
-            page,
-            `C010-opcoes-validas-apos-criacao-${opcoes.length}-tentativa-${tentativa}`
+            `C010-opcoes-fallback-${opcoes.length}-tentativa-${tentativa}`
         );
 
-        let opcaoPorTelefone = null;
-        let opcaoPorNome = null;
+        let opcaoEscolhida = null;
 
         for (let i = 0; i < opcoes.length; i++) {
-            const { elemento, texto } = opcoes[i];
+            const {
+                elemento,
+                texto
+            } = opcoes[i];
 
             const textoNormalizado =
                 normalizarTexto(texto);
@@ -439,136 +477,119 @@ async function garantirClienteNoAtendimento(
 
             await Debugger.step(
                 page,
-                `C010-opcao-cliente-${i}-nome-${nomeOk}-telefone-${telefoneOk}-${texto.replace(/\s+/g, ' ').slice(0, 120)}`
+                `C010-opcao-fallback-${i}-nome-${nomeOk}-telefone-${telefoneOk}-${texto.replace(/\s+/g, ' ').slice(0, 100)}`
             );
 
             /*
-             * Quando foi informado telefone, a opção só pode
-             * ser selecionada se nome e telefone coincidirem.
+             * Quando há telefone, ele continua sendo obrigatório
+             * para escolher a opção correta e evitar homônimos.
              */
             if (
                 telefoneNormalizado &&
                 nomeOk &&
                 telefoneOk
             ) {
-                opcaoPorTelefone = elemento;
+                opcaoEscolhida = elemento;
                 break;
             }
 
-            /*
-             * Nome sozinho só é permitido quando não há telefone.
-             */
             if (
                 !telefoneNormalizado &&
-                nomeOk &&
-                !opcaoPorNome
+                nomeOk
             ) {
-                opcaoPorNome = elemento;
+                opcaoEscolhida = elemento;
+                break;
             }
         }
-
-        const opcaoEscolhida =
-            opcaoPorTelefone || opcaoPorNome;
 
         if (!opcaoEscolhida) {
             await Debugger.step(
                 page,
-                `C010-nenhuma-opcao-compativel-tentativa-${tentativa}`
+                `C010-nenhuma-opcao-fallback-tentativa-${tentativa}`
             );
 
-            return false;
-        }
-
-        await opcaoEscolhida.scrollIntoViewIfNeeded()
-            .catch(() => {});
-
-  await opcaoEscolhida.click({
-    force: true,
-    timeout: 10000
-});
-
-await page.waitForTimeout(800);
-/*
- * Alguns componentes (Downshift/MUI)
- * só confirmam a seleção quando o
- * campo perde o foco.
- */
-await campoCliente.press('Tab').catch(() => {});
-
-await page.waitForTimeout(800);
-const valorCampoAposClique = await campoCliente
-  .inputValue()
-  .catch(() => '');
-
-console.log(
-  '[garantirClienteNoAtendimento] valor após selecionar:',
-  valorCampoAposClique
-);
-await Debugger.step(
-    page,
-    'C010-cliente-selecionado-no-autocomplete'
-);
-
-return true;
-    }
-
-    for (
-        let tentativa = 1;
-        tentativa <= 4;
-        tentativa++
-    ) {
-        await digitarClienteEForcarAutocomplete(
-            tentativa
-        );
-
-        const selecionou =
-            await selecionarOpcaoCliente(tentativa);
-
-        if (!selecionou) {
             continue;
         }
 
-        const confirmado =
-            await clienteEstaSelecionado(
-                campoCliente,
-                cliente,
-                telefone
-            );
+        await opcaoEscolhida
+            .scrollIntoViewIfNeeded()
+            .catch(() => {});
 
-const valorAtualCampo = await campoCliente
-  .inputValue()
-  .catch(() => '');
+        await opcaoEscolhida.click({
+            force: true,
+            timeout: 10000
+        });
 
-const normalizarComparacao = (valor = '') =>
-  String(valor)
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase()
-    .replace(/\s+/g, ' ')
-    .trim();
+        await page.waitForTimeout(700);
 
-const nomeConfirmadoNoCampo =
-  normalizarComparacao(valorAtualCampo) ===
-  normalizarComparacao(cliente);
+        await campoCliente.press('Tab')
+            .catch(() => {});
 
-        if (confirmado || nomeConfirmadoNoCampo) {
+        await page.waitForTimeout(700);
+
+        const valorDepoisSelecao =
+            await campoCliente
+                .inputValue()
+                .catch(() => '');
+
+        console.log(
+            '[garantirClienteNoAtendimento] valor após fallback:',
+            valorDepoisSelecao
+        );
+
+        const nomeConfirmadoNoCampo =
+            normalizarTexto(valorDepoisSelecao)
+                .includes(clienteNormalizado);
+
+        if (nomeConfirmadoNoCampo) {
             await Debugger.step(
                 page,
-                `C010-cliente-confirmado-apos-selecao-tentativa-${tentativa}`
+                `C010-cliente-confirmado-fallback-tentativa-${tentativa}`
             );
 
             return true;
         }
 
-        await Debugger.step(
-            page,
-            `C010-cliente-nao-confirmado-apos-clique-tentativa-${tentativa}`
-        );
+        /*
+         * Alguns componentes limpam o input e exibem o cliente
+         * selecionado como texto ou chip no modal.
+         */
+        const dialogsDepoisSelecao = page
+            .locator('[role="dialog"]:visible');
+
+        const totalDepoisSelecao =
+            await dialogsDepoisSelecao
+                .count()
+                .catch(() => 0);
+
+        for (
+            let indiceDialog = 0;
+            indiceDialog < totalDepoisSelecao;
+            indiceDialog++
+        ) {
+            const textoDialog =
+                await dialogsDepoisSelecao
+                    .nth(indiceDialog)
+                    .textContent()
+                    .catch(() => '');
+
+            if (
+                normalizarTexto(textoDialog)
+                    .includes(clienteNormalizado)
+            ) {
+                await Debugger.step(
+                    page,
+                    `C010-cliente-confirmado-no-modal-tentativa-${tentativa}`
+                );
+
+                return true;
+            }
+        }
     }
 
     await Debugger.step(
         page,
-        'C010-cliente-nao-encontrado-com-nome-e-telefone'
+        'C010-cliente-nao-mantido-apos-criacao'
     );
 
     return false;
