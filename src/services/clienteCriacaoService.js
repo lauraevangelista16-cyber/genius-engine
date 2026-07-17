@@ -535,7 +535,23 @@ return true;
                 telefone
             );
 
-        if (confirmado) {
+const valorAtualCampo = await campoCliente
+  .inputValue()
+  .catch(() => '');
+
+const normalizarComparacao = (valor = '') =>
+  String(valor)
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/\s+/g, ' ')
+    .trim();
+
+const nomeConfirmadoNoCampo =
+  normalizarComparacao(valorAtualCampo) ===
+  normalizarComparacao(nomeCliente);
+
+        if (confirmado || nomeConfirmadoNoCampo) {
             await Debugger.step(
                 page,
                 `C010-cliente-confirmado-apos-selecao-tentativa-${tentativa}`
