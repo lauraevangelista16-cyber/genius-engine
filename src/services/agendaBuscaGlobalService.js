@@ -6,6 +6,46 @@ async function step(page, nome) {
     await Debugger.step(page, nome).catch(() => {});
 }
 
+const converterDataPorExtensoParaDate = (texto = '') => {
+    const meses = {
+        janeiro: 0,
+        fevereiro: 1,
+        março: 2,
+        marco: 2,
+        abril: 3,
+        maio: 4,
+        junho: 5,
+        julho: 6,
+        agosto: 7,
+        setembro: 8,
+        outubro: 9,
+        novembro: 10,
+        dezembro: 11
+    };
+
+    const match = String(texto)
+        .trim()
+        .toLowerCase()
+        .match(/^(\d{1,2}) de ([a-zçãáâéêíóôõú]+),?\s*(\d{4})$/);
+
+    if (!match) {
+        return null;
+    }
+
+    const dia = Number(match[1]);
+    const mes = meses[match[2]];
+    const ano = Number(match[3]);
+
+    if (mes === undefined) {
+        return null;
+    }
+
+    const data = new Date(ano, mes, dia);
+    data.setHours(0, 0, 0, 0);
+
+    return data;
+};
+
 const lerResultadosBuscaGlobal = async (page) => {
     const linhas = page.locator('tbody tr');
     const total = await linhas.count().catch(() => 0);
@@ -38,11 +78,35 @@ const lerResultadosBuscaGlobal = async (page) => {
         });
     }
 
+    const hoje = new Date();
+    hoje.setHours(0, 0, 0, 0);
+
+    const resultadosFiltrados = resultados.filter(resultado => {
+        const dataResultado = converterDataPorExtensoParaDate(resultado.data);
+
+        if (!dataResultado) {
+            Logger.info(
+                `[agendaBuscaGlobalService] Não foi possível interpretar a data "${resultado.data}". Mantendo resultado.`
+            );
+            return true;
+        }
+
+        const manter = dataResultado >= hoje;
+
+        if (!manter) {
+            Logger.info(
+                `[agendaBuscaGlobalService] Ignorando agendamento passado: ${resultado.data} | ${resultado.horario} | ${resultado.cliente}`
+            );
+        }
+
+        return manter;
+    });
+
     await step(page, '005-resultados-lidos');
 
     return {
-        total: resultados.length,
-        resultados
+        total: resultadosFiltrados.length,
+        resultados: resultadosFiltrados
     };
 };
 
@@ -87,11 +151,16 @@ const abrirBuscaGlobal = async (page, cliente) => {
         const visivel = await botao.isVisible().catch(() => false);
 
         if (!visivel) continue;
-
-        const texto = await botao.innerText().catch(() => '');
-        const ariaLabel = await botao.getAttribute('aria-label').catch(() => '');
-        const title = await botao.getAttribute('title').catch(() => '');
-        const html = await botao.evaluate(el => el.outerHTML).catch(() => '');
+    const texto = await botao.innerText().catch(() => '');
+        const ariaLabel = await botao
+            .getAttribute('aria-label')
+            .catch(() => '');
+        const title = await botao
+            .getAttribute('title')
+            .catch(() => '');
+        const html = await botao
+            .evaluate(el => el.outerHTML)
+            .catch(() => '');
 
         const descricao = [
             texto,
