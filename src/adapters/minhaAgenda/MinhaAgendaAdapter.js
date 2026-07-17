@@ -591,6 +591,7 @@ await irParaData(page, dadosNormalizados.data);
 const confirmacaoCancelamento = await consultarAtendimentoPorCliente(
     page,
     dadosNormalizados.cliente,
+    dadosNormalizados.telefone,
     dadosNormalizados.horario,
     dadosNormalizados.servico
 );
