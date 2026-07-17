@@ -582,12 +582,39 @@ if (statusHorario !== 'HORARIO_LIVRE') {
             }
 
             await deletarAgendamento(page);
-            await step(page, 'A017-cancelado');
+await step(page, 'A017-cancelado');
 
-            return {
-                status: 'AGENDAMENTO_CANCELADO',
-                mensagem: 'Agendamento cancelado com sucesso.'
-            };
+await step(page, 'A017B-confirmacao-cancelamento-inicio');
+
+await irParaData(page, dadosNormalizados.data);
+
+const confirmacaoCancelamento = await consultarAtendimentoPorCliente(
+    page,
+    dadosNormalizados.cliente,
+    dadosNormalizados.horario,
+    dadosNormalizados.servico
+);
+
+Logger.info(
+    `[MinhaAgendaAdapter] Confirmação pós-cancelamento: ${JSON.stringify(confirmacaoCancelamento)}`
+);
+
+if (confirmacaoCancelamento.encontrado) {
+    await step(page, 'A017C-cancelamento-nao-confirmado');
+
+    return {
+        status: 'ERRO_CANCELAMENTO_NAO_CONFIRMADO',
+        mensagem:
+            'O cancelamento foi executado, mas o agendamento ainda aparece na agenda.'
+    };
+}
+
+await step(page, 'A017D-cancelamento-confirmado');
+
+return {
+    status: 'AGENDAMENTO_CANCELADO',
+    mensagem: 'Agendamento cancelado com sucesso.'
+};
         } catch (erro) {
             Logger.error(`[MinhaAgendaAdapter] erro cancelarAgendamento: ${erro.message}`);
 
