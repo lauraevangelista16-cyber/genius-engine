@@ -549,7 +549,7 @@ const normalizarComparacao = (valor = '') =>
 
 const nomeConfirmadoNoCampo =
   normalizarComparacao(valorAtualCampo) ===
-  normalizarComparacao(nomeCliente);
+  normalizarComparacao(cliente);
 
         if (confirmado || nomeConfirmadoNoCampo) {
             await Debugger.step(
