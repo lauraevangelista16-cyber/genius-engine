@@ -487,6 +487,7 @@ async function garantirClienteNoAtendimento(
     timeout: 10000
 });
 
+await page.waitForTimeout(800);
 /*
  * Alguns componentes (Downshift/MUI)
  * só confirmam a seleção quando o
@@ -495,7 +496,14 @@ async function garantirClienteNoAtendimento(
 await campoCliente.press('Tab').catch(() => {});
 
 await page.waitForTimeout(800);
+const valorCampoAposClique = await campoCliente
+  .inputValue()
+  .catch(() => '');
 
+console.log(
+  '[garantirClienteNoAtendimento] valor após selecionar:',
+  valorCampoAposClique
+);
 await Debugger.step(
     page,
     'C010-cliente-selecionado-no-autocomplete'
