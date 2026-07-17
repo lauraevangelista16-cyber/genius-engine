@@ -13,43 +13,25 @@ app.use(express.json());
 
 app.post('/agenda', async (req, res) => {
     try {
-        console.log('\n==============================');
-        console.log('📥 NOVA REQUISIÇÃO /agenda');
-        console.log('Body recebido:');
-        console.log(JSON.stringify(req.body, null, 2));
-
         const { action, dados } = req.body || {};
 
-        console.log('➡️ Action recebida:', action);
-        console.log('➡️ Dados recebidos:');
-        console.log(JSON.stringify(dados || {}, null, 2));
-
-        const resposta = await AgendaOrchestrator.executar(action, dados || {});
-
-        console.log('⬅️ Resposta da Engine:');
-        console.log(JSON.stringify(resposta, null, 2));
-        console.log('==============================\n');
-
+        const resposta = await AgendaOrchestrator.executar(
+            action,
+            dados || {}
+        );
 
         return res.json(resposta);
 
     } catch (erro) {
-        console.error('\n💥 ERRO NA ENGINE /agenda');
         console.error(erro);
-        console.error('==============================\n');
 
         const erroTratado = ErrorHandler.tratar(erro);
-
-        console.error('⬅️ Erro tratado:');
-        console.error(JSON.stringify(erroTratado, null, 2));
 
         return res.status(400).json(erroTratado);
     }
 });
 
 app.get('/health', (req, res) => {
-    console.log('✅ Health check recebido');
-
     return res.json({
         status: 'ONLINE',
         versao: 'logs-teste-001',

@@ -2,7 +2,6 @@ const Logger = require('../core/Logger');
 const Debugger = require('../core/Debugger');
 
 async function step(page, nome) {
-    console.log(`[agendaBuscaGlobalService] ${nome}`);
     await Debugger.step(page, nome).catch(() => {});
 }
 

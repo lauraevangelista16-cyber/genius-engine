@@ -54,7 +54,6 @@ async function snapshotFormulario(page, etapa) {
 
     const resumo = `SNAPSHOT-${etapa}-cliente:${cliente || 'vazio'}-data:${data || 'vazio'}-hora:${horario || 'vazio'}-servico:${servico || 'vazio'}`;
 
-    console.log('[FORM_SNAPSHOT]', resumo);
 
     await Debugger.step(page, resumo).catch(() => {});
 

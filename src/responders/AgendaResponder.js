@@ -17,11 +17,11 @@ class AgendaResponder {
                     mensagem: resultado.mensagem || 'Não encontrei horários livres.',
                     dados: resultado
                 };
-
+            case 'FORA_DO_EXPEDIENTE':
             case 'FORA_DO_HORARIO':
                 return {
                     ok: false,
-                    mensagem: resultado.mensagem,
+                    mensagem: resultado.mensagem || 'O horário informado está fora do expediente',
                     dados: resultado
                 };
 

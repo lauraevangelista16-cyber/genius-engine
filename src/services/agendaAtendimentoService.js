@@ -7,7 +7,6 @@ const {
 } = require('./agendaUtils');
 
 async function step(page, nome) {
-    console.log(`[agendaAtendimentoService] ${nome}`);
     await Debugger.step(page, nome).catch(() => {});
 }
 
@@ -23,10 +22,16 @@ const salvarAgendamento = async (page) => {
 
     const modalAtendimento = page.locator('[role="dialog"]').last();
 
-    const botoesSalvar = modalAtendimento.getByRole('button', { name: /^salvar$/i });
+    const botoesSalvar = modalAtendimento.getByRole('button', {
+        name: /^salvar$/i
+    });
+
     const total = await botoesSalvar.count().catch(() => 0);
 
-    await step(page, `013B-total-botoes-salvar-atendimento-${total}`);
+    await step(
+        page,
+        `013B-total-botoes-salvar-atendimento-${total}`
+    );
 
     if (total === 0) {
         return {
@@ -41,7 +46,10 @@ const salvarAgendamento = async (page) => {
 
     await step(page, '013C-antes-click-real-salvar');
 
-    await botaoSalvar.click({ force: true, timeout: 10000 });
+    await botaoSalvar.click({
+        force: true,
+        timeout: 10000
+    });
 
     await step(page, '014-depois-click-salvar');
 
@@ -70,9 +78,6 @@ const salvarAgendamento = async (page) => {
     ) {
         await step(page, '014C1-dados-incompletos-detectado');
 
-        console.log('[DADOS_INCOMPLETOS_TEXTO]');
-        console.log(textoTela);
-
         return {
             status: 'DADOS_INCOMPLETOS',
             mensagem: 'Existe um campo obrigatório não preenchido no Minha Agenda.',
@@ -87,14 +92,20 @@ const salvarAgendamento = async (page) => {
         new Promise(resolve => setTimeout(() => resolve(0), 2000))
     ]);
 
-    await step(page, `014D-dialogs-abertos-${dialogAberto}`);
+    await step(
+        page,
+        `014D-dialogs-abertos-${dialogAberto}`
+    );
 
     const botaoSalvarAindaVisivel = await Promise.race([
         botaoSalvar.isVisible().catch(() => false),
         new Promise(resolve => setTimeout(() => resolve(false), 2000))
     ]);
 
-    await step(page, `014E-botao-salvar-ainda-visivel-${botaoSalvarAindaVisivel}`);
+    await step(
+        page,
+        `014E-botao-salvar-ainda-visivel-${botaoSalvarAindaVisivel}`
+    );
 
     if (botaoSalvarAindaVisivel) {
         return {
@@ -116,7 +127,10 @@ const listarAtendimentosDoDia = async (page) => {
 
     await page.waitForTimeout(4000);
 
-    const eventos = page.locator('.fc-time-grid-event, .fc-event, .fc-timegrid-event');
+    const eventos = page.locator(
+        '.fc-time-grid-event, .fc-event, .fc-timegrid-event'
+    );
+
     const total = await eventos.count();
 
     await step(page, `016-total-eventos-${total}`);
@@ -139,15 +153,29 @@ const listarAtendimentosDoDia = async (page) => {
     return atendimentos;
 };
 
-const abrirAtendimentoPorCliente = async (page, cliente, telefone, horario = '', servico = '') => {
+const abrirAtendimentoPorCliente = async (
+    page,
+    cliente,
+    telefone,
+    horario = '',
+    servico = ''
+) => {
     await step(page, '017-inicio-abrir-atendimento');
 
-    Logger.info(`[agendaAtendimentoService] Horário recebido: ${horario}`);
-    Logger.info(`[agendaAtendimentoService] Serviço recebido: ${servico}`);
+    Logger.info(
+        `[agendaAtendimentoService] Horário recebido: ${horario}`
+    );
+
+    Logger.info(
+        `[agendaAtendimentoService] Serviço recebido: ${servico}`
+    );
 
     await page.waitForTimeout(4000);
 
-    const eventos = page.locator('.fc-time-grid-event, .fc-event, .fc-timegrid-event');
+    const eventos = page.locator(
+        '.fc-time-grid-event, .fc-event, .fc-timegrid-event'
+    );
+
     const total = await eventos.count();
 
     await step(page, `018-total-eventos-abrir-${total}`);
@@ -162,10 +190,20 @@ const abrirAtendimentoPorCliente = async (page, cliente, telefone, horario = '',
 
         const texto = await evento.innerText().catch(() => '');
 
-        Logger.info(`[agendaAtendimentoService] Evento ${i}: ${texto}`);
+        Logger.info(
+            `[agendaAtendimentoService] Evento ${i}: ${texto}`
+        );
 
-        const combinaCliente = atendimentoCombina(texto, cliente, telefone);
-        const combinaHorario = horario ? texto.includes(horario) : true;
+        const combinaCliente = atendimentoCombina(
+            texto,
+            cliente,
+            telefone
+        );
+
+        const combinaHorario = horario
+            ? texto.includes(horario)
+            : true;
+
         const combinaServico = servico
             ? texto.toLowerCase().includes(servico.toLowerCase())
             : true;
@@ -174,7 +212,11 @@ const abrirAtendimentoPorCliente = async (page, cliente, telefone, horario = '',
             `[agendaAtendimentoService] Evento ${i} | combinaCliente=${combinaCliente} | combinaHorario=${combinaHorario} | combinaServico=${combinaServico}`
         );
 
-        if (combinaCliente && combinaHorario && combinaServico) {
+        if (
+            combinaCliente &&
+            combinaHorario &&
+            combinaServico
+        ) {
             encontrados.push({
                 indice: i,
                 evento,
@@ -183,7 +225,10 @@ const abrirAtendimentoPorCliente = async (page, cliente, telefone, horario = '',
         }
     }
 
-    await step(page, `019-encontrados-abrir-${encontrados.length}`);
+    await step(
+        page,
+        `019-encontrados-abrir-${encontrados.length}`
+    );
 
     if (encontrados.length === 0) {
         return {
@@ -220,15 +265,29 @@ const abrirAtendimentoPorCliente = async (page, cliente, telefone, horario = '',
     };
 };
 
-const consultarAtendimentoPorCliente = async (page, cliente, telefone, horario = '', servico = '') => {
+const consultarAtendimentoPorCliente = async (
+    page,
+    cliente,
+    telefone,
+    horario = '',
+    servico = ''
+) => {
     await step(page, '021-inicio-consultar-atendimento');
 
-    Logger.info(`[agendaAtendimentoService] Horário recebido na consulta: ${horario}`);
-    Logger.info(`[agendaAtendimentoService] Serviço recebido na consulta: ${servico}`);
+    Logger.info(
+        `[agendaAtendimentoService] Horário recebido na consulta: ${horario}`
+    );
+
+    Logger.info(
+        `[agendaAtendimentoService] Serviço recebido na consulta: ${servico}`
+    );
 
     await page.waitForTimeout(4000);
 
-    const eventos = page.locator('.fc-time-grid-event, .fc-event, .fc-timegrid-event');
+    const eventos = page.locator(
+        '.fc-time-grid-event, .fc-event, .fc-timegrid-event'
+    );
+
     const total = await eventos.count();
 
     await step(page, `022-total-eventos-consulta-${total}`);
@@ -243,8 +302,16 @@ const consultarAtendimentoPorCliente = async (page, cliente, telefone, horario =
 
         const texto = await evento.innerText().catch(() => '');
 
-        const combinaCliente = atendimentoCombina(texto, cliente, telefone);
-        const combinaHorario = horario ? texto.includes(horario) : true;
+        const combinaCliente = atendimentoCombina(
+            texto,
+            cliente,
+            telefone
+        );
+
+        const combinaHorario = horario
+            ? texto.includes(horario)
+            : true;
+
         const combinaServico = servico
             ? texto.toLowerCase().includes(servico.toLowerCase())
             : true;
@@ -253,12 +320,21 @@ const consultarAtendimentoPorCliente = async (page, cliente, telefone, horario =
             `[agendaAtendimentoService] Consulta evento ${i} | combinaCliente=${combinaCliente} | combinaHorario=${combinaHorario} | combinaServico=${combinaServico}`
         );
 
-        if (combinaCliente && combinaHorario && combinaServico) {
-            encontrados.push(extrairDadosDoTextoAtendimento(texto));
+        if (
+            combinaCliente &&
+            combinaHorario &&
+            combinaServico
+        ) {
+            encontrados.push(
+                extrairDadosDoTextoAtendimento(texto)
+            );
         }
     }
 
-    await step(page, `023-encontrados-consulta-${encontrados.length}`);
+    await step(
+        page,
+        `023-encontrados-consulta-${encontrados.length}`
+    );
 
     if (encontrados.length === 0) {
         return {
@@ -288,7 +364,9 @@ const deletarAgendamento = async (page) => {
 
     await page.waitForTimeout(1500);
 
-    await page.getByText('DELETAR', { exact: false }).click({
+    await page.getByText('DELETAR', {
+        exact: false
+    }).click({
         force: true,
         timeout: 10000
     });
@@ -297,7 +375,9 @@ const deletarAgendamento = async (page) => {
 
     await page.waitForTimeout(1000);
 
-    await page.getByText('SIM', { exact: false }).click({
+    await page.getByText('SIM', {
+        exact: false
+    }).click({
         force: true,
         timeout: 10000
     });
@@ -307,12 +387,18 @@ const deletarAgendamento = async (page) => {
     await step(page, '026-deletado');
 };
 
-const alterarHorarioAgendamento = async (page, novoHorario, novaData = '') => {
+const alterarHorarioAgendamento = async (
+    page,
+    novoHorario,
+    novaData = ''
+) => {
     await step(page, '027-inicio-alterar-horario');
 
     await page.waitForTimeout(1000);
 
-    await page.getByText('EDITAR', { exact: false }).click({
+    await page.getByText('EDITAR', {
+        exact: false
+    }).click({
         force: true,
         timeout: 10000
     });
@@ -321,66 +407,85 @@ const alterarHorarioAgendamento = async (page, novoHorario, novaData = '') => {
 
     await step(page, '028-tela-editar-aberta');
 
-if (
-    typeof novaData === 'string' &&
-    novaData.trim() !== ''
-) {
-    const dataLimpa = novaData.trim();
-    const partesData = dataLimpa.split('-');
+    if (
+        typeof novaData === 'string' &&
+        novaData.trim() !== ''
+    ) {
+        const dataLimpa = novaData.trim();
+        const partesData = dataLimpa.split('-');
 
-    if (partesData.length !== 3) {
-        return {
-            status: 'ERRO_ALTERAR_DATA',
-            mensagem: `Formato de nova data inválido: ${novaData}`
-        };
+        if (partesData.length !== 3) {
+            return {
+                status: 'ERRO_ALTERAR_DATA',
+                mensagem: `Formato de nova data inválido: ${novaData}`
+            };
+        }
+
+        const [ano, mes, dia] = partesData;
+        const novaDataFormatada = `${dia}/${mes}/${ano}`;
+
+        const modalAtendimento = page
+            .locator('[role="dialog"]')
+            .last();
+
+        const campoData = modalAtendimento.locator(
+            'input[name="date"]'
+        );
+
+        const totalCamposData = await campoData
+            .count()
+            .catch(() => 0);
+
+        await step(
+            page,
+            `028A-total-campos-data-${totalCamposData}`
+        );
+
+        if (totalCamposData === 0) {
+            await step(
+                page,
+                '028B-campo-data-nao-encontrado'
+            );
+
+            return {
+                status: 'ERRO_INTERNO',
+                mensagem: 'Campo de data do atendimento não encontrado.'
+            };
+        }
+
+        await campoData.waitFor({
+            state: 'visible',
+            timeout: 10000
+        });
+
+        await campoData.click({ force: true });
+        await campoData.fill('');
+        await campoData.fill(novaDataFormatada);
+        await page.keyboard.press('Tab');
+
+        await page.waitForTimeout(800);
+
+        const dataPreenchida = await campoData
+            .inputValue()
+            .catch(() => '');
+
+        await step(
+            page,
+            `028B-data-alterada-${dataPreenchida.replace(/\//g, '-')}`
+        );
+
+        if (dataPreenchida !== novaDataFormatada) {
+            return {
+                status: 'ERRO_ALTERAR_DATA',
+                mensagem: `A data deveria ficar em ${novaDataFormatada}, mas ficou em ${dataPreenchida}.`
+            };
+        }
     }
 
-    const [ano, mes, dia] = partesData;
-    const novaDataFormatada = `${dia}/${mes}/${ano}`;
-
-const modalAtendimento = page.locator('[role="dialog"]').last();
-
-const campoData = modalAtendimento.locator('input[name="date"]');
-
-const totalCamposData = await campoData.count().catch(() => 0);
-
-await step(page, `028A-total-campos-data-${totalCamposData}`);
-
-if (totalCamposData === 0) {
-    await step(page, '028B-campo-data-nao-encontrado');
-
-    return {
-        status: 'ERRO_INTERNO',
-        mensagem: 'Campo de data do atendimento não encontrado.'
-    };
-}
-
-await campoData.waitFor({
-    state: 'visible',
-    timeout: 10000
-});
-
-await campoData.click({ force: true });
-await campoData.fill('');
-await campoData.fill(novaDataFormatada);
-await page.keyboard.press('Tab');
-
-await page.waitForTimeout(800);
-
-const dataPreenchida = await campoData.inputValue().catch(() => '');
-
-await step(page, `028B-data-alterada-${dataPreenchida.replace(/\//g, '-')}`);
-
-if (dataPreenchida !== novaDataFormatada) {
-    return {
-        status: 'ERRO_ALTERAR_DATA',
-        mensagem: `A data deveria ficar em ${novaDataFormatada}, mas ficou em ${dataPreenchida}.`
-    };
-}
-
-}
     if (novoHorario) {
-        const campoHora = page.locator('input[name="startTime"]');
+        const campoHora = page.locator(
+            'input[name="startTime"]'
+        );
 
         await campoHora.waitFor({
             state: 'visible',
@@ -396,7 +501,9 @@ if (dataPreenchida !== novaDataFormatada) {
         await step(page, '029-horario-alterado');
     }
 
-    await page.getByRole('button', { name: /^salvar$/i }).click({
+    await page.getByRole('button', {
+        name: /^salvar$/i
+    }).click({
         force: true,
         timeout: 10000
     });
@@ -410,16 +517,28 @@ if (dataPreenchida !== novaDataFormatada) {
     };
 };
 
-const ajustarHorarioNoModal = async (page, horarioDesejado) => {
+const ajustarHorarioNoModal = async (
+    page,
+    horarioDesejado
+) => {
     await step(page, '031-inicio-ajustar-horario-modal');
 
-    const modalAtendimento = page.locator('[role="dialog"]').last();
+    const modalAtendimento = page
+        .locator('[role="dialog"]')
+        .last();
 
-    const campoHora = modalAtendimento.locator('input[name="startTime"]');
+    const campoHora = modalAtendimento.locator(
+        'input[name="startTime"]'
+    );
 
-    const totalCampos = await campoHora.count().catch(() => 0);
+    const totalCampos = await campoHora
+        .count()
+        .catch(() => 0);
 
-    await step(page, `031A-total-campos-hora-${totalCampos}`);
+    await step(
+        page,
+        `031A-total-campos-hora-${totalCampos}`
+    );
 
     if (totalCampos === 0) {
         return {
@@ -439,7 +558,9 @@ const ajustarHorarioNoModal = async (page, horarioDesejado) => {
 
     await page.waitForTimeout(800);
 
-    const horarioPreenchido = await campoHora.inputValue().catch(() => '');
+    const horarioPreenchido = await campoHora
+        .inputValue()
+        .catch(() => '');
 
     await step(
         page,

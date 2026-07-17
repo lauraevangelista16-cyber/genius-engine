@@ -532,10 +532,6 @@ async function garantirClienteNoAtendimento(
                 .inputValue()
                 .catch(() => '');
 
-        console.log(
-            '[garantirClienteNoAtendimento] valor após fallback:',
-            valorDepoisSelecao
-        );
 
         const nomeConfirmadoNoCampo =
             normalizarTexto(valorDepoisSelecao)

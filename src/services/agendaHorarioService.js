@@ -288,7 +288,6 @@ if (!validacao.ok) {
         return 'ERRO_MODAL_NAO_ABRIU';
 
     } catch (erro) {
-        console.log('[ERRO abrirHorario]', erro.message);
         await Debugger.step(page, '007-erro-geral-abrir-horario');
 
         return 'ERRO_ABRIR_HORARIO';
