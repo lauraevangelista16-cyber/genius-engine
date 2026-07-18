@@ -1,45 +1,88 @@
-class SessionManager {
-    constructor() {
-        this.sessions = new Map();
-    }
+const RedisAdapter = require('../adapters/redis/RedisAdapter');
 
-    get(sessionId) {
+const SESSION_TTL_SECONDS = Number(
+    process.env.SESSION_TTL_SECONDS || 60 * 60 * 24
+);
+
+class SessionManager {
+    gerarChave(sessionId) {
         if (!sessionId) {
             throw new Error('sessionId é obrigatório.');
         }
 
-        if (!this.sessions.has(sessionId)) {
-            this.sessions.set(sessionId, {
-                action: null,
-                dados: {},
-                etapa: null,
-                atualizadoEm: new Date()
-            });
+        return `genius:session:${sessionId}`;
+    }
+
+    criarSessaoPadrao(sessionId) {
+        const agora = new Date().toISOString();
+
+        return {
+            sessionId,
+            estado: 'BOT_ATIVO',
+            action: null,
+            dados: {},
+            etapa: null,
+            confirmacao: null,
+            tentativas: {
+                interpretacao: 0,
+                engine: 0
+            },
+            criadaEm: agora,
+            atualizadoEm: agora
+        };
+    }
+
+    async get(sessionId) {
+        const chave = this.gerarChave(sessionId);
+
+        const valor = await RedisAdapter.get(chave);
+
+        if (!valor) {
+            const sessao = this.criarSessaoPadrao(sessionId);
+
+            await RedisAdapter.set(
+                chave,
+                JSON.stringify(sessao),
+                SESSION_TTL_SECONDS
+            );
+
+            return sessao;
         }
 
-        return this.sessions.get(sessionId);
+        return JSON.parse(valor);
     }
 
-    update(sessionId, novosDados = {}) {
-        const session = this.get(sessionId);
+    async update(sessionId, novosDados = {}) {
+        const chave = this.gerarChave(sessionId);
+        const sessaoAtual = await this.get(sessionId);
 
-        session.action = novosDados.action || session.action;
-
-        session.dados = {
-            ...session.dados,
-            ...(novosDados.dados || {})
+        const sessaoAtualizada = {
+            ...sessaoAtual,
+            ...novosDados,
+            dados: {
+                ...sessaoAtual.dados,
+                ...(novosDados.dados || {})
+            },
+            tentativas: {
+                ...sessaoAtual.tentativas,
+                ...(novosDados.tentativas || {})
+            },
+            atualizadoEm: new Date().toISOString()
         };
 
-        session.etapa = novosDados.etapa || session.etapa;
-        session.atualizadoEm = new Date();
+        await RedisAdapter.set(
+            chave,
+            JSON.stringify(sessaoAtualizada),
+            SESSION_TTL_SECONDS
+        );
 
-        this.sessions.set(sessionId, session);
-
-        return session;
+        return sessaoAtualizada;
     }
 
-    clear(sessionId) {
-        this.sessions.delete(sessionId);
+    async clear(sessionId) {
+        const chave = this.gerarChave(sessionId);
+
+        await RedisAdapter.del(chave);
 
         return {
             success: true,
@@ -47,8 +90,25 @@ class SessionManager {
         };
     }
 
-    getDados(sessionId) {
-        return this.get(sessionId).dados;
+    async getDados(sessionId) {
+        const sessao = await this.get(sessionId);
+
+        return sessao.dados;
+    }
+
+    async setEstado(sessionId, estado) {
+        const estadosValidos = [
+            'BOT_ATIVO',
+            'HUMANO_ATIVO',
+            'PAUSADO',
+            'ERRO_BLOQUEADO'
+        ];
+
+        if (!estadosValidos.includes(estado)) {
+            throw new Error(`Estado de sessão inválido: ${estado}`);
+        }
+
+        return this.update(sessionId, { estado });
     }
 }
 
