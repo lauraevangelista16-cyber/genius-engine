@@ -7,7 +7,7 @@ const AgendaEngine = require('./src/engines/agenda/agendaEngine');
 const AgendaOrchestrator = require('./src/orchestrators/orchestrators');
 const ErrorHandler = require('./src/core/ErrorHandler');
 const RedisAdapter = require('./src/adapters/redis/RedisAdapter');
-const SessionManager = require('./src/core/SessionManager');
+const SessionManager = require('./src/managers/SessionManager');
 
 Kernel.registrar('agenda', AgendaEngine);
 
