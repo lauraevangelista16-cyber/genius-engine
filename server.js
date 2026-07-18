@@ -6,6 +6,7 @@ const Kernel = require('./src/core/Kernel');
 const AgendaEngine = require('./src/engines/agenda/agendaEngine');
 const AgendaOrchestrator = require('./src/orchestrators/orchestrators');
 const ErrorHandler = require('./src/core/ErrorHandler');
+const RedisAdapter = require('./src/adapters/redis/RedisAdapter');
 
 Kernel.registrar('agenda', AgendaEngine);
 
@@ -23,7 +24,6 @@ app.post('/agenda', async (req, res) => {
         );
 
         return res.json(resposta);
-
     } catch (erro) {
         console.error(erro);
 
@@ -36,13 +36,48 @@ app.post('/agenda', async (req, res) => {
 app.get('/health', (req, res) => {
     return res.json({
         status: 'ONLINE',
-        versao: 'logs-teste-001',
+        versao: 'v1.1-redis',
         mensagem: 'Genius Engine rodando.'
     });
 });
 
 const PORT = process.env.PORT || 3000;
 
-app.listen(PORT, '0.0.0.0', () => {
-    console.log(`🚀 Genius Engine rodando na porta ${PORT}`);
-});
+async function iniciarServidor() {
+    try {
+        const ping = await RedisAdapter.ping();
+
+        console.log(`[Redis] Ping: ${ping}`);
+
+        app.listen(PORT, '0.0.0.0', () => {
+            console.log(`🚀 Genius Engine rodando na porta ${PORT}`);
+        });
+    } catch (erro) {
+        console.error(
+            '[Inicialização] Não foi possível conectar ao Redis:',
+            erro.message
+        );
+
+        process.exit(1);
+    }
+}
+
+async function encerrarAplicacao(sinal) {
+    console.log(`[Aplicação] Encerrando por ${sinal}...`);
+
+    try {
+        await RedisAdapter.disconnect();
+    } catch (erro) {
+        console.error(
+            '[Redis] Erro ao encerrar conexão:',
+            erro.message
+        );
+    }
+
+    process.exit(0);
+}
+
+process.on('SIGTERM', () => encerrarAplicacao('SIGTERM'));
+process.on('SIGINT', () => encerrarAplicacao('SIGINT'));
+
+iniciarServidor();
