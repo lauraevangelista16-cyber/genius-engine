@@ -7,6 +7,7 @@ const AgendaEngine = require('./src/engines/agenda/agendaEngine');
 const AgendaOrchestrator = require('./src/orchestrators/orchestrators');
 const ErrorHandler = require('./src/core/ErrorHandler');
 const RedisAdapter = require('./src/adapters/redis/RedisAdapter');
+const SessionManager = require('./src/managers/SessionManager');
 
 Kernel.registrar('agenda', AgendaEngine);
 
@@ -16,14 +17,28 @@ app.use(express.json());
 
 app.post('/agenda', async (req, res) => {
     try {
-        const { action, dados } = req.body || {};
+        const { action, dados = {} } = req.body || {};
+        const { telefone } = dados;
+
+        if (!telefone) {
+            throw new Error('Telefone é obrigatório para carregar a sessão.');
+        }
+
+        // Carrega (ou cria) a sessão do telefone
+        const sessao = await SessionManager.get(telefone);
+
+        console.log('\n==============================');
+        console.log('[SESSION] Sessão carregada');
+        console.log(JSON.stringify(sessao, null, 2));
+        console.log('==============================\n');
 
         const resposta = await AgendaOrchestrator.executar(
             action,
-            dados || {}
+            dados
         );
 
         return res.json(resposta);
+
     } catch (erro) {
         console.error(erro);
 
