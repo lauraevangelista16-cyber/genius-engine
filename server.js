@@ -17,24 +17,32 @@ app.use(express.json());
 
 app.post('/agenda', async (req, res) => {
     try {
-        const { action, dados = {} } = req.body || {};
-        const { telefone } = dados;
+        const {
+            action,
+            dados = {},
+            telefoneWhatsApp
+        } = req.body || {};
 
-        if (!telefone) {
-            throw new Error('Telefone é obrigatório para carregar a sessão.');
+        if (!telefoneWhatsApp) {
+            throw new Error(
+                'telefoneWhatsApp é obrigatório para carregar a sessão.'
+            );
         }
 
-        // Carrega, cria ou atualiza a sessão do telefone
+        // A sessão pertence ao telefone que está conversando no WhatsApp.
+        // dados.telefone pode representar outra pessoa em agendamentos para terceiros.
+        const sessionId = telefoneWhatsApp;
+
         const sessao = await SessionManager.update(
-    telefone,
-    {
-        action: action || null,
-        dados
-    }
-);
+            sessionId,
+            {
+                action: action || null,
+                dados
+            }
+        );
 
         console.log('\n==============================');
-        console.log('[SESSION] Sessão carregada');
+        console.log('[SESSION] Sessão carregada e atualizada');
         console.log(JSON.stringify(sessao, null, 2));
         console.log('==============================\n');
 
@@ -75,7 +83,6 @@ async function iniciarServidor() {
         });
 
     } catch (erro) {
-
         console.error(
             '[Inicialização] Não foi possível conectar ao Redis:',
             erro.message
@@ -86,7 +93,6 @@ async function iniciarServidor() {
 }
 
 async function encerrarAplicacao(sinal) {
-
     console.log(`[Aplicação] Encerrando por ${sinal}...`);
 
     try {
