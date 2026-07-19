@@ -24,8 +24,14 @@ app.post('/agenda', async (req, res) => {
             throw new Error('Telefone é obrigatório para carregar a sessão.');
         }
 
-        // Carrega (ou cria) a sessão do telefone
-        const sessao = await SessionManager.get(telefone);
+        // Carrega, cria ou atualiza a sessão do telefone
+        const sessao = await SessionManager.update(
+    telefone,
+    {
+        action: action || null,
+        dados
+    }
+);
 
         console.log('\n==============================');
         console.log('[SESSION] Sessão carregada');
