@@ -19,6 +19,72 @@ class ConversationManager {
         return this.etapasPendentes.includes(etapa);
     }
 
+identificarAcaoExplicita(mensagem = '') {
+        const texto = String(
+            mensagem || ''
+        )
+            .trim()
+            .toLowerCase()
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '');
+
+        if (!texto) {
+            return null;
+        }
+
+        /*
+         * Consulta de horários deve ser identificada
+         * antes da consulta de agendamentos.
+         */
+        if (
+            /\b(horarios?|disponibilidade)\b/.test(
+                texto
+            )
+        ) {
+            return 'horarios';
+        }
+
+        if (
+            /\b(cancelar|desmarcar|excluir)\b/.test(
+                texto
+            )
+        ) {
+            return 'cancelar';
+        }
+
+        if (
+            /\b(alterar|reagendar|remarcar)\b/.test(
+                texto
+            )
+        ) {
+            return 'alterar';
+        }
+
+        if (
+            /\b(consultar|buscar|procurar)\b/.test(
+                texto
+            ) ||
+            /\b(ver|visualizar)\b.*\b(agendamento|atendimento|agenda)\b/.test(
+                texto
+            ) ||
+            /\b(meus?|minhas?)\s+(agendamentos?|atendimentos?)\b/.test(
+                texto
+            )
+        ) {
+            return 'consultar';
+        }
+
+        if (
+            /\b(agendar|marcar|criar)\b/.test(
+                texto
+            )
+        ) {
+            return 'criar';
+        }
+
+        return null;
+    }
+
     normalizarHorario(mensagem = '') {
         const texto = String(mensagem)
             .trim()
@@ -396,6 +462,64 @@ class ConversationManager {
                 action: sessao.action || null,
                 etapa: sessao.etapa,
                 dados: sessao.dados || {}
+            };
+        }
+
+/*
+         * Existe uma etapa de coleta pendente, mas o usuário
+         * informou explicitamente uma ação diferente.
+         *
+         * Nesse caso, o fluxo anterior é encerrado e a mensagem
+         * volta ao Genius Interpretador como uma nova intenção.
+         */
+        const acaoExplicita =
+            this.identificarAcaoExplicita(
+                mensagemNormalizada
+            );
+
+        const actionAtual =
+            sessao.action === 'reagendar'
+                ? 'alterar'
+                : sessao.action === 'consultar_com_data'
+                    ? 'consultar'
+                    : sessao.action;
+
+        if (
+            acaoExplicita &&
+            acaoExplicita !== actionAtual
+        ) {
+            const sessaoResetada =
+                await SessionManager.resetFluxo(
+                    sessionId
+                );
+
+            console.log(
+                '[CONVERSATION] Nova intenção detectada durante fluxo pendente:',
+                {
+                    actionAnterior:
+                        sessao.action || null,
+                    novaAcao:
+                        acaoExplicita,
+                    etapaAnterior:
+                        sessao.etapa || null
+                }
+            );
+
+            return {
+                tipo: 'agenda',
+                continuarSessao: false,
+                usarInterpretador: true,
+                telefoneWhatsApp: sessionId,
+                mensagem: mensagemNormalizada,
+                action:
+                    sessaoResetada.action ||
+                    null,
+                etapa:
+                    sessaoResetada.etapa ||
+                    null,
+                dados:
+                    sessaoResetada.dados ||
+                    {}
             };
         }
 
