@@ -39,6 +39,30 @@ app.post('/sessao', async (req, res) => {
             dados
         };
 
+const sessaoAtual =
+    await SessionManager.get(sessionId);
+
+const etapasPendentes = [
+    'AGUARDANDO_ACAO',
+    'AGUARDANDO_CLIENTE',
+    'AGUARDANDO_TELEFONE',
+    'AGUARDANDO_SERVICO',
+    'AGUARDANDO_DATA',
+    'AGUARDANDO_HORARIO',
+    'AGUARDANDO_NOVO_HORARIO',
+    'AGUARDANDO_NOVA_DATA'
+];
+
+if (
+    !etapasPendentes.includes(
+        sessaoAtual.etapa
+    )
+) {
+    await SessionManager.resetFluxo(
+        sessionId
+    );
+}
+
         /*
          * Só atualiza a ação quando ela for válida.
          * Assim, "indefinido" não apaga a ação anterior.
