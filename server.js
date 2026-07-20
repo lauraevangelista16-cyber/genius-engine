@@ -149,12 +149,54 @@ app.post('/agenda', async (req, res) => {
         // dados.telefone pode representar outra pessoa em agendamentos para terceiros.
         const sessionId = telefoneWhatsApp;
 
-        const resposta = await AgendaOrchestrator.executar(
-            action,
-            dados
-        );
+const resposta = await AgendaOrchestrator.executar(
+    action,
+    dados
+);
 
-        return res.json(resposta);
+const status =
+    resposta?.dados?.status ||
+    resposta?.status ||
+    null;
+
+/*
+ * Operação concluída:
+ * limpa os dados do fluxo, mas preserva a sessão e o estado do bot.
+ */
+const statusConcluidos = [
+    'AGENDAMENTO_CRIADO',
+    'AGENDAMENTO_ALTERADO',
+    'AGENDAMENTO_CANCELADO'
+];
+
+if (statusConcluidos.includes(status)) {
+    await SessionManager.resetFluxo(
+        sessionId
+    );
+
+    console.log(
+        `[SESSION] Fluxo encerrado após ${status}.`
+    );
+}
+
+/*
+ * Erro recuperável:
+ * mantém os dados e volta a aguardar somente outro horário.
+ */
+if (status === 'HORARIO_OCUPADO') {
+    await SessionManager.update(
+        sessionId,
+        {
+            etapa: 'AGUARDANDO_HORARIO'
+        }
+    );
+
+    console.log(
+        '[SESSION] Horário ocupado. Sessão voltou para AGUARDANDO_HORARIO.'
+    );
+}
+
+return res.json(resposta);
 
     } catch (erro) {
         console.error(erro);
