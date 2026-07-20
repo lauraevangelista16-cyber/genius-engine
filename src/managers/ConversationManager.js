@@ -37,6 +37,7 @@ class ConversationManager {
         }
 
         const hora = Number(match[1]);
+
         const minuto = match[2]
             ? Number(match[2])
             : 0;
@@ -55,157 +56,284 @@ class ConversationManager {
         return `${String(hora).padStart(2, '0')}:${String(minuto).padStart(2, '0')}`;
     }
 
-normalizarData(mensagem = '') {
-    const texto = String(mensagem)
-        .trim()
-        .toLowerCase()
-        .normalize('NFD')
-        .replace(/[\u0300-\u036f]/g, '');
+    normalizarData(mensagem = '') {
+        const texto = String(mensagem)
+            .trim()
+            .toLowerCase()
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '');
 
-    if (!texto) {
-        return null;
-    }
-
-    const hoje = new Date();
-
-    hoje.setHours(0, 0, 0, 0);
-
-    /*
-     * amanhã
-     */
-    if (
-        texto === 'amanha' ||
-        texto.includes('amanha')
-    ) {
-        const data = new Date(hoje);
-
-        data.setDate(
-            data.getDate() + 1
-        );
-
-        return this.formatarDataISO(data);
-    }
-
-    /*
-     * hoje
-     */
-    if (
-        texto === 'hoje' ||
-        texto.includes('hoje')
-    ) {
-        return this.formatarDataISO(hoje);
-    }
-
-    /*
-     * Formatos:
-     * 20/07
-     * 20/07/2026
-     */
-    const formatoNumerico = texto.match(
-        /\b(\d{1,2})\/(\d{1,2})(?:\/(\d{4}))?\b/
-    );
-
-    if (formatoNumerico) {
-        const dia = Number(
-            formatoNumerico[1]
-        );
-
-        const mes = Number(
-            formatoNumerico[2]
-        );
-
-        const ano = formatoNumerico[3]
-            ? Number(formatoNumerico[3])
-            : hoje.getFullYear();
-
-        const data = new Date(
-            ano,
-            mes - 1,
-            dia
-        );
-
-        const dataValida =
-            data.getFullYear() === ano &&
-            data.getMonth() === mes - 1 &&
-            data.getDate() === dia;
-
-        if (!dataValida) {
+        if (!texto) {
             return null;
         }
 
-        return this.formatarDataISO(data);
-    }
+        const hoje = new Date();
 
-    /*
-     * Dias da semana.
-     * Retorna a próxima ocorrência futura.
-     */
-    const diasSemana = {
-        domingo: 0,
-        segunda: 1,
-        'segunda-feira': 1,
-        terca: 2,
-        'terca-feira': 2,
-        quarta: 3,
-        'quarta-feira': 3,
-        quinta: 4,
-        'quinta-feira': 4,
-        sexta: 5,
-        'sexta-feira': 5,
-        sabado: 6
-    };
-
-    const diaSemana =
-        Object.keys(diasSemana).find(
-            dia => texto.includes(dia)
-        );
-
-    if (diaSemana) {
-        const destino =
-            diasSemana[diaSemana];
-
-        const atual =
-            hoje.getDay();
-
-        let diferenca =
-            (destino - atual + 7) % 7;
+        hoje.setHours(0, 0, 0, 0);
 
         /*
-         * Se o usuário disser o mesmo dia da semana,
-         * assume a próxima semana.
+         * amanhã
          */
-        if (diferenca === 0) {
-            diferenca = 7;
+        if (
+            texto === 'amanha' ||
+            texto.includes('amanha')
+        ) {
+            const data = new Date(hoje);
+
+            data.setDate(
+                data.getDate() + 1
+            );
+
+            return this.formatarDataISO(data);
         }
 
-        const data = new Date(hoje);
+        /*
+         * hoje
+         */
+        if (
+            texto === 'hoje' ||
+            texto.includes('hoje')
+        ) {
+            return this.formatarDataISO(hoje);
+        }
 
-        data.setDate(
-            data.getDate() + diferenca
+        /*
+         * Formatos:
+         * 20/07
+         * 20/07/2026
+         */
+        const formatoNumerico = texto.match(
+            /\b(\d{1,2})\/(\d{1,2})(?:\/(\d{4}))?\b/
         );
 
-        return this.formatarDataISO(data);
+        if (formatoNumerico) {
+            const dia = Number(
+                formatoNumerico[1]
+            );
+
+            const mes = Number(
+                formatoNumerico[2]
+            );
+
+            const ano = formatoNumerico[3]
+                ? Number(formatoNumerico[3])
+                : hoje.getFullYear();
+
+            const data = new Date(
+                ano,
+                mes - 1,
+                dia
+            );
+
+            const dataValida =
+                data.getFullYear() === ano &&
+                data.getMonth() === mes - 1 &&
+                data.getDate() === dia;
+
+            if (!dataValida) {
+                return null;
+            }
+
+            return this.formatarDataISO(data);
+        }
+
+        /*
+         * Dias da semana.
+         * Retorna a próxima ocorrência futura.
+         */
+        const diasSemana = {
+            domingo: 0,
+            segunda: 1,
+            'segunda-feira': 1,
+            terca: 2,
+            'terca-feira': 2,
+            quarta: 3,
+            'quarta-feira': 3,
+            quinta: 4,
+            'quinta-feira': 4,
+            sexta: 5,
+            'sexta-feira': 5,
+            sabado: 6
+        };
+
+        const diaSemana =
+            Object.keys(diasSemana).find(
+                dia => texto.includes(dia)
+            );
+
+        if (diaSemana) {
+            const destino =
+                diasSemana[diaSemana];
+
+            const atual =
+                hoje.getDay();
+
+            let diferenca =
+                (destino - atual + 7) % 7;
+
+            /*
+             * Se o usuário disser o mesmo dia da semana,
+             * assume a próxima semana.
+             */
+            if (diferenca === 0) {
+                diferenca = 7;
+            }
+
+            const data = new Date(hoje);
+
+            data.setDate(
+                data.getDate() + diferenca
+            );
+
+            return this.formatarDataISO(data);
+        }
+
+        return null;
     }
 
-    return null;
-}
+    formatarDataISO(data) {
+        const ano =
+            data.getFullYear();
 
-formatarDataISO(data) {
-    const ano =
-        data.getFullYear();
+        const mes =
+            String(
+                data.getMonth() + 1
+            ).padStart(2, '0');
 
-    const mes =
-        String(
-            data.getMonth() + 1
-        ).padStart(2, '0');
+        const dia =
+            String(
+                data.getDate()
+            ).padStart(2, '0');
 
-    const dia =
-        String(
-            data.getDate()
-        ).padStart(2, '0');
+        return `${ano}-${mes}-${dia}`;
+    }
 
-    return `${ano}-${mes}-${dia}`;
-}
+    normalizarTelefone(mensagem = '') {
+        const telefone = String(mensagem)
+            .replace(/\D/g, '')
+            .trim();
+
+        if (!telefone) {
+            return null;
+        }
+
+        /*
+         * Aceita telefone com DDD e também telefone
+         * contendo o código do país.
+         *
+         * Exemplos:
+         * 75999999999
+         * 5575999999999
+         */
+        if (
+            telefone.length < 10 ||
+            telefone.length > 13
+        ) {
+            return null;
+        }
+
+        return telefone;
+    }
+
+    async atualizarDadosEValidar({
+        sessionId,
+        sessao,
+        campo,
+        valor
+    }) {
+        /*
+         * Os dados anteriores são preservados explicitamente.
+         *
+         * Isso evita que uma implementação de update com merge
+         * superficial apague os campos coletados anteriormente.
+         */
+        const sessaoAtualizada =
+            await SessionManager.update(
+                sessionId,
+                {
+                    dados: {
+                        ...(
+                            sessao.dados ||
+                            {}
+                        ),
+                        [campo]: valor
+                    }
+                }
+            );
+
+        const resultadoValidacao =
+            SessionValidator.validar(
+                sessaoAtualizada
+            );
+
+        const sessaoFinal =
+            await SessionManager.update(
+                sessionId,
+                {
+                    etapa:
+                        resultadoValidacao.etapa
+                }
+            );
+
+        return {
+            sessaoAtualizada,
+            sessaoFinal,
+            resultadoValidacao
+        };
+    }
+
+    montarRetornoValidacaoInvalida({
+        sessionId,
+        mensagem,
+        sessao,
+        campo,
+        textoValidacao
+    }) {
+        return {
+            tipo: 'agenda',
+            continuarSessao: true,
+            usarInterpretador: false,
+            telefoneWhatsApp: sessionId,
+            mensagem,
+            action: sessao.action || null,
+            etapa: sessao.etapa || null,
+            dados: sessao.dados || {},
+            validacao: {
+                ok: false,
+                campo,
+                mensagem: textoValidacao
+            }
+        };
+    }
+
+    montarRetornoSessaoAtualizada({
+        sessionId,
+        mensagem,
+        sessaoAtualizada,
+        sessaoFinal,
+        resultadoValidacao
+    }) {
+        return {
+            tipo: 'agenda',
+            continuarSessao: true,
+            usarInterpretador: false,
+            telefoneWhatsApp: sessionId,
+            mensagem,
+            action:
+                sessaoFinal.action ||
+                sessaoAtualizada.action ||
+                null,
+            etapa:
+                sessaoFinal.etapa ||
+                null,
+            dados:
+                sessaoFinal.dados ||
+                sessaoAtualizada.dados ||
+                {},
+            validacao:
+                resultadoValidacao.validacao
+        };
+    }
 
     async analisarEntrada({
         telefoneWhatsApp,
@@ -225,9 +353,10 @@ formatarDataISO(data) {
             mensagem || ''
         ).trim();
 
-        const sessao = await SessionManager.get(
-            sessionId
-        );
+        const sessao =
+            await SessionManager.get(
+                sessionId
+            ) || {};
 
         const continuarSessao =
             this.possuiEtapaPendente(
@@ -252,6 +381,159 @@ formatarDataISO(data) {
         }
 
         /*
+         * Existe etapa pendente de ação.
+         *
+         * A identificação da intenção deve continuar sendo
+         * responsabilidade do Genius Interpretador.
+         */
+        if (sessao.etapa === 'AGUARDANDO_ACAO') {
+            return {
+                tipo: 'agenda',
+                continuarSessao: true,
+                usarInterpretador: true,
+                telefoneWhatsApp: sessionId,
+                mensagem: mensagemNormalizada,
+                action: sessao.action || null,
+                etapa: sessao.etapa,
+                dados: sessao.dados || {}
+            };
+        }
+
+        /*
+         * Existe etapa pendente de cliente.
+         */
+        if (sessao.etapa === 'AGUARDANDO_CLIENTE') {
+            const cliente = mensagemNormalizada;
+
+            if (!cliente) {
+                return this.montarRetornoValidacaoInvalida({
+                    sessionId,
+                    mensagem: mensagemNormalizada,
+                    sessao,
+                    campo: 'cliente',
+                    textoValidacao:
+                        'Informe o nome do cliente para continuar.'
+                });
+            }
+
+            const resultado =
+                await this.atualizarDadosEValidar({
+                    sessionId,
+                    sessao,
+                    campo: 'cliente',
+                    valor: cliente
+                });
+
+            return this.montarRetornoSessaoAtualizada({
+                sessionId,
+                mensagem: mensagemNormalizada,
+                ...resultado
+            });
+        }
+
+        /*
+         * Existe etapa pendente de telefone.
+         */
+        if (sessao.etapa === 'AGUARDANDO_TELEFONE') {
+            const telefone =
+                this.normalizarTelefone(
+                    mensagemNormalizada
+                );
+
+            if (!telefone) {
+                return this.montarRetornoValidacaoInvalida({
+                    sessionId,
+                    mensagem: mensagemNormalizada,
+                    sessao,
+                    campo: 'telefone',
+                    textoValidacao:
+                        'Não consegui entender o telefone. Informe o número com DDD, por exemplo, 75999999999.'
+                });
+            }
+
+            const resultado =
+                await this.atualizarDadosEValidar({
+                    sessionId,
+                    sessao,
+                    campo: 'telefone',
+                    valor: telefone
+                });
+
+            return this.montarRetornoSessaoAtualizada({
+                sessionId,
+                mensagem: mensagemNormalizada,
+                ...resultado
+            });
+        }
+
+        /*
+         * Existe etapa pendente de serviço.
+         */
+        if (sessao.etapa === 'AGUARDANDO_SERVICO') {
+            const servico = mensagemNormalizada;
+
+            if (!servico) {
+                return this.montarRetornoValidacaoInvalida({
+                    sessionId,
+                    mensagem: mensagemNormalizada,
+                    sessao,
+                    campo: 'servico',
+                    textoValidacao:
+                        'Informe o serviço desejado para continuar.'
+                });
+            }
+
+            const resultado =
+                await this.atualizarDadosEValidar({
+                    sessionId,
+                    sessao,
+                    campo: 'servico',
+                    valor: servico
+                });
+
+            return this.montarRetornoSessaoAtualizada({
+                sessionId,
+                mensagem: mensagemNormalizada,
+                ...resultado
+            });
+        }
+
+        /*
+         * Existe etapa pendente de data.
+         */
+        if (sessao.etapa === 'AGUARDANDO_DATA') {
+            const data =
+                this.normalizarData(
+                    mensagemNormalizada
+                );
+
+            if (!data) {
+                return this.montarRetornoValidacaoInvalida({
+                    sessionId,
+                    mensagem: mensagemNormalizada,
+                    sessao,
+                    campo: 'data',
+                    textoValidacao:
+                        'Não consegui entender a data. Informe, por exemplo, amanhã, terça-feira ou 20/07.'
+                });
+            }
+
+            const resultado =
+                await this.atualizarDadosEValidar({
+                    sessionId,
+                    sessao,
+                    campo: 'data',
+                    valor: data
+                });
+
+            return this.montarRetornoSessaoAtualizada({
+                sessionId,
+                mensagem: mensagemNormalizada,
+                ...resultado
+            });
+        }
+
+        /*
          * Existe etapa pendente de horário.
          * A mensagem será interpretada diretamente como horário.
          */
@@ -262,141 +544,110 @@ formatarDataISO(data) {
                 );
 
             if (!horario) {
-                return {
-                    tipo: 'agenda',
-                    continuarSessao: true,
-                    usarInterpretador: false,
-                    telefoneWhatsApp: sessionId,
+                return this.montarRetornoValidacaoInvalida({
+                    sessionId,
                     mensagem: mensagemNormalizada,
-                    action: sessao.action || null,
-                    etapa: sessao.etapa,
-                    dados: sessao.dados || {},
-                    validacao: {
-                        ok: false,
-                        campo: 'horario',
-                        mensagem:
-                            'Não consegui entender o horário. Informe, por exemplo, 10h ou 10:30.'
-                    }
-                };
+                    sessao,
+                    campo: 'horario',
+                    textoValidacao:
+                        'Não consegui entender o horário. Informe, por exemplo, 10h ou 10:30.'
+                });
             }
 
-            const sessaoAtualizada =
-                await SessionManager.update(
+            const resultado =
+                await this.atualizarDadosEValidar({
                     sessionId,
-                    {
-                        dados: {
-                            horario
-                        }
-                    }
-                );
+                    sessao,
+                    campo: 'horario',
+                    valor: horario
+                });
 
-            const resultadoValidacao =
-                SessionValidator.validar(
-                    sessaoAtualizada
-                );
-
-            const sessaoFinal =
-                await SessionManager.update(
-                    sessionId,
-                    {
-                        etapa:
-                            resultadoValidacao.etapa
-                    }
-                );
-
-            return {
-                tipo: 'agenda',
-                continuarSessao: true,
-                usarInterpretador: false,
-                telefoneWhatsApp: sessionId,
+            return this.montarRetornoSessaoAtualizada({
+                sessionId,
                 mensagem: mensagemNormalizada,
-                action:
-                    sessaoFinal.action ||
-                    sessaoAtualizada.action ||
-                    null,
-                etapa:
-                    sessaoFinal.etapa,
-                dados:
-                    sessaoFinal.dados || {},
-                validacao:
-                    resultadoValidacao.validacao
-            };
+                ...resultado
+            });
         }
 
-/*
- * Existe etapa pendente de data.
- */
-if (sessao.etapa === 'AGUARDANDO_DATA') {
-    const data =
-        this.normalizarData(
-            mensagemNormalizada
-        );
+        /*
+         * Existe etapa pendente de novo horário.
+         */
+        if (
+            sessao.etapa ===
+            'AGUARDANDO_NOVO_HORARIO'
+        ) {
+            const novoHorario =
+                this.normalizarHorario(
+                    mensagemNormalizada
+                );
 
-    if (!data) {
-        return {
-            tipo: 'agenda',
-            continuarSessao: true,
-            usarInterpretador: false,
-            telefoneWhatsApp: sessionId,
-            mensagem: mensagemNormalizada,
-            action: sessao.action || null,
-            etapa: sessao.etapa,
-            dados: sessao.dados || {},
-            validacao: {
-                ok: false,
-                campo: 'data',
-                mensagem:
-                    'Não consegui entender a data. Informe, por exemplo, amanhã, terça-feira ou 20/07.'
+            if (!novoHorario) {
+                return this.montarRetornoValidacaoInvalida({
+                    sessionId,
+                    mensagem: mensagemNormalizada,
+                    sessao,
+                    campo: 'novo_horario',
+                    textoValidacao:
+                        'Não consegui entender o novo horário. Informe, por exemplo, 14h ou 14:30.'
+                });
             }
-        };
-    }
 
-    const sessaoAtualizada =
-        await SessionManager.update(
-            sessionId,
-            {
-                dados: {
-                    data
-                }
-            }
-        );
+            const resultado =
+                await this.atualizarDadosEValidar({
+                    sessionId,
+                    sessao,
+                    campo: 'novo_horario',
+                    valor: novoHorario
+                });
 
-    const resultadoValidacao =
-        SessionValidator.validar(
-            sessaoAtualizada
-        );
-
-    const sessaoFinal =
-        await SessionManager.update(
-            sessionId,
-            {
-                etapa:
-                    resultadoValidacao.etapa
-            }
-        );
-
-    return {
-        tipo: 'agenda',
-        continuarSessao: true,
-        usarInterpretador: false,
-        telefoneWhatsApp: sessionId,
-        mensagem: mensagemNormalizada,
-        action:
-            sessaoFinal.action ||
-            sessaoAtualizada.action ||
-            null,
-        etapa:
-            sessaoFinal.etapa,
-        dados:
-            sessaoFinal.dados || {},
-        validacao:
-            resultadoValidacao.validacao
-    };
-}
+            return this.montarRetornoSessaoAtualizada({
+                sessionId,
+                mensagem: mensagemNormalizada,
+                ...resultado
+            });
+        }
 
         /*
-         * Outras etapas ainda serão implementadas.
-         * Por enquanto, o fluxo não deve cair na IA.
+         * Existe etapa pendente de nova data.
+         */
+        if (
+            sessao.etapa ===
+            'AGUARDANDO_NOVA_DATA'
+        ) {
+            const novaData =
+                this.normalizarData(
+                    mensagemNormalizada
+                );
+
+            if (!novaData) {
+                return this.montarRetornoValidacaoInvalida({
+                    sessionId,
+                    mensagem: mensagemNormalizada,
+                    sessao,
+                    campo: 'nova_data',
+                    textoValidacao:
+                        'Não consegui entender a nova data. Informe, por exemplo, amanhã, terça-feira ou 20/07.'
+                });
+            }
+
+            const resultado =
+                await this.atualizarDadosEValidar({
+                    sessionId,
+                    sessao,
+                    campo: 'nova_data',
+                    valor: novaData
+                });
+
+            return this.montarRetornoSessaoAtualizada({
+                sessionId,
+                mensagem: mensagemNormalizada,
+                ...resultado
+            });
+        }
+
+        /*
+         * Proteção para uma eventual etapa registrada
+         * como pendente, mas sem tratamento implementado.
          */
         return {
             tipo: 'agenda',

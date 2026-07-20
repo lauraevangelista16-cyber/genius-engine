@@ -2,9 +2,15 @@ class SessionValidator {
 
     static validar(sessao = {}) {
 
-        const action = sessao.action || 'indefinido';
+        const action = String(
+            sessao.action || 'indefinido'
+        ).trim();
 
-        const dados = sessao.dados || {};
+        const dados =
+            sessao.dados &&
+            typeof sessao.dados === 'object'
+                ? sessao.dados
+                : {};
 
         const obrigatorios = {
 
@@ -108,8 +114,33 @@ class SessionValidator {
 
         }
 
+        if (
+            !Object.prototype.hasOwnProperty.call(
+                obrigatorios,
+                action
+            )
+        ) {
+
+            return {
+
+                etapa:
+                    etapas.action,
+
+                validacao: {
+
+                    ok: false,
+
+                    campo: 'action',
+
+                    mensagem:
+                        'Não consegui identificar o que você deseja fazer.'
+                }
+            };
+
+        }
+
         const campos =
-            obrigatorios[action] || [];
+            obrigatorios[action];
 
         for (const campo of campos) {
 
@@ -149,9 +180,12 @@ class SessionValidator {
 
             validacao: {
 
-                ok: true
-            }
+                ok: true,
 
+                campo: null,
+
+                mensagem: null
+            }
         };
 
     }
