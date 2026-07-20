@@ -15,6 +15,74 @@ const app = express();
 
 app.use(express.json());
 
+app.post('/sessao', async (req, res) => {
+    try {
+        const {
+            action,
+            dados = {},
+            telefoneWhatsApp
+        } = req.body || {};
+
+        if (!telefoneWhatsApp) {
+            throw new Error(
+                'telefoneWhatsApp é obrigatório para carregar a sessão.'
+            );
+        }
+
+        const sessionId = String(
+            telefoneWhatsApp
+        ).trim();
+
+        const atualizacao = {
+            dados
+        };
+
+        /*
+         * Só atualiza a ação quando ela for válida.
+         * Assim, "indefinido" não apaga a ação anterior.
+         */
+        if (
+            action &&
+            String(action).trim() &&
+            action !== 'indefinido'
+        ) {
+            atualizacao.action = action;
+        }
+
+        const sessao = await SessionManager.update(
+            sessionId,
+            atualizacao
+        );
+
+        console.log('\n========================================');
+        console.log('[SESSION] Sessão consolidada');
+        console.log(JSON.stringify(sessao, null, 2));
+        console.log('========================================\n');
+
+        return res.json({
+            tipo: 'agenda',
+            action: sessao.action || action || 'indefinido',
+            dados: sessao.dados || {},
+            telefoneWhatsApp: sessionId,
+            etapa: sessao.etapa || null,
+            validacao: {
+                ok: true
+            }
+        });
+
+    } catch (erro) {
+        console.error('[POST /sessao]', erro);
+
+        const erroTratado = ErrorHandler.tratar(
+            erro
+        );
+
+        return res.status(400).json(
+            erroTratado
+        );
+    }
+});
+
 app.post('/agenda', async (req, res) => {
     try {
         const {
