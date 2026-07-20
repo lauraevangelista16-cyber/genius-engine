@@ -50,7 +50,8 @@ const etapasPendentes = [
     'AGUARDANDO_DATA',
     'AGUARDANDO_HORARIO',
     'AGUARDANDO_NOVO_HORARIO',
-    'AGUARDANDO_NOVA_DATA'
+    'AGUARDANDO_NOVA_DATA',
+    'AGUARDANDO_CONFIRMACAO'
 ];
 
 if (
@@ -80,14 +81,24 @@ if (
             atualizacao
         );
 
-const resultadoValidacao = 
-     SessionValidator.validar(sessao);
-const sessaoComEtapa = await SessionManager.update(
-    sessionId,
-    {
-        etapa: resultadoValidacao.etapa
-    }
-);
+const resultadoValidacao =
+    SessionValidator.validar(sessao);
+
+const resultadoConfirmacao =
+    await ConversationManager
+        .aplicarConfirmacaoAposValidacao({
+            sessionId,
+            sessao,
+            resultadoValidacao
+        });
+
+const sessaoComEtapa =
+    resultadoConfirmacao.sessaoFinal;
+
+const resultadoFinal =
+    resultadoConfirmacao
+        .resultadoValidacao;
+
         console.log('\n========================================');
         console.log('[SESSION] Sessão consolidada');
         console.log(JSON.stringify(sessaoComEtapa, null, 2));
@@ -110,10 +121,10 @@ const sessaoComEtapa = await SessionManager.update(
 
     etapa:
         sessaoComEtapa.etapa ||
-        resultadoValidacao.etapa,
+        resultadoFinal.etapa,
 
     validacao:
-        resultadoValidacao.validacao
+        resultadoFinal.validacao
 });
 
     } catch (erro) {

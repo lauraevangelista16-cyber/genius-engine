@@ -11,13 +11,245 @@ class ConversationManager {
             'AGUARDANDO_DATA',
             'AGUARDANDO_HORARIO',
             'AGUARDANDO_NOVO_HORARIO',
-            'AGUARDANDO_NOVA_DATA'
+            'AGUARDANDO_NOVA_DATA',
+            'AGUARDANDO_CONFIRMACAO'
         ];
     }
 
     possuiEtapaPendente(etapa) {
         return this.etapasPendentes.includes(etapa);
     }
+
+ respostaPositiva(texto = '') {
+    const resposta = String(texto || '')
+        .trim()
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '');
+
+    const possuiEmojiPositivo =
+        /👍(?:🏻|🏼|🏽|🏾|🏿)?/u.test(
+            resposta
+        );
+
+    const semEmoji = resposta
+        .replace(
+            /👍(?:🏻|🏼|🏽|🏾|🏿)?/gu,
+            ''
+        )
+        .trim();
+
+    return (
+        possuiEmojiPositivo ||
+        [
+            'sim',
+            's',
+            'ok',
+            'confirmo',
+            'confirmar',
+            'pode confirmar',
+            'pode',
+            'correto'
+        ].includes(semEmoji)
+    );
+}
+
+respostaNegativa(texto = '') {
+    const resposta = String(texto || '')
+        .trim()
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '');
+
+    const possuiEmojiNegativo =
+        /👎(?:🏻|🏼|🏽|🏾|🏿)?/u.test(
+            resposta
+        );
+
+    const semEmoji = resposta
+        .replace(
+            /👎(?:🏻|🏼|🏽|🏾|🏿)?/gu,
+            ''
+        )
+        .trim();
+
+    return (
+        possuiEmojiNegativo ||
+        [
+            'nao',
+            'n',
+            'nao confirmo',
+            'desistir',
+            'desisto'
+        ].includes(semEmoji)
+    );
+}
+
+exigeConfirmacao(action) {
+    const actionNormalizada =
+        action === 'reagendar'
+            ? 'alterar'
+            : action;
+
+    return [
+        'criar',
+        'alterar',
+        'cancelar'
+    ].includes(actionNormalizada);
+}
+
+montarMensagemConfirmacao(action, dados = {}) {
+    const actionNormalizada =
+        action === 'reagendar'
+            ? 'alterar'
+            : action;
+
+    const cliente =
+        dados.cliente || 'cliente informado';
+
+    const servico =
+        dados.servico || null;
+
+    const data =
+        dados.data || null;
+
+    const horario =
+        dados.horario || null;
+
+    const novaData =
+        dados.nova_data || null;
+
+    const novoHorario =
+        dados.novo_horario || null;
+
+    if (actionNormalizada === 'criar') {
+        return [
+            'Confirma a criação deste agendamento?',
+            `Cliente: ${cliente}`,
+            servico
+                ? `Serviço: ${servico}`
+                : null,
+            data
+                ? `Data: ${data}`
+                : null,
+            horario
+                ? `Horário: ${horario}`
+                : null,
+            'Responda sim ou não.'
+        ]
+            .filter(Boolean)
+            .join('\n');
+    }
+
+    if (actionNormalizada === 'alterar') {
+        return [
+            'Confirma a alteração deste agendamento?',
+            `Cliente: ${cliente}`,
+            servico
+                ? `Serviço: ${servico}`
+                : null,
+            data
+                ? `Data atual: ${data}`
+                : null,
+            horario
+                ? `Horário atual: ${horario}`
+                : null,
+            novaData
+                ? `Nova data: ${novaData}`
+                : null,
+            novoHorario
+                ? `Novo horário: ${novoHorario}`
+                : null,
+            'Responda sim ou não.'
+        ]
+            .filter(Boolean)
+            .join('\n');
+    }
+
+    if (actionNormalizada === 'cancelar') {
+        return [
+            'Confirma o cancelamento deste agendamento?',
+            `Cliente: ${cliente}`,
+            servico
+                ? `Serviço: ${servico}`
+                : null,
+            data
+                ? `Data: ${data}`
+                : null,
+            horario
+                ? `Horário: ${horario}`
+                : null,
+            'Responda sim ou não.'
+        ]
+            .filter(Boolean)
+            .join('\n');
+    }
+
+    return null;
+}
+
+async aplicarConfirmacaoAposValidacao({
+    sessionId,
+    sessao,
+    resultadoValidacao
+}) {
+    const dadosCompletos =
+        resultadoValidacao &&
+        resultadoValidacao.etapa ===
+            'PRONTO_PARA_EXECUTAR';
+
+    if (
+        !dadosCompletos ||
+        !this.exigeConfirmacao(sessao.action)
+    ) {
+        return {
+            sessaoFinal:
+                await SessionManager.update(
+                    sessionId,
+                    {
+                        etapa:
+                            resultadoValidacao.etapa
+                    }
+                ),
+            resultadoValidacao
+        };
+    }
+
+    const mensagemConfirmacao =
+        this.montarMensagemConfirmacao(
+            sessao.action,
+            sessao.dados || {}
+        );
+
+    const sessaoFinal =
+        await SessionManager.update(
+            sessionId,
+            {
+                etapa:
+                    'AGUARDANDO_CONFIRMACAO',
+                confirmacao: {
+                    pendente: true,
+                    action: sessao.action,
+                    mensagem:
+                        mensagemConfirmacao
+                }
+            }
+        );
+
+    return {
+        sessaoFinal,
+        resultadoValidacao: {
+            etapa:
+                'AGUARDANDO_CONFIRMACAO',
+            validacao: {
+                ok: false,
+                campo: 'confirmacao',
+                mensagem:
+                    mensagemConfirmacao
+            }
+        }
+    };
+}
 
 identificarAcaoExplicita(mensagem = '') {
         const texto = String(
@@ -332,19 +564,24 @@ identificarAcaoExplicita(mensagem = '') {
                 sessaoAtualizada
             );
 
-        const sessaoFinal =
-            await SessionManager.update(
-                sessionId,
-                {
-                    etapa:
-                        resultadoValidacao.etapa
-                }
-            );
+      const resultadoConfirmacao =
+    await this.aplicarConfirmacaoAposValidacao({
+        sessionId,
+        sessao: sessaoAtualizada,
+        resultadoValidacao
+    });
+
+    const sessaoFinal =
+    resultadoConfirmacao.sessaoFinal;
+
+    const resultadoFinal =
+    resultadoConfirmacao.resultadoValidacao;
 
         return {
             sessaoAtualizada,
             sessaoFinal,
-            resultadoValidacao
+            resultadoValidacao:
+            resultadoFinal
         };
     }
 
@@ -465,7 +702,7 @@ identificarAcaoExplicita(mensagem = '') {
             };
         }
 
-/*
+        /*
          * Existe uma etapa de coleta pendente, mas o usuário
          * informou explicitamente uma ação diferente.
          *
@@ -522,6 +759,124 @@ identificarAcaoExplicita(mensagem = '') {
                     {}
             };
         }
+ /*
+ * Existe uma confirmação pendente antes da execução
+ * de uma operação modificadora.
+ */
+if (
+    sessao.etapa ===
+    'AGUARDANDO_CONFIRMACAO'
+) {
+    if (
+        this.respostaPositiva(
+            mensagemNormalizada
+        )
+    ) {
+        const sessaoConfirmada =
+            await SessionManager.update(
+                sessionId,
+                {
+                    etapa:
+                        'PRONTO_PARA_EXECUTAR',
+                    confirmacao: null
+                }
+            );
+
+        console.log(
+            '[CONVERSATION] Operação confirmada pelo usuário:',
+            {
+                action:
+                    sessaoConfirmada.action ||
+                    null,
+                etapa:
+                    sessaoConfirmada.etapa
+            }
+        );
+
+        return {
+            tipo: 'agenda',
+            continuarSessao: true,
+            usarInterpretador: false,
+            telefoneWhatsApp: sessionId,
+            mensagem: mensagemNormalizada,
+            action:
+                sessaoConfirmada.action ||
+                null,
+            etapa:
+                sessaoConfirmada.etapa,
+            dados:
+                sessaoConfirmada.dados ||
+                {},
+            validacao: {
+                ok: true,
+                campo: null,
+                mensagem: null
+            }
+        };
+    }
+
+    if (
+        this.respostaNegativa(
+            mensagemNormalizada
+        )
+    ) {
+        const actionCancelada =
+            sessao.action || null;
+
+        const sessaoResetada =
+            await SessionManager.resetFluxo(
+                sessionId
+            );
+
+        console.log(
+            '[CONVERSATION] Operação não confirmada pelo usuário:',
+            {
+                action:
+                    actionCancelada
+            }
+        );
+
+        return {
+            tipo: 'agenda',
+            continuarSessao: true,
+            usarInterpretador: false,
+            telefoneWhatsApp: sessionId,
+            mensagem: mensagemNormalizada,
+            action:
+                sessaoResetada.action ||
+                null,
+            etapa:
+                sessaoResetada.etapa ||
+                null,
+            dados:
+                sessaoResetada.dados ||
+                {},
+            validacao: {
+                ok: false,
+                campo: 'confirmacao',
+                mensagem:
+                    'Tudo bem. A operação foi cancelada e nenhuma alteração foi realizada.'
+            }
+        };
+    }
+
+    return {
+        tipo: 'agenda',
+        continuarSessao: true,
+        usarInterpretador: false,
+        telefoneWhatsApp: sessionId,
+        mensagem: mensagemNormalizada,
+        action: sessao.action || null,
+        etapa: sessao.etapa,
+        dados: sessao.dados || {},
+        validacao: {
+            ok: false,
+            campo: 'confirmacao',
+            mensagem:
+                'Não consegui entender a resposta. Confirme respondendo sim ou não.'
+        }
+    };
+}
 
         /*
          * Existe etapa pendente de cliente.
