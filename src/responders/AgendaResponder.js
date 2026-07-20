@@ -8,7 +8,11 @@ class AgendaResponder {
      * Isso mantém compatibilidade com todas as respostas
      * já homologadas na v1.0.
      */
-    montarResposta(resultado, ok, mensagemPadrao) {
+    montarResposta(
+        resultado,
+        ok,
+        mensagemPadrao
+    ) {
         const resposta = {
             ok,
             mensagem:
@@ -22,10 +26,66 @@ class AgendaResponder {
             typeof resultado.memory === 'object' &&
             !Array.isArray(resultado.memory)
         ) {
-            resposta.memory = resultado.memory;
+            resposta.memory =
+                resultado.memory;
         }
 
         return resposta;
+    }
+
+    /**
+     * Monta a mensagem detalhada de um agendamento
+     * encontrado, incluindo as informações disponíveis.
+     */
+    montarMensagemAgendamentoEncontrado(
+        resultado = {}
+    ) {
+        const atendimento =
+            resultado.atendimento || {};
+
+        const cliente = String(
+            atendimento.cliente || ''
+        ).trim();
+
+        const data = String(
+            atendimento.data || ''
+        ).trim();
+
+        const horario = String(
+            atendimento.horario || ''
+        ).trim();
+
+        const servico = String(
+            atendimento.servico || ''
+        ).trim();
+
+        const profissional = String(
+            atendimento.profissional || ''
+        ).trim();
+
+        const detalhes = [
+            'Encontrei seu agendamento:',
+            '',
+            cliente
+                ? `👤 Cliente: ${cliente}`
+                : null,
+            data
+                ? `📅 Data: ${data}`
+                : null,
+            horario
+                ? `🕐 Horário: ${horario}`
+                : null,
+            servico
+                ? `✂️ Serviço: ${servico}`
+                : null,
+            profissional
+                ? `👩‍💼 Profissional: ${profissional}`
+                : null
+        ]
+            .filter(item => item !== null)
+            .join('\n');
+
+        return detalhes;
     }
 
     responder(resultado = {}) {
@@ -115,12 +175,21 @@ class AgendaResponder {
                     'Seu agendamento foi cancelado.'
                 );
 
-            case 'AGENDAMENTO_ENCONTRADO':
+            case 'AGENDAMENTO_ENCONTRADO': {
+                const mensagem =
+                    this.montarMensagemAgendamentoEncontrado(
+                        resultado
+                    );
+
                 return this.montarResposta(
-                    resultado,
+                    {
+                        ...resultado,
+                        mensagem
+                    },
                     true,
-                    'Encontrei seu agendamento.'
+                    mensagem
                 );
+            }
 
             case 'AGENDAMENTO_NAO_ENCONTRADO':
                 return this.montarResposta(
@@ -148,7 +217,8 @@ class AgendaResponder {
                     resultado,
                     false,
                     `Status não tratado: ${
-                        resultado.status || 'SEM_STATUS'
+                        resultado.status ||
+                        'SEM_STATUS'
                     }`
                 );
         }
