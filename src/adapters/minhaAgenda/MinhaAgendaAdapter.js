@@ -11,6 +11,10 @@ const {
 } = require('../../engines/agenda/horarioExpediente');
 
 const {
+    resolverBuscaGlobal
+} = require('../services/agendaResolverBuscaGlobalService');
+
+const {
     horarioParaMinutos,
     obterDuracaoDoServico,
     estaDentroDoHorarioFuncionamento
@@ -626,6 +630,23 @@ class MinhaAgendaAdapter {
     async cancelarAgendamento(dados = {}) {
         const dadosNormalizados = normalizarDados(dados);
         const page = await obterPage();
+const resolucao = await resolverBuscaGlobal(
+    page,
+    dadosNormalizados
+);
+
+if (!resolucao.ok) {
+    return {
+        status: resolucao.status,
+        atendimentos: resolucao.atendimentos,
+        mensagem: resolucao.mensagem
+    };
+}
+
+Object.assign(
+    dadosNormalizados,
+    resolucao.dados
+);
 
         try {
             await step(page, 'A014-cancelar-inicio');
