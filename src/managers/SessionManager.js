@@ -32,13 +32,56 @@ class SessionManager {
         };
     }
 
+    /**
+     * Remove somente valores que não devem sobrescrever
+     * informações válidas já armazenadas na sessão.
+     *
+     * São ignorados:
+     * - undefined
+     * - null
+     * - strings vazias
+     * - strings contendo apenas espaços
+     *
+     * Valores como 0, false, arrays e objetos são preservados.
+     */
+    filtrarDadosPreenchidos(dados = {}) {
+        if (
+            !dados ||
+            typeof dados !== 'object' ||
+            Array.isArray(dados)
+        ) {
+            return {};
+        }
+
+        return Object.fromEntries(
+            Object.entries(dados).filter(([, valor]) => {
+                if (
+                    valor === undefined ||
+                    valor === null
+                ) {
+                    return false;
+                }
+
+                if (
+                    typeof valor === 'string' &&
+                    !valor.trim()
+                ) {
+                    return false;
+                }
+
+                return true;
+            })
+        );
+    }
+
     async get(sessionId) {
         const chave = this.gerarChave(sessionId);
 
         const valor = await RedisAdapter.get(chave);
 
         if (!valor) {
-            const sessao = this.criarSessaoPadrao(sessionId);
+            const sessao =
+                this.criarSessaoPadrao(sessionId);
 
             await RedisAdapter.set(
                 chave,
@@ -56,17 +99,31 @@ class SessionManager {
         const chave = this.gerarChave(sessionId);
         const sessaoAtual = await this.get(sessionId);
 
+        const dadosRecebidos =
+            this.filtrarDadosPreenchidos(
+                novosDados.dados
+            );
+
+        const tentativasRecebidas =
+            novosDados.tentativas &&
+            typeof novosDados.tentativas === 'object'
+                ? novosDados.tentativas
+                : {};
+
         const sessaoAtualizada = {
             ...sessaoAtual,
             ...novosDados,
+
             dados: {
                 ...sessaoAtual.dados,
-                ...(novosDados.dados || {})
+                ...dadosRecebidos
             },
+
             tentativas: {
                 ...sessaoAtual.tentativas,
-                ...(novosDados.tentativas || {})
+                ...tentativasRecebidas
             },
+
             atualizadoEm: new Date().toISOString()
         };
 
@@ -105,10 +162,17 @@ class SessionManager {
         ];
 
         if (!estadosValidos.includes(estado)) {
-            throw new Error(`Estado de sessão inválido: ${estado}`);
+            throw new Error(
+                `Estado de sessão inválido: ${estado}`
+            );
         }
 
-        return this.update(sessionId, { estado });
+        return this.update(
+            sessionId,
+            {
+                estado
+            }
+        );
     }
 }
 
