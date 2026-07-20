@@ -9,6 +9,7 @@ const ErrorHandler = require('./src/core/ErrorHandler');
 const RedisAdapter = require('./src/adapters/redis/RedisAdapter');
 const SessionManager = require('./src/managers/SessionManager');
 const SessionValidator = require('./src/validators/SessionValidator');
+const ConversationManager = require('./src/managers/ConversationManager');
 
 Kernel.registrar('agenda', AgendaEngine);
 
@@ -97,6 +98,32 @@ const sessaoComEtapa = await SessionManager.update(
         const erroTratado = ErrorHandler.tratar(
             erro
         );
+
+        return res.status(400).json(
+            erroTratado
+        );
+    }
+});
+
+app.post('/continuar', async (req, res) => {
+    try {
+
+        const resposta =
+            await ConversationManager.analisarEntrada(
+                req.body
+            );
+
+        return res.json(resposta);
+
+    } catch (erro) {
+
+        console.error(
+            '[POST /continuar]',
+            erro
+        );
+
+        const erroTratado =
+            ErrorHandler.tratar(erro);
 
         return res.status(400).json(
             erroTratado
