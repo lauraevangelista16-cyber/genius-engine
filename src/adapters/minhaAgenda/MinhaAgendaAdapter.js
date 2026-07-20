@@ -194,7 +194,49 @@ class MinhaAgendaAdapter {
                 dadosNormalizados.cliente
             );
 
-            const atendimentos = resultado.resultados || [];
+            const todosAtendimentos =
+                resultado.resultados || [];
+
+            const hojeISO =
+                new Intl.DateTimeFormat(
+                    'en-CA',
+                    {
+                        timeZone:
+                            'America/Bahia',
+                        year: 'numeric',
+                        month: '2-digit',
+                        day: '2-digit'
+                    }
+                ).format(new Date());
+
+            const atendimentos =
+                todosAtendimentos.filter(
+                    atendimento => {
+                        const dataISO =
+                            converterDataBuscaGlobal(
+                                atendimento.data
+                            );
+
+                        return (
+                            dataISO &&
+                            dataISO >= hojeISO
+                        );
+                    }
+                );
+
+            Logger.info(
+                `[MinhaAgendaAdapter] Filtro de datas da consulta global: ${JSON.stringify({
+                    hoje: hojeISO,
+                    totalBusca:
+                        todosAtendimentos.length,
+                    totalAtuaisOuFuturos:
+                        atendimentos.length
+                })}`
+            );
+
+            Logger.info(
+                `[MinhaAgendaAdapter] Resultados atuais ou futuros da consulta global: ${JSON.stringify(atendimentos)}`
+            );
 
             if (atendimentos.length === 0) {
                 return {
