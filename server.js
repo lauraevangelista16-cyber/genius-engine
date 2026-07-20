@@ -57,22 +57,39 @@ app.post('/sessao', async (req, res) => {
 
 const resultadoValidacao = 
      SessionValidator.validar(sessao);
-
+const sessaoComEtapa = await SessionManager.update(
+    sessionId,
+    {
+        etapa: resultadoValidacao.etapa
+    }
+);
         console.log('\n========================================');
         console.log('[SESSION] Sessão consolidada');
-        console.log(JSON.stringify(sessao, null, 2));
+        console.log(JSON.stringify(sessaoComEtapa, null, 2));
         console.log('========================================\n');
 
         return res.json({
-            tipo: 'agenda',
-            action: sessao.action || action || 'indefinido',
-            dados: sessao.dados || {},
-            telefoneWhatsApp: sessionId,
-            etapa: sessao.etapa || null,
-            validacao: {
-                ok: true
-            }
-        });
+    tipo: 'agenda',
+
+    action:
+        sessaoComEtapa.action ||
+        action ||
+        'indefinido',
+
+    dados:
+        sessaoComEtapa.dados ||
+        {},
+
+    telefoneWhatsApp:
+        sessionId,
+
+    etapa:
+        sessaoComEtapa.etapa ||
+        resultadoValidacao.etapa,
+
+    validacao:
+        resultadoValidacao.validacao
+});
 
     } catch (erro) {
         console.error('[POST /sessao]', erro);
