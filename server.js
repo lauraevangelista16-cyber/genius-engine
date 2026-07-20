@@ -215,6 +215,31 @@ if (statusConcluidos.includes(status)) {
 }
 
 /*
+ * Erros definitivos relacionados ao cliente:
+ * limpa o fluxo para evitar que a conversa fique presa
+ * com dados parciais ou inconsistentes.
+ */
+const errosClienteQueEncerramFluxo = [
+    'ERRO_CLIENTE',
+    'ERRO_CLIENTE_NAO_SELECIONADO',
+    'ERRO_CLIENTE_NAO_MANTIDO_NO_ATENDIMENTO'
+];
+
+if (
+    errosClienteQueEncerramFluxo.includes(
+        status
+    )
+) {
+    await SessionManager.resetFluxo(
+        sessionId
+    );
+
+    console.log(
+        `[SESSION] Fluxo limpo após erro definitivo de cliente: ${status}.`
+    );
+}
+
+/*
  * Erro recuperável:
  * mantém os dados e volta a aguardar somente outro horário.
  */
