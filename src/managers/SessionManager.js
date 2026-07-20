@@ -32,18 +32,6 @@ class SessionManager {
         };
     }
 
-    /**
-     * Remove somente valores que não devem sobrescrever
-     * informações válidas já armazenadas na sessão.
-     *
-     * São ignorados:
-     * - undefined
-     * - null
-     * - strings vazias
-     * - strings contendo apenas espaços
-     *
-     * Valores como 0, false, arrays e objetos são preservados.
-     */
     filtrarDadosPreenchidos(dados = {}) {
         if (
             !dados ||
@@ -76,7 +64,6 @@ class SessionManager {
 
     async get(sessionId) {
         const chave = this.gerarChave(sessionId);
-
         const valor = await RedisAdapter.get(chave);
 
         if (!valor) {
@@ -134,6 +121,152 @@ class SessionManager {
         );
 
         return sessaoAtualizada;
+    }
+
+    /**
+     * Limpa somente os dados relacionados ao fluxo atual.
+     *
+     * Preserva:
+     * - sessionId
+     * - estado do bot
+     * - data de criação da sessão
+     *
+     * Limpa:
+     * - action
+     * - dados
+     * - etapa
+     * - confirmação
+     * - tentativas
+     */
+    async resetFluxo(sessionId) {
+        const chave = this.gerarChave(sessionId);
+        const sessaoAtual = await this.get(sessionId);
+
+        const sessaoResetada = {
+            ...sessaoAtual,
+
+            action: null,
+            dados: {},
+            etapa: null,
+            confirmacao: null,
+
+            tentativas: {
+                interpretacao: 0,
+                engine: 0
+            },
+
+            atualizadoEm: new Date().toISOString()
+        };
+
+        await RedisAdapter.set(
+            chave,
+            JSON.stringify(sessaoResetada),
+            SESSION_TTL_SECONDS
+        );
+
+        return sessaoResetada;
+    }
+
+    /**
+     * Aplica as instruções de memória enviadas pela Engine.
+     *
+     * Exemplos:
+     *
+     * Atualização:
+     * {
+     *   reset: false,
+     *   action: 'criar',
+     *   etapa: 'AGUARDANDO_HORARIO',
+     *   dados: {
+     *     servico: 'unha',
+     *     data: '2026-07-20'
+     *   }
+     * }
+     *
+     * Reset:
+     * {
+     *   reset: true
+     * }
+     */
+    async apply(sessionId, instrucoes = {}) {
+        if (
+            !instrucoes ||
+            typeof instrucoes !== 'object' ||
+            Array.isArray(instrucoes)
+        ) {
+            throw new Error(
+                'Instruções de memória inválidas.'
+            );
+        }
+
+        if (instrucoes.reset === true) {
+            return this.resetFluxo(sessionId);
+        }
+
+        const atualizacao = {};
+
+        if (
+            Object.prototype.hasOwnProperty.call(
+                instrucoes,
+                'action'
+            )
+        ) {
+            atualizacao.action = instrucoes.action;
+        }
+
+        if (
+            Object.prototype.hasOwnProperty.call(
+                instrucoes,
+                'etapa'
+            )
+        ) {
+            atualizacao.etapa = instrucoes.etapa;
+        }
+
+        if (
+            Object.prototype.hasOwnProperty.call(
+                instrucoes,
+                'confirmacao'
+            )
+        ) {
+            atualizacao.confirmacao =
+                instrucoes.confirmacao;
+        }
+
+        if (
+            Object.prototype.hasOwnProperty.call(
+                instrucoes,
+                'estado'
+            )
+        ) {
+            atualizacao.estado = instrucoes.estado;
+        }
+
+        if (
+            instrucoes.dados &&
+            typeof instrucoes.dados === 'object' &&
+            !Array.isArray(instrucoes.dados)
+        ) {
+            atualizacao.dados = instrucoes.dados;
+        }
+
+        if (
+            instrucoes.tentativas &&
+            typeof instrucoes.tentativas === 'object' &&
+            !Array.isArray(instrucoes.tentativas)
+        ) {
+            atualizacao.tentativas =
+                instrucoes.tentativas;
+        }
+
+        if (Object.keys(atualizacao).length === 0) {
+            return this.get(sessionId);
+        }
+
+        return this.update(
+            sessionId,
+            atualizacao
+        );
     }
 
     async clear(sessionId) {

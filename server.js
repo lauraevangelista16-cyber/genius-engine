@@ -8,6 +8,7 @@ const AgendaOrchestrator = require('./src/orchestrators/orchestrators');
 const ErrorHandler = require('./src/core/ErrorHandler');
 const RedisAdapter = require('./src/adapters/redis/RedisAdapter');
 const SessionManager = require('./src/managers/SessionManager');
+const SessionValidator = require('./src/validators/SessionValidator');
 
 Kernel.registrar('agenda', AgendaEngine);
 
@@ -53,6 +54,9 @@ app.post('/sessao', async (req, res) => {
             sessionId,
             atualizacao
         );
+
+const resultadoValidacao = 
+     SessionValidator.validar(sessao);
 
         console.log('\n========================================');
         console.log('[SESSION] Sessão consolidada');
@@ -100,19 +104,6 @@ app.post('/agenda', async (req, res) => {
         // A sessão pertence ao telefone que está conversando no WhatsApp.
         // dados.telefone pode representar outra pessoa em agendamentos para terceiros.
         const sessionId = telefoneWhatsApp;
-
-        const sessao = await SessionManager.update(
-            sessionId,
-            {
-                action: action || null,
-                dados
-            }
-        );
-
-        console.log('\n==============================');
-        console.log('[SESSION] Sessão carregada e atualizada');
-        console.log(JSON.stringify(sessao, null, 2));
-        console.log('==============================\n');
 
         const resposta = await AgendaOrchestrator.executar(
             action,

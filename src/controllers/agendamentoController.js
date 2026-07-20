@@ -1,47 +1,96 @@
-const MinhaAgendaAdapter = require('../adapters/minhaAgenda/MinhaAgendaAdapter');
-
 const {
-    validarCriacaoAgendamento,
-    consultarHorariosDisponiveis
-} = require('../engines/agenda/agendaEngine');
+    horarioParaMinutos,
+    obterDuracaoDoServico,
+    existeConflito,
+    estaDentroDoHorarioFuncionamento,
+    buscarProximoHorarioLivre,
+    gerarHorariosLivres
+} = require('./agendaRules');
 
-async function consultarHorariosLivres(dados) {
-    try {
-        const atendimentos = await MinhaAgendaAdapter.listarAtendimentos();
+function validarCriacaoAgendamento(dados) {
+    const { horario, servico, atendimentos = [] } = dados;
 
-        return consultarHorariosDisponiveis({
-            servico: dados.servico,
-            limite: dados.limite,
+    const duracao = obterDuracaoDoServico(servico);
+    const inicio = horarioParaMinutos(horario);
+    const fim = inicio + duracao;
+
+    if (!estaDentroDoHorarioFuncionamento(inicio, fim)) {
+        const proximoHorario = buscarProximoHorarioLivre(
+            inicio,
+            duracao,
             atendimentos
-        });
+        );
 
-    } catch (erro) {
         return {
-            status: 'ERRO',
-            mensagem: erro.message
+            valido: false,
+            status: 'FORA_DO_HORARIO',
+            proximoHorario,
+            mensagem: proximoHorario
+                ? `Esse horário está fora do horário de funcionamento. O próximo horário disponível é ${proximoHorario}.`
+                : 'Esse horário está fora do horário de funcionamento.'
         };
     }
-}
 
-async function criarAgendamento(dados) {
-    try {
-        const validacao = validarCriacaoAgendamento(dados);
+    const conflito = existeConflito(
+        inicio,
+        fim,
+        atendimentos
+    );
 
-if (validacao && validacao.ok === false) {
-    return validacao;
-}
+    if (conflito) {
+        const proximoHorario = buscarProximoHorarioLivre(
+            inicio,
+            duracao,
+            atendimentos
+        );
 
-return await MinhaAgendaAdapter.criarAgendamento(dados);
-
-    } catch (erro) {
         return {
-            status: 'ERRO',
-            mensagem: erro.message
+            valido: false,
+            status: 'HORARIO_OCUPADO',
+            proximoHorario,
+            mensagem: proximoHorario
+                ? `Esse horário está ocupado. O próximo horário disponível é ${proximoHorario}.`
+                : 'Esse horário está ocupado.'
         };
     }
+
+    return {
+        valido: true,
+        duracao,
+        inicio,
+        fim
+    };
+}
+
+function consultarHorariosDisponiveis(dados) {
+    const {
+        servico,
+        atendimentos = [],
+        limite
+    } = dados;
+
+    const duracao = obterDuracaoDoServico(servico);
+
+    const horarios = gerarHorariosLivres(
+        duracao,
+        atendimentos,
+        Number(limite || 6)
+    );
+
+    return {
+        status: horarios.length
+            ? 'HORARIOS_ENCONTRADOS'
+            : 'SEM_HORARIOS_LIVRES',
+        servico,
+        duracao,
+        horarios,
+        mensagem: horarios.length
+            ? `Horários livres encontrados: ${horarios.join(', ')}.`
+            : 'Não encontrei horários livres.'
+    };
 }
 
 module.exports = {
-    criarAgendamento,
-    consultarHorariosLivres
+    validarCriacaoAgendamento,
+    consultarHorariosDisponiveis
 };

@@ -1,6 +1,6 @@
 
 
-===== ARQUIVO: C:\Users\Zé\Desktop\robo-minha-agenda\src\adapters\minhaAgenda\MinhaAgendaAdapter.js =====
+===== ARQUIVO: C:\Users\Zï¿½\Desktop\robo-minha-agenda\src\adapters\minhaAgenda\MinhaAgendaAdapter.js =====
 
 const { irParaData } = require('../../services/agendaNavigationService');
 const { abrirBrowser } = require('../../utils/browser');
@@ -343,7 +343,7 @@ class MinhaAgendaAdapter {
 module.exports = new MinhaAgendaAdapter();
 
 
-===== ARQUIVO: C:\Users\Zé\Desktop\robo-minha-agenda\src\config\servicos.js =====
+===== ARQUIVO: C:\Users\Zï¿½\Desktop\robo-minha-agenda\src\config\servicos.js =====
 
 const SERVICOS = {
     unha: 60,
@@ -355,7 +355,7 @@ const SERVICOS = {
 module.exports = SERVICOS;
 
 
-===== ARQUIVO: C:\Users\Zé\Desktop\robo-minha-agenda\src\config\status.js =====
+===== ARQUIVO: C:\Users\Zï¿½\Desktop\robo-minha-agenda\src\config\status.js =====
 
 const STATUS = {
     HORARIO_LIVRE: 'HORARIO_LIVRE',
@@ -369,7 +369,7 @@ const STATUS = {
 module.exports = STATUS;
 
 
-===== ARQUIVO: C:\Users\Zé\Desktop\robo-minha-agenda\src\controllers\agendamentoController.js =====
+===== ARQUIVO: C:\Users\Zï¿½\Desktop\robo-minha-agenda\src\controllers\agendamentoController.js =====
 
 const MinhaAgendaAdapter = require('../adapters/minhaAgenda/MinhaAgendaAdapter');
 
@@ -417,7 +417,7 @@ module.exports = {
 };
 
 
-===== ARQUIVO: C:\Users\Zé\Desktop\robo-minha-agenda\src\controllers\cancelamentoController.js =====
+===== ARQUIVO: C:\Users\Zï¿½\Desktop\robo-minha-agenda\src\controllers\cancelamentoController.js =====
 
 const { abrirBrowser } = require('../utils/browser');
 
@@ -472,7 +472,7 @@ module.exports = {
 };
 
 
-===== ARQUIVO: C:\Users\Zé\Desktop\robo-minha-agenda\src\controllers\consultaController.js =====
+===== ARQUIVO: C:\Users\Zï¿½\Desktop\robo-minha-agenda\src\controllers\consultaController.js =====
 
 const { abrirBrowser } = require('../utils/browser');
 
@@ -530,7 +530,7 @@ module.exports = {
 };
 
 
-===== ARQUIVO: C:\Users\Zé\Desktop\robo-minha-agenda\src\controllers\reagendamentoController.js =====
+===== ARQUIVO: C:\Users\Zï¿½\Desktop\robo-minha-agenda\src\controllers\reagendamentoController.js =====
 
 function normalizarBusca(texto) {
     return String(texto || '')
@@ -781,7 +781,7 @@ module.exports = {
 };
 
 
-===== ARQUIVO: C:\Users\Zé\Desktop\robo-minha-agenda\src\core\bootstrap.js =====
+===== ARQUIVO: C:\Users\Zï¿½\Desktop\robo-minha-agenda\src\core\bootstrap.js =====
 
 const Kernel = require('./Kernel');
 
@@ -792,7 +792,7 @@ Kernel.registrar('agenda', AgendaEngine);
 module.exports = Kernel;
 
 
-===== ARQUIVO: C:\Users\Zé\Desktop\robo-minha-agenda\src\core\Debugger.js =====
+===== ARQUIVO: C:\Users\Zï¿½\Desktop\robo-minha-agenda\src\core\Debugger.js =====
 
 const fs = require('fs');
 const path = require('path');
@@ -876,7 +876,7 @@ class Debugger {
 module.exports = new Debugger();
 
 
-===== ARQUIVO: C:\Users\Zé\Desktop\robo-minha-agenda\src\core\ErrorHandler.js =====
+===== ARQUIVO: C:\Users\Zï¿½\Desktop\robo-minha-agenda\src\core\ErrorHandler.js =====
 
 const ResponseBuilder = require('./ResponseBuilder');
 
@@ -905,7 +905,7 @@ class ErrorHandler {
 module.exports = new ErrorHandler();
 
 
-===== ARQUIVO: C:\Users\Zé\Desktop\robo-minha-agenda\src\core\Kernel.js =====
+===== ARQUIVO: C:\Users\Zï¿½\Desktop\robo-minha-agenda\src\core\Kernel.js =====
 
 class Kernel {
     constructor() {
@@ -930,7 +930,7 @@ class Kernel {
 module.exports = new Kernel();
 
 
-===== ARQUIVO: C:\Users\Zé\Desktop\robo-minha-agenda\src\core\Logger.js =====
+===== ARQUIVO: C:\Users\Zï¿½\Desktop\robo-minha-agenda\src\core\Logger.js =====
 
 class Logger {
     info(mensagem) {
@@ -953,7 +953,7 @@ class Logger {
 module.exports = new Logger();
 
 
-===== ARQUIVO: C:\Users\Zé\Desktop\robo-minha-agenda\src\core\ResponseBuilder.js =====
+===== ARQUIVO: C:\Users\Zï¿½\Desktop\robo-minha-agenda\src\core\ResponseBuilder.js =====
 
 class ResponseBuilder {
 
@@ -980,7 +980,7 @@ class ResponseBuilder {
 module.exports = new ResponseBuilder();
 
 
-===== ARQUIVO: C:\Users\Zé\Desktop\robo-minha-agenda\src\engines\agenda\agendaEngine.js =====
+===== ARQUIVO: C:\Users\Zï¿½\Desktop\robo-minha-agenda\src\engines\agenda\agendaEngine.js =====
 
 const MinhaAgendaAdapter = require('../../adapters/minhaAgenda/MinhaAgendaAdapter');
 
@@ -1085,7 +1085,7 @@ class AgendaEngine {
 module.exports = new AgendaEngine();
 
 
-===== ARQUIVO: C:\Users\Zé\Desktop\robo-minha-agenda\src\engines\agenda\agendaRules.js =====
+===== ARQUIVO: C:\Users\Zï¿½\Desktop\robo-minha-agenda\src\engines\agenda\agendaRules.js =====
 
 const SERVICOS = require('../../config/servicos');
 
@@ -1229,7 +1229,7 @@ module.exports = {
 };
 
 
-===== ARQUIVO: C:\Users\Zé\Desktop\robo-minha-agenda\src\engines\agenda\agendaStatus.js =====
+===== ARQUIVO: C:\Users\Zï¿½\Desktop\robo-minha-agenda\src\engines\agenda\agendaStatus.js =====
 
 module.exports = Object.freeze({
 
@@ -1256,7 +1256,7 @@ module.exports = Object.freeze({
 });
 
 
-===== ARQUIVO: C:\Users\Zé\Desktop\robo-minha-agenda\src\engines\agenda\agendaValidator.js =====
+===== ARQUIVO: C:\Users\Zï¿½\Desktop\robo-minha-agenda\src\engines\agenda\agendaValidator.js =====
 
 const {
     horarioParaMinutos,
@@ -1356,7 +1356,7 @@ module.exports = {
 };
 
 
-===== ARQUIVO: C:\Users\Zé\Desktop\robo-minha-agenda\src\managers\BrowserManager.js =====
+===== ARQUIVO: C:\Users\Zï¿½\Desktop\robo-minha-agenda\src\managers\BrowserManager.js =====
 
 const { chromium } = require('playwright');
 const fs = require('fs');
@@ -1457,7 +1457,7 @@ class BrowserManager {
 module.exports = new BrowserManager();
 
 
-===== ARQUIVO: C:\Users\Zé\Desktop\robo-minha-agenda\src\managers\SessionManager.js =====
+===== ARQUIVO: C:\Users\Zï¿½\Desktop\robo-minha-agenda\src\managers\SessionManager.js =====
 
 class SessionManager {
     constructor() {
@@ -1516,7 +1516,7 @@ class SessionManager {
 module.exports = new SessionManager();
 
 
-===== ARQUIVO: C:\Users\Zé\Desktop\robo-minha-agenda\src\orchestrators\orchestrators.js =====
+===== ARQUIVO: C:\Users\Zï¿½\Desktop\robo-minha-agenda\src\orchestrators\orchestrators.js =====
 
 const Kernel = require('../core/Kernel');
 const AgendaResponder = require('../responders/AgendaResponder');
@@ -1605,7 +1605,7 @@ class AgendaOrchestrator {
 module.exports = new AgendaOrchestrator();
 
 
-===== ARQUIVO: C:\Users\Zé\Desktop\robo-minha-agenda\src\responders\AgendaResponder.js =====
+===== ARQUIVO: C:\Users\Zï¿½\Desktop\robo-minha-agenda\src\responders\AgendaResponder.js =====
 
 class AgendaResponder {
 
@@ -1711,7 +1711,7 @@ class AgendaResponder {
 module.exports = new AgendaResponder();
 
 
-===== ARQUIVO: C:\Users\Zé\Desktop\robo-minha-agenda\src\services\agendaAtendimentoService.js =====
+===== ARQUIVO: C:\Users\Zï¿½\Desktop\robo-minha-agenda\src\services\agendaAtendimentoService.js =====
 
 const Debugger = require('../core/Debugger');
 
@@ -1996,7 +1996,7 @@ module.exports = {
 };
 
 
-===== ARQUIVO: C:\Users\Zé\Desktop\robo-minha-agenda\src\services\agendaHorarioService.js =====
+===== ARQUIVO: C:\Users\Zï¿½\Desktop\robo-minha-agenda\src\services\agendaHorarioService.js =====
 
 const Debugger = require('../core/Debugger');
 
@@ -2104,7 +2104,7 @@ module.exports = {
 };
 
 
-===== ARQUIVO: C:\Users\Zé\Desktop\robo-minha-agenda\src\services\agendaNavigationService.js =====
+===== ARQUIVO: C:\Users\Zï¿½\Desktop\robo-minha-agenda\src\services\agendaNavigationService.js =====
 
 const Debugger = require('../core/Debugger');
 
@@ -2203,7 +2203,7 @@ module.exports = {
 };
 
 
-===== ARQUIVO: C:\Users\Zé\Desktop\robo-minha-agenda\src\services\agendaService.js =====
+===== ARQUIVO: C:\Users\Zï¿½\Desktop\robo-minha-agenda\src\services\agendaService.js =====
 
 const {
     abrirHorario
@@ -2234,7 +2234,7 @@ module.exports = {
 };
 
 
-===== ARQUIVO: C:\Users\Zé\Desktop\robo-minha-agenda\src\services\agendaServicoService.js =====
+===== ARQUIVO: C:\Users\Zï¿½\Desktop\robo-minha-agenda\src\services\agendaServicoService.js =====
 
 const Debugger = require('../core/Debugger');
 
@@ -2346,7 +2346,7 @@ module.exports = {
 };
 
 
-===== ARQUIVO: C:\Users\Zé\Desktop\robo-minha-agenda\src\services\agendaUtils.js =====
+===== ARQUIVO: C:\Users\Zï¿½\Desktop\robo-minha-agenda\src\services\agendaUtils.js =====
 
 function normalizarBusca(texto) {
     return String(texto || '')
@@ -2415,7 +2415,7 @@ module.exports = {
 };
 
 
-===== ARQUIVO: C:\Users\Zé\Desktop\robo-minha-agenda\src\services\clienteAutocompleteService.js =====
+===== ARQUIVO: C:\Users\Zï¿½\Desktop\robo-minha-agenda\src\services\clienteAutocompleteService.js =====
 
 function normalizarTexto(texto) {
     return String(texto || '')
@@ -2501,14 +2501,14 @@ async function lerOpcoesCliente(page, cliente, telefone) {
             texto,
             nomeExato: nomeExato(texto, cliente),
             telefoneCombina: telefoneCombina(texto, telefone),
-            possuiTelefone: normalizarTelefone(texto).length >= 8
+            Telefone: normalizarTelefone(texto).length >= 8
         });
     }
 
     return resultado;
 }
 
-async function clicarAdicionarCliente(page) {
+async function clicarAdicionarCliepossuinte(page) {
     const candidatos = [
         page.getByText('ADICIONAR CLIENTE', { exact: false }),
         page.getByText('Adicionar cliente', { exact: false }),
@@ -2542,7 +2542,7 @@ module.exports = {
 };
 
 
-===== ARQUIVO: C:\Users\Zé\Desktop\robo-minha-agenda\src\services\clienteBuscaService.js =====
+===== ARQUIVO: C:\Users\Zï¿½\Desktop\robo-minha-agenda\src\services\clienteBuscaService.js =====
 
 const Debugger = require('../core/Debugger');
 
@@ -2705,7 +2705,7 @@ module.exports = {
 };
 
 
-===== ARQUIVO: C:\Users\Zé\Desktop\robo-minha-agenda\src\services\clienteCriacaoService.js =====
+===== ARQUIVO: C:\Users\Zï¿½\Desktop\robo-minha-agenda\src\services\clienteCriacaoService.js =====
 
 const Debugger = require('../core/Debugger');
 
@@ -2848,7 +2848,7 @@ module.exports = {
 };
 
 
-===== ARQUIVO: C:\Users\Zé\Desktop\robo-minha-agenda\src\services\clienteService.js =====
+===== ARQUIVO: C:\Users\Zï¿½\Desktop\robo-minha-agenda\src\services\clienteService.js =====
 
 const Debugger = require('../core/Debugger');
 
@@ -2897,7 +2897,7 @@ module.exports = {
 };
 
 
-===== ARQUIVO: C:\Users\Zé\Desktop\robo-minha-agenda\src\services\clienteUtils.js =====
+===== ARQUIVO: C:\Users\Zï¿½\Desktop\robo-minha-agenda\src\services\clienteUtils.js =====
 
 function normalizarTexto(texto) {
     return String(texto || '')
@@ -2954,7 +2954,7 @@ module.exports = {
 };
 
 
-===== ARQUIVO: C:\Users\Zé\Desktop\robo-minha-agenda\src\utils\browser.js =====
+===== ARQUIVO: C:\Users\Zï¿½\Desktop\robo-minha-agenda\src\utils\browser.js =====
 
 const BrowserManager = require('../managers/BrowserManager');
 
@@ -2967,7 +2967,7 @@ module.exports = {
 };
 
 
-===== ARQUIVO: C:\Users\Zé\Desktop\robo-minha-agenda\src\validators\commandValidator.js =====
+===== ARQUIVO: C:\Users\Zï¿½\Desktop\robo-minha-agenda\src\validators\commandValidator.js =====
 
 class CommandValidator {
 
@@ -3084,7 +3084,7 @@ class CommandValidator {
 module.exports = new CommandValidator();
 
 
-===== ARQUIVO: C:\Users\Zé\Desktop\robo-minha-agenda\abrir.js =====
+===== ARQUIVO: C:\Users\Zï¿½\Desktop\robo-minha-agenda\abrir.js =====
 
 const { abrirBrowser } = require('./src/utils/browser');
 
@@ -3104,7 +3104,7 @@ const { abrirBrowser } = require('./src/utils/browser');
 })();
 
 
-===== ARQUIVO: C:\Users\Zé\Desktop\robo-minha-agenda\app.js =====
+===== ARQUIVO: C:\Users\Zï¿½\Desktop\robo-minha-agenda\app.js =====
 
 const { criarAgendamento } = require('./src/controllers/agendamentoController');
 
@@ -3119,7 +3119,7 @@ criarAgendamento(dados).then((resposta) => {
 });
 
 
-===== ARQUIVO: C:\Users\Zé\Desktop\robo-minha-agenda\auth.json =====
+===== ARQUIVO: C:\Users\Zï¿½\Desktop\robo-minha-agenda\auth.json =====
 
 {
   "cookies": [
@@ -3192,7 +3192,7 @@ criarAgendamento(dados).then((resposta) => {
 }
 
 
-===== ARQUIVO: C:\Users\Zé\Desktop\robo-minha-agenda\cancelar.js =====
+===== ARQUIVO: C:\Users\Zï¿½\Desktop\robo-minha-agenda\cancelar.js =====
 
 const { cancelarAgendamento } = require('./src/controllers/cancelamentoController');
 
@@ -3205,7 +3205,7 @@ cancelarAgendamento(dados).then((resposta) => {
 });
 
 
-===== ARQUIVO: C:\Users\Zé\Desktop\robo-minha-agenda\criarAgendamento_backup.js =====
+===== ARQUIVO: C:\Users\Zï¿½\Desktop\robo-minha-agenda\criarAgendamento_backup.js =====
 
 const { chromium } = require('playwright');
 
@@ -3248,7 +3248,7 @@ const servico = 'un';
 })();
 
 
-===== ARQUIVO: C:\Users\Zé\Desktop\robo-minha-agenda\engine.js =====
+===== ARQUIVO: C:\Users\Zï¿½\Desktop\robo-minha-agenda\engine.js =====
 
 const Kernel = require('./src/core/Kernel');
 const AgendaEngine = require('./src/engines/agenda/agendaEngine');
@@ -3343,7 +3343,7 @@ executar().catch((erro) => {
 });
 
 
-===== ARQUIVO: C:\Users\Zé\Desktop\robo-minha-agenda\gravar.js =====
+===== ARQUIVO: C:\Users\Zï¿½\Desktop\robo-minha-agenda\gravar.js =====
 
 const { chromium } = require('playwright');
 
@@ -3381,7 +3381,7 @@ const { chromium } = require('playwright');
 })();
 
 
-===== ARQUIVO: C:\Users\Zé\Desktop\robo-minha-agenda\package.json =====
+===== ARQUIVO: C:\Users\Zï¿½\Desktop\robo-minha-agenda\package.json =====
 
 {
   "name": "robo-minha-agenda",
@@ -3403,7 +3403,7 @@ const { chromium } = require('playwright');
 }
 
 
-===== ARQUIVO: C:\Users\Zé\Desktop\robo-minha-agenda\server.js =====
+===== ARQUIVO: C:\Users\Zï¿½\Desktop\robo-minha-agenda\server.js =====
 
 const express = require('express');
 
