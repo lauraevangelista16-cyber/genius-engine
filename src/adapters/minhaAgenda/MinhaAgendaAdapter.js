@@ -36,7 +36,7 @@ const {
 
 async function step(page, nome) {
     Logger.info(`[MinhaAgendaAdapter] ${nome}`);
-    await Debugger.step(page, nome).catch(() => {});
+    await Debugger.step(page, nome).catch(() => { });
 }
 
 async function obterPage() {
@@ -266,7 +266,7 @@ class MinhaAgendaAdapter {
             );
 
             if (clienteJaExiste.status === 'CLIENTE_SELECIONADO') {
-                await page.keyboard.press('Escape').catch(() => {});
+                await page.keyboard.press('Escape').catch(() => { });
 
                 return {
                     status: 'CLIENTE_JA_CADASTRADO',
@@ -286,7 +286,7 @@ class MinhaAgendaAdapter {
                 `A000-status-cadastro-cliente-${criacao.status}`
             );
 
-            await page.keyboard.press('Escape').catch(() => {});
+            await page.keyboard.press('Escape').catch(() => { });
             await page.waitForTimeout(1000);
 
             if (criacao.status !== 'CLIENTE_CRIADO') {
@@ -404,7 +404,7 @@ class MinhaAgendaAdapter {
                     ) {
                         await page.keyboard
                             .press('Escape')
-                            .catch(() => {});
+                            .catch(() => { });
 
                         return ajusteHorario;
                     }
@@ -491,7 +491,7 @@ class MinhaAgendaAdapter {
                 ) {
                     await page.keyboard
                         .press('Escape')
-                        .catch(() => {});
+                        .catch(() => { });
 
                     return {
                         status: 'ERRO_CLIENTE',
@@ -506,7 +506,7 @@ class MinhaAgendaAdapter {
             ) {
                 await page.keyboard
                     .press('Escape')
-                    .catch(() => {});
+                    .catch(() => { });
 
                 return {
                     status: 'ERRO_CLIENTE',
@@ -545,7 +545,7 @@ class MinhaAgendaAdapter {
                 resultadoServico &&
                 resultadoServico.status &&
                 resultadoServico.status !==
-                    'SERVICO_SELECIONADO'
+                'SERVICO_SELECIONADO'
             ) {
                 return resultadoServico;
             }
@@ -710,220 +710,248 @@ class MinhaAgendaAdapter {
         }
     }
 
-   async cancelarAgendamento(dados = {}) {
-    const dadosNormalizados = normalizarDados(dados);
-    const page = await obterPage();
+    async cancelarAgendamento(dados = {}) {
+        const dadosNormalizados = normalizarDados(dados);
+        const page = await obterPage();
 
-    try {
-        await step(page, 'A014-cancelar-inicio');
+        try {
+            await step(page, 'A014-cancelar-inicio');
 
-        /*
-         * Mantém os dados originais quando a data já foi informada.
-         * Quando não houver data, eles serão preenchidos pela busca global.
-         */
-        let dataEfetiva = String(
-            dadosNormalizados.data || ''
-        ).trim();
+            /*
+             * Mantém os dados originais quando a data já foi informada.
+             * Quando não houver data, eles serão preenchidos pela busca global.
+             */
+            let dataEfetiva = String(
+                dadosNormalizados.data || ''
+            ).trim();
 
-        let horarioEfetivo = String(
-            dadosNormalizados.horario || ''
-        ).trim();
+            let horarioEfetivo = String(
+                dadosNormalizados.horario || ''
+            ).trim();
 
-        let servicoEfetivo = String(
-            dadosNormalizados.servico || ''
-        ).trim();
+            let servicoEfetivo = String(
+                dadosNormalizados.servico || ''
+            ).trim();
 
-        /*
-         * Cancelamento sem data:
-         * primeiro localiza o atendimento pela busca global.
-         */
-        if (!dataEfetiva) {
+            /*
+             * Cancelamento sem data:
+             * primeiro localiza o atendimento pela busca global.
+             */
+            if (!dataEfetiva) {
+                await step(
+                    page,
+                    'A014A-cancelar-busca-global-inicio'
+                );
+
+                const resultadoBusca = await abrirBuscaGlobal(
+                    page,
+                    dadosNormalizados.cliente
+                );
+
+               const todosAtendimentos =
+    resultadoBusca.resultados || [];
+
+const hojeISO = new Intl.DateTimeFormat(
+    'en-CA',
+    {
+        timeZone: 'America/Bahia',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+    }
+).format(new Date());
+
+const atendimentos = todosAtendimentos.filter(
+    atendimento => {
+        const dataISO = converterDataBuscaGlobal(
+            atendimento.data
+        );
+
+        return dataISO && dataISO >= hojeISO;
+    }
+);
+
+Logger.info(
+    `[MinhaAgendaAdapter] Filtro de datas do cancelamento: ${JSON.stringify({
+        hoje: hojeISO,
+        totalBusca: todosAtendimentos.length,
+        totalAtuaisOuFuturos: atendimentos.length
+    })}`
+);
+
+Logger.info(
+    `[MinhaAgendaAdapter] Resultados da busca global para cancelamento: ${JSON.stringify(atendimentos)}`
+);
+
+                if (atendimentos.length === 0) {
+                    return {
+                        status: 'AGENDAMENTO_NAO_ENCONTRADO',
+                        mensagem:
+                            'Nenhum agendamento encontrado.',
+                        atendimentos: []
+                    };
+                }
+
+                if (atendimentos.length > 1) {
+                    return {
+                        status: 'MULTIPLOS_AGENDAMENTOS',
+                        mensagem:
+                            'Encontrei mais de um agendamento.',
+                        atendimentos,
+                        total: atendimentos.length
+                    };
+                }
+
+                const atendimentoGlobal = atendimentos[0];
+
+                dataEfetiva = converterDataBuscaGlobal(
+                    atendimentoGlobal.data
+                );
+
+                horarioEfetivo = extrairHorarioInicial(
+                    atendimentoGlobal.horario
+                );
+
+                servicoEfetivo = String(
+                    atendimentoGlobal.servico || ''
+                ).trim();
+
+                Logger.info(
+                    `[MinhaAgendaAdapter] Atendimento único identificado para cancelamento: ${JSON.stringify({
+                        data: dataEfetiva,
+                        horario: horarioEfetivo,
+                        servico: servicoEfetivo
+                    })}`
+                );
+
+                if (!dataEfetiva) {
+                    return {
+                        status: 'ERRO_DATA',
+                        mensagem:
+                            'O agendamento foi encontrado, mas não foi possível identificar a data.'
+                    };
+                }
+
+                if (!horarioEfetivo) {
+                    return {
+                        status: 'ERRO_HORARIO',
+                        mensagem:
+                            'O agendamento foi encontrado, mas não foi possível identificar o horário.'
+                    };
+                }
+
+                /*
+                 * Fecha a busca global antes de navegar para o dia.
+                 */
+                await page.keyboard
+                    .press('Escape')
+                    .catch(() => { });
+
+                await page.waitForTimeout(500);
+            }
+
+            await irParaData(
+                page,
+                dataEfetiva
+            );
+
+            await step(page, 'A015-cancelar-data');
+
+            const atendimento =
+                await abrirAtendimentoPorCliente(
+                    page,
+                    dadosNormalizados.cliente,
+                    dadosNormalizados.telefone,
+                    horarioEfetivo,
+                    servicoEfetivo
+                );
+
             await step(
                 page,
-                'A014A-cancelar-busca-global-inicio'
+                `A016-cancelar-encontrado-${atendimento.encontrado}`
             );
 
-            const resultadoBusca = await abrirBuscaGlobal(
-                page,
-                dadosNormalizados.cliente
-            );
-
-            const atendimentos =
-                resultadoBusca.resultados || [];
-
-            Logger.info(
-                `[MinhaAgendaAdapter] Resultados da busca global para cancelamento: ${JSON.stringify(atendimentos)}`
-            );
-
-            if (atendimentos.length === 0) {
+            if (!atendimento.encontrado) {
                 return {
                     status: 'AGENDAMENTO_NAO_ENCONTRADO',
                     mensagem:
-                        'Nenhum agendamento encontrado.',
-                    atendimentos: []
+                        'Nenhum agendamento encontrado.'
                 };
             }
 
-            if (atendimentos.length > 1) {
+            if (atendimento.multiplos) {
                 return {
                     status: 'MULTIPLOS_AGENDAMENTOS',
-                    mensagem:
-                        'Encontrei mais de um agendamento.',
-                    atendimentos,
-                    total: atendimentos.length
+                    atendimentos:
+                        atendimento.texto ||
+                        atendimento.atendimentos
                 };
             }
 
-            const atendimentoGlobal = atendimentos[0];
+            await deletarAgendamento(page);
 
-            dataEfetiva = converterDataBuscaGlobal(
-                atendimentoGlobal.data
-            );
+            await step(page, 'A017-cancelado');
 
-            horarioEfetivo = extrairHorarioInicial(
-                atendimentoGlobal.horario
-            );
-
-            servicoEfetivo = String(
-                atendimentoGlobal.servico || ''
-            ).trim();
-
-            Logger.info(
-                `[MinhaAgendaAdapter] Atendimento único identificado para cancelamento: ${JSON.stringify({
-                    data: dataEfetiva,
-                    horario: horarioEfetivo,
-                    servico: servicoEfetivo
-                })}`
-            );
-
-            if (!dataEfetiva) {
-                return {
-                    status: 'ERRO_DATA',
-                    mensagem:
-                        'O agendamento foi encontrado, mas não foi possível identificar a data.'
-                };
-            }
-
-            if (!horarioEfetivo) {
-                return {
-                    status: 'ERRO_HORARIO',
-                    mensagem:
-                        'O agendamento foi encontrado, mas não foi possível identificar o horário.'
-                };
-            }
-
-            /*
-             * Fecha a busca global antes de navegar para o dia.
-             */
-            await page.keyboard
-                .press('Escape')
-                .catch(() => {});
-
-            await page.waitForTimeout(500);
-        }
-
-        await irParaData(
-            page,
-            dataEfetiva
-        );
-
-        await step(page, 'A015-cancelar-data');
-
-        const atendimento =
-            await abrirAtendimentoPorCliente(
-                page,
-                dadosNormalizados.cliente,
-                dadosNormalizados.telefone,
-                horarioEfetivo,
-                servicoEfetivo
-            );
-
-        await step(
-            page,
-            `A016-cancelar-encontrado-${atendimento.encontrado}`
-        );
-
-        if (!atendimento.encontrado) {
-            return {
-                status: 'AGENDAMENTO_NAO_ENCONTRADO',
-                mensagem:
-                    'Nenhum agendamento encontrado.'
-            };
-        }
-
-        if (atendimento.multiplos) {
-            return {
-                status: 'MULTIPLOS_AGENDAMENTOS',
-                atendimentos:
-                    atendimento.texto ||
-                    atendimento.atendimentos
-            };
-        }
-
-        await deletarAgendamento(page);
-
-        await step(page, 'A017-cancelado');
-
-        await step(
-            page,
-            'A017B-confirmacao-cancelamento-inicio'
-        );
-
-        await irParaData(
-            page,
-            dataEfetiva
-        );
-
-        const confirmacaoCancelamento =
-            await consultarAtendimentoPorCliente(
-                page,
-                dadosNormalizados.cliente,
-                dadosNormalizados.telefone,
-                horarioEfetivo,
-                servicoEfetivo
-            );
-
-        Logger.info(
-            `[MinhaAgendaAdapter] Confirmação pós-cancelamento: ${JSON.stringify(confirmacaoCancelamento)}`
-        );
-
-        if (confirmacaoCancelamento.encontrado) {
             await step(
                 page,
-                'A017C-cancelamento-nao-confirmado'
+                'A017B-confirmacao-cancelamento-inicio'
+            );
+
+            await irParaData(
+                page,
+                dataEfetiva
+            );
+
+            const confirmacaoCancelamento =
+                await consultarAtendimentoPorCliente(
+                    page,
+                    dadosNormalizados.cliente,
+                    dadosNormalizados.telefone,
+                    horarioEfetivo,
+                    servicoEfetivo
+                );
+
+            Logger.info(
+                `[MinhaAgendaAdapter] Confirmação pós-cancelamento: ${JSON.stringify(confirmacaoCancelamento)}`
+            );
+
+            if (confirmacaoCancelamento.encontrado) {
+                await step(
+                    page,
+                    'A017C-cancelamento-nao-confirmado'
+                );
+
+                return {
+                    status:
+                        'ERRO_CANCELAMENTO_NAO_CONFIRMADO',
+                    mensagem:
+                        'O cancelamento foi executado, mas o agendamento ainda aparece na agenda.'
+                };
+            }
+
+            await step(
+                page,
+                'A017D-cancelamento-confirmado'
             );
 
             return {
-                status:
-                    'ERRO_CANCELAMENTO_NAO_CONFIRMADO',
+                status: 'AGENDAMENTO_CANCELADO',
                 mensagem:
-                    'O cancelamento foi executado, mas o agendamento ainda aparece na agenda.'
+                    'Agendamento cancelado com sucesso.'
+            };
+        } catch (erro) {
+            Logger.error(
+                `[MinhaAgendaAdapter] erro cancelarAgendamento: ${erro.message}`
+            );
+
+            return {
+                status: 'ERRO',
+                mensagem:
+                    erro.message ||
+                    'Erro ao cancelar agendamento.'
             };
         }
-
-        await step(
-            page,
-            'A017D-cancelamento-confirmado'
-        );
-
-        return {
-            status: 'AGENDAMENTO_CANCELADO',
-            mensagem:
-                'Agendamento cancelado com sucesso.'
-        };
-    } catch (erro) {
-        Logger.error(
-            `[MinhaAgendaAdapter] erro cancelarAgendamento: ${erro.message}`
-        );
-
-        return {
-            status: 'ERRO',
-            mensagem:
-                erro.message ||
-                'Erro ao cancelar agendamento.'
-        };
     }
-}
 
     async alterarAgendamento(dados = {}) {
         const dadosNormalizados = normalizarDados(dados);
@@ -998,11 +1026,11 @@ class MinhaAgendaAdapter {
                         (
                             !item.includes(':') &&
                             item.toLowerCase() !==
-                                String(
-                                    dadosNormalizados.cliente
-                                )
-                                    .trim()
-                                    .toLowerCase()
+                            String(
+                                dadosNormalizados.cliente
+                            )
+                                .trim()
+                                .toLowerCase()
                         )
                 );
 
@@ -1023,7 +1051,7 @@ class MinhaAgendaAdapter {
             if (duracaoServico === null) {
                 await page.keyboard
                     .press('Escape')
-                    .catch(() => {});
+                    .catch(() => { });
 
                 return {
                     status: 'SERVICO_NAO_ENCONTRADO',
@@ -1041,7 +1069,7 @@ class MinhaAgendaAdapter {
             if (inicioEmMinutos === null) {
                 await page.keyboard
                     .press('Escape')
-                    .catch(() => {});
+                    .catch(() => { });
 
                 return {
                     status: 'HORARIO_INVALIDO',
@@ -1061,7 +1089,7 @@ class MinhaAgendaAdapter {
             ) {
                 await page.keyboard
                     .press('Escape')
-                    .catch(() => {});
+                    .catch(() => { });
 
                 return {
                     status: 'FORA_DO_EXPEDIENTE',
@@ -1123,9 +1151,9 @@ class MinhaAgendaAdapter {
 
                 if (
                     clienteAlterado.status !==
-                        'CLIENTE_SELECIONADO' &&
+                    'CLIENTE_SELECIONADO' &&
                     clienteAlterado.status !==
-                        'CLIENTE_CRIADO'
+                    'CLIENTE_CRIADO'
                 ) {
                     return {
                         status: 'ERRO_CLIENTE',
