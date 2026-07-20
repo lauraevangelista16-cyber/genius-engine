@@ -661,6 +661,50 @@ identificarAcaoExplicita(mensagem = '') {
                 sessionId
             ) || {};
 
+        /*
+         * Atendimento humano ativo:
+         * a mensagem não pode seguir para o Interpretador,
+         * nem alterar dados ou etapas da conversa.
+         */
+        if (
+            sessao.estado === 'HUMANO_ATIVO'
+        ) {
+            console.log(
+                '[CONVERSATION] Atendimento humano ativo. Processamento automático bloqueado:',
+                {
+                    sessionId,
+                    action:
+                        sessao.action || null,
+                    etapa:
+                        sessao.etapa || null
+                }
+            );
+
+            return {
+                tipo: 'agenda',
+                processar: false,
+                bloqueado: true,
+                motivo: 'HUMANO_ATIVO',
+                continuarSessao: false,
+                usarInterpretador: false,
+                telefoneWhatsApp: sessionId,
+                mensagem:
+                    mensagemNormalizada,
+                estado: 'HUMANO_ATIVO',
+                action:
+                    sessao.action || null,
+                etapa:
+                    sessao.etapa || null,
+                dados:
+                    sessao.dados || {},
+                validacao: {
+                    ok: false,
+                    campo: null,
+                    mensagem: null
+                }
+            };
+        }
+
         const continuarSessao =
             this.possuiEtapaPendente(
                 sessao.etapa

@@ -42,6 +42,47 @@ app.post('/sessao', async (req, res) => {
 const sessaoAtual =
     await SessionManager.get(sessionId);
 
+/*
+ * Atendimento humano ativo:
+ * não consolida dados, não altera etapa e não permite
+ * que a mensagem siga para o Interpretador.
+ */
+if (
+    sessaoAtual.estado === 'HUMANO_ATIVO'
+) {
+    console.log(
+        '[SESSION] Atendimento humano ativo. Consolidação automática bloqueada:',
+        {
+            sessionId,
+            action:
+                sessaoAtual.action || null,
+            etapa:
+                sessaoAtual.etapa || null
+        }
+    );
+
+    return res.json({
+        tipo: 'agenda',
+        processar: false,
+        bloqueado: true,
+        motivo: 'HUMANO_ATIVO',
+        usarInterpretador: false,
+        telefoneWhatsApp: sessionId,
+        estado: 'HUMANO_ATIVO',
+        action:
+            sessaoAtual.action || null,
+        etapa:
+            sessaoAtual.etapa || null,
+        dados:
+            sessaoAtual.dados || {},
+        validacao: {
+            ok: false,
+            campo: null,
+            mensagem: null
+        }
+    });
+}
+
 const etapasPendentes = [
     'AGUARDANDO_ACAO',
     'AGUARDANDO_CLIENTE',
@@ -166,6 +207,147 @@ app.post('/continuar', async (req, res) => {
     }
 });
 
+app.post('/sessao/humano', async (req, res) => {
+    try {
+        const {
+            telefoneWhatsApp
+        } = req.body || {};
+
+        if (!telefoneWhatsApp) {
+            throw new Error(
+                'telefoneWhatsApp é obrigatório para ativar o atendimento humano.'
+            );
+        }
+
+        const sessionId = String(
+            telefoneWhatsApp
+        ).trim();
+
+        const sessao =
+            await SessionManager.setEstado(
+                sessionId,
+                'HUMANO_ATIVO'
+            );
+
+        console.log(
+            '[SESSION] Atendimento humano ativado:',
+            {
+                sessionId,
+                action:
+                    sessao.action || null,
+                etapa:
+                    sessao.etapa || null
+            }
+        );
+
+        return res.json({
+            success: true,
+            telefoneWhatsApp:
+                sessionId,
+            estado:
+                sessao.estado,
+            action:
+                sessao.action || null,
+            etapa:
+                sessao.etapa || null,
+            dados:
+                sessao.dados || {},
+            mensagem:
+                'Atendimento humano ativado com sucesso.'
+        });
+
+    } catch (erro) {
+        console.error(
+            '[POST /sessao/humano]',
+            erro
+        );
+
+        const erroTratado =
+            ErrorHandler.tratar(erro);
+
+        return res.status(400).json(
+            erroTratado
+        );
+    }
+});
+
+app.post('/sessao/bot', async (req, res) => {
+    try {
+        const {
+            telefoneWhatsApp,
+            limparFluxo = true
+        } = req.body || {};
+
+        if (!telefoneWhatsApp) {
+            throw new Error(
+                'telefoneWhatsApp é obrigatório para reativar o bot.'
+            );
+        }
+
+        const sessionId = String(
+            telefoneWhatsApp
+        ).trim();
+
+        let sessao;
+
+        if (limparFluxo === true) {
+            await SessionManager.resetFluxo(
+                sessionId
+            );
+        }
+
+        sessao =
+            await SessionManager.setEstado(
+                sessionId,
+                'BOT_ATIVO'
+            );
+
+        console.log(
+            '[SESSION] Bot reativado:',
+            {
+                sessionId,
+                limparFluxo:
+                    limparFluxo === true,
+                action:
+                    sessao.action || null,
+                etapa:
+                    sessao.etapa || null
+            }
+        );
+
+        return res.json({
+            success: true,
+            telefoneWhatsApp:
+                sessionId,
+            estado:
+                sessao.estado,
+            action:
+                sessao.action || null,
+            etapa:
+                sessao.etapa || null,
+            dados:
+                sessao.dados || {},
+            fluxoLimpo:
+                limparFluxo === true,
+            mensagem:
+                'Bot reativado com sucesso.'
+        });
+
+    } catch (erro) {
+        console.error(
+            '[POST /sessao/bot]',
+            erro
+        );
+
+        const erroTratado =
+            ErrorHandler.tratar(erro);
+
+        return res.status(400).json(
+            erroTratado
+        );
+    }
+});
+
 app.post('/agenda', async (req, res) => {
     try {
         const {
@@ -183,6 +365,54 @@ app.post('/agenda', async (req, res) => {
         // A sessão pertence ao telefone que está conversando no WhatsApp.
         // dados.telefone pode representar outra pessoa em agendamentos para terceiros.
         const sessionId = telefoneWhatsApp;
+
+        const sessaoAtual =
+            await SessionManager.get(
+                sessionId
+            );
+
+        if (
+            sessaoAtual.estado === 'HUMANO_ATIVO'
+        ) {
+            console.log(
+                '[AGENDA] Atendimento humano ativo. Execução da Engine bloqueada:',
+                {
+                    sessionId,
+                    action:
+                        action || null,
+                    etapa:
+                        sessaoAtual.etapa || null
+                }
+            );
+
+            return res.json({
+                tipo: 'agenda',
+                processar: false,
+                bloqueado: true,
+                motivo: 'HUMANO_ATIVO',
+                usarInterpretador: false,
+                telefoneWhatsApp:
+                    sessionId,
+                estado:
+                    'HUMANO_ATIVO',
+                action:
+                    sessaoAtual.action ||
+                    action ||
+                    null,
+                etapa:
+                    sessaoAtual.etapa ||
+                    null,
+                dados:
+                    sessaoAtual.dados ||
+                    dados ||
+                    {},
+                validacao: {
+                    ok: false,
+                    campo: null,
+                    mensagem: null
+                }
+            });
+        }
 
 const resposta = await AgendaOrchestrator.executar(
     action,
