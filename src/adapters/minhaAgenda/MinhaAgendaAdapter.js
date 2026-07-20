@@ -12,7 +12,7 @@ const {
 
 const {
     resolverBuscaGlobal
-} = require('../services/agendaResolverBuscaGlobalService');
+} = require('../../services/agendaResolverBuscaGlobalService');
 
 const {
     horarioParaMinutos,
