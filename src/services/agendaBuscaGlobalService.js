@@ -6,6 +6,72 @@ async function step(page, nome) {
     await Debugger.step(page, nome).catch(() => {});
 }
 
+/*
+ * Localiza somente um campo visível da busca global.
+ * Mantém o seletor original como primeira tentativa e
+ * adiciona alternativas para pequenas mudanças na interface.
+ */
+const localizarCampoBuscaGlobal = async (page) => {
+    const seletores = [
+        'input[placeholder*="cliente" i][placeholder*="buscar" i]',
+        'input[placeholder*="buscar cliente" i]',
+        'input[placeholder*="cliente" i]',
+        'input[placeholder*="buscar" i]',
+        'input[placeholder*="pesquisar" i]',
+        'input[aria-label*="cliente" i]',
+        'input[aria-label*="buscar" i]',
+        'input[aria-label*="pesquisar" i]',
+        'input[type="search"]'
+    ];
+
+    for (const seletor of seletores) {
+        const campos = page.locator(seletor);
+        const total = await campos.count().catch(() => 0);
+
+        for (let i = 0; i < total; i++) {
+            const campo = campos.nth(i);
+
+            const visivel = await campo
+                .isVisible()
+                .catch(() => false);
+
+            if (!visivel) {
+                continue;
+            }
+
+            Logger.info(
+                `[agendaBuscaGlobalService] Campo de busca localizado com o seletor: ${seletor}`
+            );
+
+            return campo;
+        }
+    }
+
+    return null;
+};
+
+/*
+ * Aguarda o campo aparecer depois do clique na lupa.
+ */
+const aguardarCampoBuscaGlobal = async (
+    page,
+    timeout = 10000
+) => {
+    const inicio = Date.now();
+
+    while (Date.now() - inicio < timeout) {
+        const campoBusca = await localizarCampoBuscaGlobal(page);
+
+        if (campoBusca) {
+            return campoBusca;
+        }
+
+        await page.waitForTimeout(250);
+    }
+
+    return null;
+};
+
 const lerResultadosBuscaGlobal = async (page) => {
     const linhas = page.locator('tbody tr');
     const total = await linhas.count().catch(() => 0);
@@ -49,13 +115,9 @@ const lerResultadosBuscaGlobal = async (page) => {
 const abrirBuscaGlobal = async (page, cliente) => {
     await step(page, '001-inicio-busca-global');
 
-    const campoBusca = page.locator(
-        'input[placeholder*="cliente" i][placeholder*="buscar" i]'
-    );
+    let campoBusca = await localizarCampoBuscaGlobal(page);
 
-    const buscaJaAberta = await campoBusca
-        .isVisible()
-        .catch(() => false);
+    const buscaJaAberta = Boolean(campoBusca);
 
     if (buscaJaAberta) {
         Logger.info(
@@ -89,9 +151,15 @@ const abrirBuscaGlobal = async (page, cliente) => {
         if (!visivel) continue;
 
         const texto = await botao.innerText().catch(() => '');
-        const ariaLabel = await botao.getAttribute('aria-label').catch(() => '');
-        const title = await botao.getAttribute('title').catch(() => '');
-        const html = await botao.evaluate(el => el.outerHTML).catch(() => '');
+        const ariaLabel = await botao
+            .getAttribute('aria-label')
+            .catch(() => '');
+        const title = await botao
+            .getAttribute('title')
+            .catch(() => '');
+        const html = await botao
+            .evaluate(el => el.outerHTML)
+            .catch(() => '');
 
         const descricao = [
             texto,
@@ -124,7 +192,9 @@ const abrirBuscaGlobal = async (page, cliente) => {
     }
 
     if (!botaoBusca) {
-        throw new Error('Botão da busca global não encontrado.');
+        throw new Error(
+            'Botão da busca global não encontrado.'
+        );
     }
 
     await botaoBusca.click({
@@ -134,10 +204,16 @@ const abrirBuscaGlobal = async (page, cliente) => {
 
     await step(page, '002-clique-lupa');
 
-    await campoBusca.waitFor({
-        state: 'visible',
-        timeout: 10000
-    });
+    campoBusca = await aguardarCampoBuscaGlobal(
+        page,
+        10000
+    );
+
+    if (!campoBusca) {
+        throw new Error(
+            'Campo da busca global não apareceu após clicar na lupa.'
+        );
+    }
 
     await step(page, '003-campo-busca-aberto');
 
