@@ -143,11 +143,21 @@ const listarAtendimentosDoDia = async (page) => {
 
         if (!visivel) continue;
 
-        const texto = await evento.innerText().catch(() => '');
+      const texto = await evento.innerText().catch(() => '');
+const html = await evento.evaluate((elemento) => elemento.outerHTML)
+    .catch(() => '');
 
-        if (texto.trim()) {
-            atendimentos.push(texto);
-        }
+Logger.info(
+    `[listarAtendimentosDoDia] Evento ${i} texto: ${JSON.stringify(texto)}`
+);
+
+Logger.info(
+    `[listarAtendimentosDoDia] Evento ${i} HTML: ${html}`
+);
+
+if (texto.trim()) {
+    atendimentos.push(texto);
+}
     }
 
     return atendimentos;
