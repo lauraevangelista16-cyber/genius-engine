@@ -112,7 +112,7 @@ function consultarHorariosDisponiveis(dados) {
 
     const horariosTarde = horarios.filter(horario => {
         const hora = Number(horario.split(':')[0]);
-        return hora >= 12;
+        return hora >= 14;
     });
 
     const partesMensagem = [];

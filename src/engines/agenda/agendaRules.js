@@ -78,8 +78,8 @@ function buscarProximoHorarioLivre(inicioSolicitado, duracao, atendimentos = [])
         const fimAtual = horarioAtual + duracao;
 
         if (!estaDentroDoHorarioFuncionamento(horarioAtual, fimAtual)) {
-            if (horarioAtual < 12 * 60) {
-                horarioAtual = 13 * 60;
+            if (horarioAtual < 14 * 60) {
+                horarioAtual = 14 * 60;
                 continue;
             }
 
