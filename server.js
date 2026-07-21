@@ -414,9 +414,73 @@ app.post('/agenda', async (req, res) => {
             });
         }
 
+const actionNormalizada =
+    action === 'reagendar'
+        ? 'alterar'
+        : action;
+
+const operacoesQueExigemConfirmacao = [
+    'criar',
+    'alterar',
+    'cancelar'
+];
+
+const exigeConfirmacao =
+    operacoesQueExigemConfirmacao.includes(
+        actionNormalizada
+    );
+
+/*
+ * Operações que modificam a agenda somente podem ser
+ * executadas depois da confirmação explícita do usuário.
+ */
+if (
+    exigeConfirmacao &&
+    sessaoAtual.etapa !== 'PRONTO_PARA_EXECUTAR'
+) {
+    console.log(
+        '[AGENDA] Operação bloqueada por falta de confirmação:',
+        {
+            sessionId,
+            action: actionNormalizada,
+            etapa: sessaoAtual.etapa || null
+        }
+    );
+
+    return res.status(409).json({
+        ok: false,
+        success: false,
+        mensagem:
+            'A operação ainda não foi confirmada pelo usuário.',
+        dados: {
+            status: 'CONFIRMACAO_PENDENTE',
+            action: actionNormalizada,
+            etapa: sessaoAtual.etapa || null
+        }
+    });
+}
+
+/*
+ * Em operações confirmadas, a sessão é a fonte confiável.
+ * Isso impede que dados diferentes sejam enviados ao /agenda
+ * depois da confirmação.
+ */
+const actionExecutada =
+    exigeConfirmacao
+        ? sessaoAtual.action || action
+        : action;
+
+const dadosExecutados =
+    exigeConfirmacao
+        ? {
+            ...dados,
+            ...(sessaoAtual.dados || {})
+        }
+        : dados;
+
 const resposta = await AgendaOrchestrator.executar(
-    action,
-    dados
+    actionExecutada,
+    dadosExecutados
 );
 
 const status =
